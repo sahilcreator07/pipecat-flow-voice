@@ -1,6 +1,9 @@
+from typing import Dict
+
 from fastapi import APIRouter, HTTPException
 
 from .models import FlowConfig, VisualFlow
+from .templates import NodeTemplates
 from .validation import validate_flow
 
 router = APIRouter()
@@ -39,3 +42,13 @@ async def export_flow(visual_flow: VisualFlow) -> FlowConfig:
         return FlowConfig(initial_node=visual_flow.initial_node, nodes=nodes)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/templates")
+async def get_templates() -> Dict[str, Dict]:
+    """Get predefined node templates"""
+    return {
+        "message_node": NodeTemplates.get_message_node(),
+        "function_node": NodeTemplates.get_function_node(),
+        "terminal_node": NodeTemplates.get_terminal_node(),
+    }
