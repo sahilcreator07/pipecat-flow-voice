@@ -149,10 +149,11 @@ class PipecatFunctionNode extends LiteGraph.LGraphNode {
           properties: {},
         },
       },
+      isTerminal: false,
     };
 
     this.color = '#9b59b6';
-    this.size = [400, 150]; // Updated size
+    this.size = [400, 150];
 
     // Force minimum width
     this.computeSize = function () {
@@ -160,15 +161,65 @@ class PipecatFunctionNode extends LiteGraph.LGraphNode {
     };
   }
 
+  // New method to check if the function is terminal
+  updateTerminalStatus() {
+    const hasOutputConnection =
+      this.outputs[0].links && this.outputs[0].links.length > 0;
+    const newStatus = !hasOutputConnection;
+
+    if (this.properties.isTerminal !== newStatus) {
+      this.properties.isTerminal = newStatus;
+      this.setDirtyCanvas(true, true);
+    }
+  }
+
+  // Override connection methods to update terminal status
+  connect(slot, targetNode, targetSlot) {
+    const result = super.connect(slot, targetNode, targetSlot);
+    this.updateTerminalStatus();
+    return result;
+  }
+
+  disconnectOutput(slot) {
+    super.disconnectOutput(slot);
+    this.updateTerminalStatus();
+  }
+
+  disconnectInput(slot) {
+    super.disconnectInput(slot);
+    this.updateTerminalStatus();
+  }
+
+  // Called when a connection is removed from any side
+  onConnectionsChange(type, slot, connected, link_info) {
+    super.onConnectionsChange &&
+      super.onConnectionsChange(type, slot, connected, link_info);
+    this.updateTerminalStatus();
+  }
+
   onDrawForeground(ctx) {
+    // Update terminal status before drawing
+    this.updateTerminalStatus();
+
     const padding = 15;
     const textColor = '#ddd';
     const labelColor = '#aaa';
 
+    // Update node color based on terminal status
+    this.color = this.properties.isTerminal ? '#e67e22' : '#9b59b6';
+
+    // Draw terminal/transitional indicator
+    ctx.fillStyle = labelColor;
+    ctx.font = '11px Arial';
+    const typeText = this.properties.isTerminal
+      ? '[Terminal Function]'
+      : '[Transitional Function]';
+    ctx.fillText(typeText, padding, 35);
+
     // Draw function name
     ctx.fillStyle = textColor;
     ctx.font = '14px monospace';
-    ctx.fillText(this.properties.function.name, padding, 50);
+    ctx.fillText(this.properties.function.name, padding, 60);
 
     // Draw description
     ctx.fillStyle = labelColor;
@@ -178,7 +229,7 @@ class PipecatFunctionNode extends LiteGraph.LGraphNode {
     // Word wrap description
     const words = description.split(' ');
     let line = '';
-    let y = 70;
+    let y = 80;
     const maxWidth = this.size[0] - padding * 3;
 
     words.forEach((word) => {
@@ -194,8 +245,17 @@ class PipecatFunctionNode extends LiteGraph.LGraphNode {
     });
     ctx.fillText(line, padding, y);
 
+    // Draw parameters indicator if they exist
+    const hasParameters =
+      Object.keys(this.properties.function.parameters.properties).length > 0;
+    if (hasParameters) {
+      ctx.fillStyle = '#666';
+      ctx.font = '11px Arial';
+      ctx.fillText('Has Parameters ⚙️', padding, y + 25);
+    }
+
     // Adjust node height based on content
-    const desiredHeight = y + padding * 2;
+    const desiredHeight = y + (hasParameters ? 45 : 25);
     if (Math.abs(this.size[1] - desiredHeight) > 10) {
       this.size[1] = desiredHeight;
       this.setDirtyCanvas(true, true);
@@ -204,6 +264,11 @@ class PipecatFunctionNode extends LiteGraph.LGraphNode {
 
   onSelected() {
     updateSidePanel(this);
+  }
+
+  // Add method to handle graph changes
+  onAfterGraphChange() {
+    this.updateTerminalStatus();
   }
 }
 
@@ -487,6 +552,8 @@ function createFlowFromConfig(graph, flowConfig) {
       // Create function node
       const functionNode = new PipecatFunctionNode();
       functionNode.properties.function = funcConfig.function;
+      // Set terminal status based on whether the function name matches a node
+      functionNode.properties.isTerminal = !nodes[funcConfig.function.name];
 
       // Position function node
       const sourceX = sourceNode.pos[0];
@@ -540,6 +607,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
+
+  // Add a custom event handler to update function nodes
+  graph.onAfterChange = () => {
+    graph._nodes.forEach((node) => {
+      if (node instanceof PipecatFunctionNode) {
+        node.onAfterGraphChange();
+      }
+    });
+  };
 
   // Button handlers
   document.getElementById('new-flow').onclick = () => graph.clear();
