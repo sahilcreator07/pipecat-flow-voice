@@ -465,21 +465,50 @@ function generateFlowConfig(graphInstance) {
     );
   }
 
-  // Helper function to find all function nodes connected to a node
+  // New helper function to follow merge node to end
+  function followMergeToEnd(mergeNode) {
+    if (mergeNode.outputs[0].links) {
+      const linkId = mergeNode.outputs[0].links[0]; // Merge node should have one output
+      const link = graphInstance.links[linkId];
+      if (link) {
+        const targetNode = nodes.find((n) => n.id === link.target_id);
+        if (targetNode instanceof PipecatEndNode) {
+          return targetNode;
+        }
+      }
+    }
+    return null;
+  }
+
+  // Helper function to find all functions connected to a node through merge nodes
   function findConnectedFunctions(node) {
     const functions = [];
 
-    // If the node has outputs, check for function nodes
+    // If the node has outputs, check for direct function nodes and merge nodes
     if (node.outputs && node.outputs[0] && node.outputs[0].links) {
       node.outputs[0].links.forEach((linkId) => {
         const link = graphInstance.links[linkId];
         if (link) {
           const targetNode = nodes.find((n) => n.id === link.target_id);
-          if (targetNode && targetNode instanceof PipecatFunctionNode) {
+          if (targetNode instanceof PipecatFunctionNode) {
             functions.push({
               type: 'function',
               function: targetNode.properties.function,
             });
+          } else if (targetNode instanceof PipecatMergeNode) {
+            // If it's a merge node, check if it leads to an end node
+            const endNode = followMergeToEnd(targetNode);
+            if (endNode) {
+              functions.push({
+                type: 'function',
+                function: {
+                  name: 'end',
+                  description:
+                    'Complete the order (use only after user confirms)',
+                  parameters: { type: 'object', properties: {} },
+                },
+              });
+            }
           }
         }
       });
@@ -496,8 +525,11 @@ function generateFlowConfig(graphInstance) {
 
   // Process each node
   nodes.forEach((node) => {
-    if (node instanceof PipecatFunctionNode) {
-      return; // Skip function nodes, they'll be handled as part of their source nodes
+    if (
+      node instanceof PipecatFunctionNode ||
+      node instanceof PipecatMergeNode
+    ) {
+      return; // Skip function and merge nodes, they'll be handled as part of their source nodes
     }
 
     const nodeId = getNodeId(node);
@@ -509,7 +541,7 @@ function generateFlowConfig(graphInstance) {
     // Build node configuration
     flowConfig.nodes[nodeId] = {
       messages: node.properties.messages,
-      functions: functions, // Use the connected functions
+      functions: functions,
     };
 
     // Add actions if they exist and aren't empty
@@ -532,8 +564,8 @@ function createFlowFromConfig(graph, flowConfig) {
   graph.clear();
 
   const nodeSpacing = {
-    horizontal: 400, // Space between main nodes
-    vertical: 150, // Space between function nodes
+    horizontal: 400,
+    vertical: 150,
   };
   const startX = 100;
   const startY = 100;
@@ -584,50 +616,84 @@ function createFlowFromConfig(graph, flowConfig) {
     nodes.end = { node: endNode, config: flowConfig.nodes.end };
   }
 
-  // Second pass: Create function nodes and connections
-  Object.entries(nodes).forEach(([sourceId, { node: sourceNode, config }]) => {
-    if (!config.functions) return;
+  // Analyze function targets across all nodes
+  const functionTargets = new Map(); // Map of target function names to their source functions
+  Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
+    if (nodeConfig.functions) {
+      nodeConfig.functions.forEach((funcConfig) => {
+        const targetName = funcConfig.function.name;
+        if (!functionTargets.has(targetName)) {
+          functionTargets.set(targetName, []);
+        }
+        functionTargets.get(targetName).push({
+          sourceNodeId,
+          funcConfig,
+        });
+      });
+    }
+  });
 
-    // Calculate vertical spacing for multiple functions
-    const functionCount = config.functions.length;
-    const totalHeight = functionCount * nodeSpacing.vertical;
-    const startingY = currentY - totalHeight / 2;
+  // Helper function to create merge node
+  function createMergeNode(sourceNodes, targetNode) {
+    const mergeNode = LiteGraph.createNode('flow/Merge');
+    graph.add(mergeNode);
 
-    config.functions.forEach((funcConfig, index) => {
-      // Create function node
+    // Position merge node between sources and target
+    const avgX =
+      sourceNodes.reduce((sum, n) => sum + n.pos[0], 0) / sourceNodes.length;
+    const avgY =
+      sourceNodes.reduce((sum, n) => sum + n.pos[1], 0) / sourceNodes.length;
+
+    mergeNode.pos = [(avgX + targetNode.pos[0]) / 2, avgY];
+
+    // Add enough inputs for all source nodes
+    while (mergeNode.inputs.length < sourceNodes.length) {
+      mergeNode.addInput(`In ${mergeNode.inputs.length + 1}`, 'flow');
+      mergeNode.size[1] += 20;
+    }
+
+    return mergeNode;
+  }
+
+  // Second pass: Create function nodes and handle merging
+  functionTargets.forEach((sourceFunctions, targetName) => {
+    const targetNode = nodes[targetName]?.node;
+    const functionNodes = [];
+    let currentY = startY;
+
+    // Create function nodes for each source
+    sourceFunctions.forEach(({ sourceNodeId, funcConfig }) => {
+      const sourceNode = nodes[sourceNodeId].node;
       const functionNode = new PipecatFunctionNode();
       functionNode.properties.function = funcConfig.function;
-      // Set terminal status based on whether the function name matches a node
-      functionNode.properties.isTerminal = !nodes[funcConfig.function.name];
+      functionNode.properties.isTerminal = !targetNode;
 
       // Position function node
-      const sourceX = sourceNode.pos[0];
-      const targetNodeId = funcConfig.function.name;
-      const targetInfo = nodes[targetNodeId];
-
-      let functionX, functionY;
-      if (targetInfo) {
-        // This is a connecting function
-        const targetX = targetInfo.node.pos[0];
-        functionX = sourceX + (targetX - sourceX) / 2;
-        functionY = startingY + index * nodeSpacing.vertical;
-
-        // Connect to target node
-        functionNode.pos = [functionX, functionY];
-        graph.add(functionNode);
-        sourceNode.connect(0, functionNode, 0);
-        functionNode.connect(0, targetInfo.node, 0);
-      } else {
-        // This is a terminal function
-        functionX = sourceX + nodeSpacing.horizontal / 2;
-        functionY = startingY + index * nodeSpacing.vertical;
-
-        // Add terminal function node
-        functionNode.pos = [functionX, functionY];
-        graph.add(functionNode);
-        sourceNode.connect(0, functionNode, 0);
-      }
+      functionNode.pos = [
+        sourceNode.pos[0] + nodeSpacing.horizontal / 2,
+        currentY,
+      ];
+      graph.add(functionNode);
+      sourceNode.connect(0, functionNode, 0);
+      functionNodes.push(functionNode);
+      currentY += nodeSpacing.vertical;
     });
+
+    // If this function appears in multiple places and has a target, create merge node
+    if (functionNodes.length > 1 && targetNode) {
+      const mergeNode = createMergeNode(functionNodes, targetNode);
+
+      // Connect function nodes to merge node
+      functionNodes.forEach((functionNode, index) => {
+        functionNode.connect(0, mergeNode, index);
+      });
+
+      // Connect merge node to target
+      mergeNode.connect(0, targetNode, 0);
+    } else if (targetNode) {
+      // Single function case - direct connection
+      functionNodes[0].connect(0, targetNode, 0);
+    }
   });
 
   // Center the graph in the canvas
