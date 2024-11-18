@@ -1,4 +1,4 @@
-class FlowValidator {
+export class FlowValidator {
   constructor(flowConfig) {
     this.flow = flowConfig;
     this.errors = [];
@@ -24,6 +24,32 @@ class FlowValidator {
     }
   }
 
+  isTerminalFunction(funcName) {
+    // Find the function definition in any node
+    for (const node of Object.values(this.flow.nodes)) {
+      const func = node.functions?.find((f) => f.function.name === funcName);
+      if (func) {
+        // Terminal functions are those that:
+        // 1. Have parameters with properties (collecting data)
+        // 2. Have required fields (must collect specific data)
+        // 3. Have constraints (enum, min/max, etc.)
+        const params = func.function.parameters;
+        const hasProperties = Object.keys(params.properties || {}).length > 0;
+        const hasRequired =
+          Array.isArray(params.required) && params.required.length > 0;
+        const hasConstraints = Object.values(params.properties || {}).some(
+          (prop) =>
+            prop.enum ||
+            prop.minimum !== undefined ||
+            prop.maximum !== undefined
+        );
+
+        return hasProperties && (hasRequired || hasConstraints);
+      }
+    }
+    return false;
+  }
+
   _validateNodeReferences() {
     Object.entries(this.flow.nodes).forEach(([nodeId, node]) => {
       if (node.functions) {
@@ -32,7 +58,15 @@ class FlowValidator {
           .filter(Boolean);
 
         functionNames.forEach((funcName) => {
-          if (!this.flow.nodes[funcName] && funcName !== 'end') {
+          // Skip validation for:
+          // 1. Terminal functions (those that collect data)
+          // 2. The 'end' function (special case)
+          // 3. Functions that reference valid nodes
+          if (
+            !this.isTerminalFunction(funcName) &&
+            funcName !== 'end' &&
+            !this.flow.nodes[funcName]
+          ) {
             this.errors.push(
               `Node '${nodeId}' has function '${funcName}' that doesn't reference a valid node`
             );
@@ -72,68 +106,10 @@ class FlowValidator {
   }
 }
 
-// Helper function to validate a flow configuration
-function validateFlow(flowConfig) {
+export function validateFlow(flowConfig) {
   const validator = new FlowValidator(flowConfig);
   return {
     valid: validator.validate().length === 0,
     errors: validator.errors,
   };
 }
-
-// Example usage in main.js:
-document.getElementById('export-flow').onclick = async () => {
-  try {
-    const flowConfig = generateFlowConfig(graph);
-
-    // Validate before export
-    const validation = validateFlow(flowConfig);
-    if (!validation.valid) {
-      console.error('Flow validation errors:', validation.errors);
-      if (!confirm('Flow has validation errors. Export anyway?')) {
-        return;
-      }
-    }
-
-    // Continue with export...
-    console.log('Generated Flow Configuration:');
-    console.log(JSON.stringify(flowConfig, null, 2));
-    // ... rest of export code ...
-  } catch (error) {
-    console.error('Error generating flow configuration:', error);
-    alert('Error generating flow configuration: ' + error.message);
-  }
-};
-
-// Also use during import
-document.getElementById('import-flow').onclick = () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const flowConfig = JSON.parse(event.target.result);
-
-        // Validate imported flow
-        const validation = validateFlow(flowConfig);
-        if (!validation.valid) {
-          console.error('Flow validation errors:', validation.errors);
-          if (!confirm('Imported flow has validation errors. Import anyway?')) {
-            return;
-          }
-        }
-
-        createFlowFromConfig(graph, flowConfig);
-        console.log('Successfully imported flow configuration');
-      } catch (error) {
-        console.error('Error importing flow:', error);
-        alert('Error importing flow: ' + error.message);
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-};
