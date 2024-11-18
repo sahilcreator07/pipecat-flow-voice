@@ -6,7 +6,7 @@
 
 /**
  * Formats actions for display
- * @param {Array<{type: string, text?: string}>} actions - Array of actions to format
+ * @param {Array<Action>} actions - Array of actions to format
  * @returns {string} Formatted string representation of actions
  */
 export function formatActions(actions) {

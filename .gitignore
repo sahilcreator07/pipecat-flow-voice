@@ -62,3 +62,7 @@ npm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# JSDoc documentation
+docs/
+

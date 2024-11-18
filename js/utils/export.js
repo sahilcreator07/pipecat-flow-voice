@@ -7,7 +7,7 @@
 /**
  * Generates a flow configuration from the graph
  * @param {LGraph} graphInstance - The LiteGraph instance
- * @returns {import('./validation').FlowConfig} The generated flow configuration
+ * @returns {FlowConfig} The generated flow configuration
  * @throws {Error} If the graph is invalid
  */
 export function generateFlowConfig(graphInstance) {

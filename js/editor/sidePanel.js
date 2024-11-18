@@ -109,7 +109,7 @@ export class SidePanel {
 
   /**
    * Updates the side panel with node data
-   * @param {import('../nodes/baseNode').PipecatBaseNode|null} node - The selected node or null
+   * @param {PipecatBaseNode|null}
    */
   updatePanel(node) {
     if (!node) {

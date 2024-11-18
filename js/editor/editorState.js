@@ -18,14 +18,14 @@ class EditorState {
     if (EditorState.instance) {
       return EditorState.instance;
     }
-    /** @type {import('./sidePanel').SidePanel|null} */
+    /** @type {SidePanel|null} */
     this.sidePanel = null;
     EditorState.instance = this;
   }
 
   /**
    * Sets the side panel instance
-   * @param {import('./sidePanel').SidePanel} sidePanel - The side panel instance
+   * @param {SidePanel} sidePanel
    */
   setSidePanel(sidePanel) {
     this.sidePanel = sidePanel;
@@ -33,7 +33,7 @@ class EditorState {
 
   /**
    * Updates the side panel with node data
-   * @param {import('../nodes/baseNode').PipecatBaseNode|null} node - The selected node or null
+   * @param {PipecatBaseNode|null} node
    */
   updateSidePanel(node) {
     if (this.sidePanel) {
