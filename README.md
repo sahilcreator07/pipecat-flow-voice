@@ -1,5 +1,5 @@
 <h1><div align="center">
- <img alt="pipecat" width="300px" height="auto" src="https://github.com/pipecat-ai/pipecat-flows/blob/main/pipecat-flows.png">
+ <img alt="pipecat" width="500px" height="auto" src="https://github.com/pipecat-ai/pipecat-flows/blob/main/pipecat-flows.png">
 </div></h1>
 
 Pipecat's conversation flow system allows you to create structured, multi-turn conversations by defining your flow in JSON and processing it through the `FlowManager`. The system treats conversations as a series of connected nodes, where each node represents a distinct state with specific behaviors and options.
