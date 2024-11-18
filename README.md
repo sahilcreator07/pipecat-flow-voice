@@ -1,22 +1,25 @@
-# pipecat-flows
+# Pipecat Flow Editor
 
-Still in progress...
+## Setup
 
-1. Set up python venv
+```bash
+# Install dependencies
+npm install
 
-```
-python -m venv venv
-source venv/bin/activate
-```
-
-2. Install requirements
-
-```
-pip install -r requirements.txt
+# Start development server
+npm run dev
 ```
 
-3. Run backend
+Open http://localhost:8080 in your browser.
 
-```
-python -m backend.main
-```
+## Development
+
+This project uses ES modules. Make sure your development environment supports:
+
+- ES6+ JavaScript
+- JavaScript modules
+- Modern browser features
+
+## Building
+
+No build step is required. The project uses native ES modules.
