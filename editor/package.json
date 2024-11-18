@@ -1,0 +1,27 @@
+{
+  "name": "pipecat-flow-editor",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "http-server",
+    "dev": "http-server -c-1",
+    "lint": "eslint js/",
+    "lint:fix": "eslint js/ --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docs": "jsdoc -c jsdoc.json",
+    "docs:serve": "http-server docs"
+  },
+  "dependencies": {
+    "jsdoc": "^4.0.4",
+    "litegraph.js": "^0.7.14"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsdoc": "^48.0.2",
+    "http-server": "^14.1.1",
+    "prettier": "^3.1.1"
+  }
+}

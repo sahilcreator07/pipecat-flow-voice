@@ -1,0 +1,72 @@
+<!--
+Copyright (c) 2024, Daily
+
+SPDX-License-Identifier: BSD 2-Clause License
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Pipecat Flow Editor</title>
+
+  <!-- SVG favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Fallback favicon -->
+  <link rel="alternate icon" type="image/png" href="/favicon.png">
+
+  <link rel="stylesheet" href="/node_modules/litegraph.js/css/litegraph.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+  <div id="toolbar">
+    <button id="new-flow">New Flow</button>
+    <button id="import-flow">Import Flow</button>
+    <button id="export-flow">Export Flow</button>
+  </div>
+  <div id="main-container">
+    <div id="side-panel">
+      <div id="side-panel-content">
+        <h2 id="editor-title">Node Editor</h2>
+        <div class="no-selection-message">
+          Select a node to edit its contents
+        </div>
+        <div class="editor-content" style="display: none;">
+          <!-- For Start, Flow, and End nodes -->
+          <div class="message-editor">
+            <div class="section">
+              <h3>Message</h3>
+              <textarea id="message-editor" rows="8"></textarea>
+            </div>
+            <div class="section">
+              <h3>Pre-actions</h3>
+              <textarea id="pre-actions-editor" rows="6"></textarea>
+            </div>
+            <div class="section">
+              <h3>Post-actions</h3>
+              <textarea id="post-actions-editor" rows="6"></textarea>
+            </div>
+          </div>
+          <!-- For Function nodes -->
+          <div class="function-editor" style="display: none;">
+            <div class="section">
+              <h3>Function</h3>
+              <textarea id="function-editor" rows="12"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="graph-container">
+      <canvas id="graph-canvas"></canvas>
+    </div>
+  </div>
+
+  <script src="/node_modules/litegraph.js/build/litegraph.js"></script>
+  <!-- Change to module type -->
+  <script type="module" src="/js/main.js"></script>
+</body>
+
+</html>
