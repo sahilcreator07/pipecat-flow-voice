@@ -53,6 +53,19 @@ Open the page in your browser at: http://localhost:8080.
 4. Edit node properties in the side panel
 5. Export your flow configuration using the toolbar
 
+## Examples
+
+The `examples/` directory contains sample flow configurations:
+
+- `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions.
+
+To use an example:
+1. Open the editor
+2. Click "Import Flow"
+3. Select an example JSON file
+
+See the [examples directory](examples/) for the complete files and documentation.
+
 ## Development
 
 ### Project Structure
