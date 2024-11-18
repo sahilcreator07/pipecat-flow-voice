@@ -1,4 +1,4 @@
-# Pipecat Flow Editor
+# Pipecat Flows Editor
 
 A visual editor for creating and managing Pipecat conversation flows.
 
