@@ -1,8 +1,46 @@
-# Pipecat Flows Editor
+<h1><div align="center">
+ <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-flows/main/pipecat-flows.png">
+</div></h1>
+
+Pipecat's conversation flow system allows you to create structured, multi-turn conversations by defining your flow in JSON and processing it through the `FlowManager`. The system treats conversations as a series of connected nodes, where each node represents a distinct state with specific behaviors and options.
+
+To learn more about building with Pipecat Flows, [check out the guide](https://docs.pipecat.ai/guides/pipecat-flows).
+
+## 1. Pipecat AI Flows Package
+
+A Python package for managing conversation flows in Pipecat AI applications.
+
+### Installation
+
+```bash
+pip install pipecat-ai-flows
+```
+
+### Features
+
+- State machine management for conversation flows
+- Pre and post actions for state transitions
+- Terminal and transitional functions
+- Flexible node configuration
+
+### Basic Usage
+
+```python
+from pipecat_flows import FlowManager
+
+# Initialize flow management
+flow_manager = FlowManager(flow_config, task, tts_service)  # Create flow manager
+await flow_manager.register_functions(llm_service)          # Register all possible functions
+
+# Initialize the flow
+await flow_manager.initialize(initial_messages)
+```
+
+## 2. Pipecat Flows Editor
 
 A visual editor for creating and managing Pipecat conversation flows.
 
-## Features
+### Features
 
 - Visual flow creation and editing
 - Import/export of flow configurations
@@ -10,14 +48,14 @@ A visual editor for creating and managing Pipecat conversation flows.
 - Merge node support for complex flows
 - Real-time validation
 
-## Getting Started
+### Getting Started
 
-### Prerequisites
+#### Prerequisites
 
 - Node.js (v14 or higher)
 - npm (v6 or higher)
 
-### Installation
+#### Installation
 
 Clone the repository
 
@@ -45,7 +83,7 @@ npm run dev
 
 Open the page in your browser at: http://localhost:8080.
 
-### Usage
+#### Usage
 
 1. Create a new flow using the toolbar buttons
 2. Add nodes by right-clicking in the canvas
@@ -53,7 +91,7 @@ Open the page in your browser at: http://localhost:8080.
 4. Edit node properties in the side panel
 5. Export your flow configuration using the toolbar
 
-## Examples
+#### Examples
 
 The `examples/` directory contains sample flow configurations:
 
@@ -66,21 +104,9 @@ To use an example:
 
 See the [examples directory](examples/) for the complete files and documentation.
 
-## Development
+### Development
 
-### Project Structure
-
-```
-pipecat-flows/
-├── js/
-│   ├── nodes/        # Node type definitions
-│   ├── editor/       # Editor components
-│   └── utils/        # Utility functions
-├── css/             # Styles
-└── examples/        # Example flows
-```
-
-### Available Scripts
+#### Available Scripts
 
 - `npm start` - Start production server
 - `npm run dev` - Start development server
@@ -91,9 +117,9 @@ pipecat-flows/
 - `npm run docs` - Generate documentation
 - `npm run docs:serve` - Serve documentation locally
 
-### Documentation
+#### Documentation
 
-The project uses JSDoc for documentation. To generate and view the documentation:
+The Pipecat Flows Editor project uses JSDoc for documentation. To generate and view the documentation:
 
 Generate documentation:
 
@@ -109,12 +135,14 @@ npm run docs:serve
 
 View in browser by opening: http://localhost:8080
 
-### Contributing
+## Contributing
 
 TBD
 
 ## Getting help
 
 ➡️ [Join our Discord](https://discord.gg/pipecat)
+
+➡️ [Pipecat Flows Guide](https://docs.pipecat.ai/guides/pipecat-flows)
 
 ➡️ [Reach us on X](https://x.com/pipecat_ai)
