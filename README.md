@@ -168,7 +168,16 @@ View in browser by opening: http://localhost:8080
 
 ## Contributing
 
-TBD
+We welcome contributions from the community! Whether you're fixing bugs, improving documentation, or adding new features, here's how you can help:
+
+- **Found a bug?** Open an [issue](https://github.com/pipecat-ai/pipecat-flows/issues)
+- **Have a feature idea?** Start a [discussion](https://discord.gg/pipecat)
+- **Want to contribute code?** Check our [CONTRIBUTING.md](CONTRIBUTING.md) guide
+- **Documentation improvements?** [Docs](https://github.com/pipecat-ai/docs) PRs are always welcome
+
+Before submitting a pull request, please check existing issues and PRs to avoid duplicates.
+
+We aim to review all contributions promptly and provide constructive feedback to help get your changes merged.
 
 ## Getting help
 
