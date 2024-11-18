@@ -32,12 +32,39 @@ pip install pipecat-ai-flows
 ```python
 from pipecat_flows import FlowManager
 
+# Initialize context and tools
+initial_tools = flow_config["nodes"]["start"]["functions"]  # Available functions for starting state
+context = OpenAILLMContext(messages, initial_tools)        # Create LLM context with initial state
+context_aggregator = llm.create_context_aggregator(context)
+
+# Create your pipeline: No new processors are required
+pipeline = Pipeline(
+    [
+        transport.input(),  # Transport user input
+        stt,  # STT
+        context_aggregator.user(),  # User responses
+        llm,  # LLM
+        tts,  # TTS
+        transport.output(),  # Transport bot output
+        context_aggregator.assistant(),  # Assistant spoken responses
+    ]
+)
+
+# Create the Pipecat task
+task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
 # Initialize flow management
 flow_manager = FlowManager(flow_config, task, tts_service)  # Create flow manager
 await flow_manager.register_functions(llm_service)          # Register all possible functions
 
-# Initialize the flow
-await flow_manager.initialize(initial_messages)
+# Initialize with starting messages
+@transport.event_handler("on_first_participant_joined")
+async def on_first_participant_joined(transport, participant):
+    await transport.capture_participant_transcription(participant["id"])
+    # Initialize the flow processor
+    await flow_manager.initialize(messages)
+    # Kick off the conversation using the context aggregator
+    await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
 ## Pipecat Flows Editor
