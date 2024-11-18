@@ -10,6 +10,9 @@ import { Toolbar } from "./editor/toolbar.js";
 import { setupCanvas } from "./editor/canvas.js";
 import { editorState } from "./editor/editorState.js";
 
+// Clear all default node types
+LiteGraph.clearRegisteredTypes();
+
 /**
  * Initializes the flow editor
  */
