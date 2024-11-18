@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 import { PipecatStartNode } from './startNode.js';
 import { PipecatFlowNode } from './flowNode.js';
 import { PipecatEndNode } from './endNode.js';

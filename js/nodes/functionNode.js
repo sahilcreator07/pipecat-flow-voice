@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 import { editorState } from '../editor/editorState.js';
 
 export class PipecatFunctionNode extends LiteGraph.LGraphNode {

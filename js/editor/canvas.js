@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 export function setupCanvas(graph) {
   const canvas = new LGraphCanvas('#graph-canvas', graph);
 

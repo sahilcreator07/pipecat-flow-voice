@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 export function generateFlowConfig(graphInstance) {
   if (!graphInstance) {
     throw new Error('No graph instance provided');

@@ -1,4 +1,9 @@
-// js/utils/import.js
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 import {
   PipecatStartNode,
   PipecatFlowNode,

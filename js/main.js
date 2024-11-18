@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2024, Daily
+//
+// SPDX-License-Identifier: BSD 2-Clause License
+//
+
 import { registerNodes } from './nodes/index.js';
 import { SidePanel } from './editor/sidePanel.js';
 import { Toolbar } from './editor/toolbar.js';
