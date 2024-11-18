@@ -15,7 +15,7 @@ import {
 /**
  * Creates a graph from a flow configuration
  * @param {LGraph} graph - The LiteGraph instance
- * @param {import('./validation').FlowConfig} flowConfig - The flow configuration
+ * @param {FlowConfig} flowConfig - The flow configuration
  */
 export function createFlowFromConfig(graph, flowConfig) {
   // Clear existing graph

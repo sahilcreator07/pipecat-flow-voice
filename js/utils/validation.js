@@ -5,8 +5,8 @@
  */
 
 /**
- * @typedef {import('../nodes/baseNode').NodeProperties} NodeProperties
- * @typedef {import('../nodes/functionNode').FunctionDefinition} FunctionDefinition
+ * @typedef {NodeProperties}
+ * @typedef {FunctionDefinition}
  */
 
 /**

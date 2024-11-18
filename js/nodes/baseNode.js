@@ -63,7 +63,7 @@ export class PipecatBaseNode extends LiteGraph.LGraphNode {
 
   /**
    * Forces a minimum width for the node
-   * @returns {[number, number]} The minimum dimensions [width, height]
+   * @returns {Array<number>} The minimum dimensions [width, height]
    */
   computeSize() {
     return [400, this.size[1]];

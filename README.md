@@ -43,7 +43,7 @@ Start development server
 npm run dev
 ```
 
-Open the page in your browser at http://localhost:8080.
+Open the page in your browser at: http://localhost:8080.
 
 ### Usage
 
@@ -75,10 +75,26 @@ pipecat-flows/
 - `npm run lint:fix` - Fix linting issues
 - `npm run format` - Format code with Prettier
 - `npm run format:check` - Check code formatting
+- `npm run docs` - Generate documentation
+- `npm run docs:serve` - Serve documentation locally
 
-### Adding New Node Types
+### Documentation
 
-TBD
+The project uses JSDoc for documentation. To generate and view the documentation:
+
+Generate documentation:
+
+```bash
+npm run docs
+```
+
+Serve documentation locally:
+
+```bash
+npm run docs:serve
+```
+
+View in browser by opening: http://localhost:8080
 
 ### Contributing
 
