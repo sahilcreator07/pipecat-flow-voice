@@ -1,8 +1,8 @@
-//
-// Copyright (c) 2024, Daily
-//
-// SPDX-License-Identifier: BSD 2-Clause License
-//
+/**
+ * Copyright (c) 2024, Daily
+ *
+ * SPDX-License-Identifier: BSD 2-Clause License
+ */
 
 import {
   PipecatStartNode,
@@ -10,8 +10,13 @@ import {
   PipecatEndNode,
   PipecatFunctionNode,
   PipecatMergeNode,
-} from '../nodes/index.js';
+} from "../nodes/index.js";
 
+/**
+ * Creates a graph from a flow configuration
+ * @param {LGraph} graph - The LiteGraph instance
+ * @param {import('./validation').FlowConfig} flowConfig - The flow configuration
+ */
 export function createFlowFromConfig(graph, flowConfig) {
   // Clear existing graph
   graph.clear();
@@ -22,13 +27,14 @@ export function createFlowFromConfig(graph, flowConfig) {
   };
   const startX = 100;
   const startY = 100;
+  /** @type {Object.<string, { node: LGraphNode, config: any }>} */
   const nodes = {};
 
-  // First pass: Create all main nodes and establish basic layout
+  // First pass: Create all main nodes
   let currentX = startX;
   let currentY = startY;
 
-  // Create start node first
+  // Create start node
   const startNode = new PipecatStartNode();
   startNode.properties = {
     messages: flowConfig.nodes.start.messages,
@@ -40,9 +46,9 @@ export function createFlowFromConfig(graph, flowConfig) {
   nodes.start = { node: startNode, config: flowConfig.nodes.start };
   currentX += nodeSpacing.horizontal;
 
-  // Create intermediate nodes (not start or end)
+  // Create intermediate nodes
   Object.entries(flowConfig.nodes).forEach(([nodeId, nodeConfig]) => {
-    if (nodeId !== 'start' && nodeId !== 'end') {
+    if (nodeId !== "start" && nodeId !== "end") {
       const node = new PipecatFlowNode();
       node.properties = {
         messages: nodeConfig.messages,
@@ -56,7 +62,7 @@ export function createFlowFromConfig(graph, flowConfig) {
     }
   });
 
-  // Create end node last
+  // Create end node
   if (flowConfig.nodes.end) {
     const endNode = new PipecatEndNode();
     endNode.properties = {
@@ -69,7 +75,7 @@ export function createFlowFromConfig(graph, flowConfig) {
     nodes.end = { node: endNode, config: flowConfig.nodes.end };
   }
 
-  // Analyze function targets across all nodes
+  // Analyze function targets
   const functionTargets = new Map();
   Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
     if (nodeConfig.functions) {
@@ -86,12 +92,16 @@ export function createFlowFromConfig(graph, flowConfig) {
     }
   });
 
-  // Helper function to create merge node
+  /**
+   * Creates a merge node
+   * @param {Array<LGraphNode>} sourceNodes - Source nodes to merge
+   * @param {LGraphNode} targetNode - Target node
+   * @returns {PipecatMergeNode} The created merge node
+   */
   function createMergeNode(sourceNodes, targetNode) {
     const mergeNode = new PipecatMergeNode();
     graph.add(mergeNode);
 
-    // Position merge node between sources and target
     const avgX =
       sourceNodes.reduce((sum, n) => sum + n.pos[0], 0) / sourceNodes.length;
     const avgY =
@@ -99,9 +109,8 @@ export function createFlowFromConfig(graph, flowConfig) {
 
     mergeNode.pos = [(avgX + targetNode.pos[0]) / 2, avgY];
 
-    // Add enough inputs for all source nodes
     while (mergeNode.inputs.length < sourceNodes.length) {
-      mergeNode.addInput(`In ${mergeNode.inputs.length + 1}`, 'flow');
+      mergeNode.addInput(`In ${mergeNode.inputs.length + 1}`, "flow");
       mergeNode.size[1] += 20;
     }
 
@@ -114,14 +123,13 @@ export function createFlowFromConfig(graph, flowConfig) {
     const functionNodes = [];
     let currentY = startY;
 
-    // Create function nodes for each source
+    // Create function nodes
     sourceFunctions.forEach(({ sourceNodeId, funcConfig }) => {
       const sourceNode = nodes[sourceNodeId].node;
       const functionNode = new PipecatFunctionNode();
       functionNode.properties.function = funcConfig.function;
       functionNode.properties.isTerminal = !targetNode;
 
-      // Position function node
       functionNode.pos = [
         sourceNode.pos[0] + nodeSpacing.horizontal / 2,
         currentY,
@@ -132,24 +140,21 @@ export function createFlowFromConfig(graph, flowConfig) {
       currentY += nodeSpacing.vertical;
     });
 
-    // If this function appears in multiple places and has a target, create merge node
+    // Handle merging if needed
     if (functionNodes.length > 1 && targetNode) {
       const mergeNode = createMergeNode(functionNodes, targetNode);
 
-      // Connect function nodes to merge node
       functionNodes.forEach((functionNode, index) => {
         functionNode.connect(0, mergeNode, index);
       });
 
-      // Connect merge node to target
       mergeNode.connect(0, targetNode, 0);
     } else if (targetNode) {
-      // Single function case - direct connection
       functionNodes[0].connect(0, targetNode, 0);
     }
   });
 
-  // Center the graph in the canvas
+  // Center the graph
   graph.arrange();
   graph.setDirtyCanvas(true, true);
 }

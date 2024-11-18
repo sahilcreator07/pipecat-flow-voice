@@ -1,16 +1,19 @@
-//
-// Copyright (c) 2024, Daily
-//
-// SPDX-License-Identifier: BSD 2-Clause License
-//
+/**
+ * Copyright (c) 2024, Daily
+ *
+ * SPDX-License-Identifier: BSD 2-Clause License
+ */
 
-import { registerNodes } from './nodes/index.js';
-import { SidePanel } from './editor/sidePanel.js';
-import { Toolbar } from './editor/toolbar.js';
-import { setupCanvas } from './editor/canvas.js';
-import { editorState } from './editor/editorState.js';
+import { registerNodes } from "./nodes/index.js";
+import { SidePanel } from "./editor/sidePanel.js";
+import { Toolbar } from "./editor/toolbar.js";
+import { setupCanvas } from "./editor/canvas.js";
+import { editorState } from "./editor/editorState.js";
 
-document.addEventListener('DOMContentLoaded', function () {
+/**
+ * Initializes the flow editor
+ */
+document.addEventListener("DOMContentLoaded", function () {
   // Initialize graph
   const graph = new LGraph();
 
