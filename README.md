@@ -4,11 +4,15 @@
 
 Pipecat's conversation flow system allows you to create structured, multi-turn conversations by defining your flow in JSON and processing it through the `FlowManager`. The system treats conversations as a series of connected nodes, where each node represents a distinct state with specific behaviors and options.
 
+Pipecat Flows is comprised of:
+- A [python module](#pipecat-flows-package) for building conversation flows with Pipecat
+- A [visual editor](#pipecat-flows-editor) for visualizing conversations and exporting into flow_configs
+
 To learn more about building with Pipecat Flows, [check out the guide](https://docs.pipecat.ai/guides/pipecat-flows).
 
-## 1. Pipecat AI Flows Package
+## Pipecat Flows Package
 
-A Python package for managing conversation flows in Pipecat AI applications.
+A Python package for managing conversation flows in Pipecat applications.
 
 ### Installation
 
@@ -36,7 +40,7 @@ await flow_manager.register_functions(llm_service)          # Register all possi
 await flow_manager.initialize(initial_messages)
 ```
 
-## 2. Pipecat Flows Editor
+## Pipecat Flows Editor
 
 A visual editor for creating and managing Pipecat conversation flows.
 
