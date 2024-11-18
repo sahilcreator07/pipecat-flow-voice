@@ -1,25 +1,51 @@
-//
-// Copyright (c) 2024, Daily
-//
-// SPDX-License-Identifier: BSD 2-Clause License
-//
+/**
+ * Copyright (c) 2024, Daily
+ *
+ * SPDX-License-Identifier: BSD 2-Clause License
+ */
 
+import { editorState } from "./editorState.js";
+
+/**
+ * @typedef {Object} SidePanelElements
+ * @property {HTMLElement} panel - The main panel element
+ * @property {HTMLElement} content - The content container
+ * @property {HTMLElement} noSelection - The no-selection message element
+ * @property {HTMLElement} title - The panel title element
+ * @property {HTMLElement} messageEditor - The message editor container
+ * @property {HTMLElement} functionEditor - The function editor container
+ */
+
+/**
+ * Manages the side panel UI and interactions
+ */
 export class SidePanel {
+  /**
+   * Creates a new SidePanel instance
+   * @param {LGraph} graph - The LiteGraph instance
+   */
   constructor(graph) {
     this.graph = graph;
-    this.panel = document.querySelector('#side-panel');
-    this.content = document.querySelector('.editor-content');
-    this.noSelection = document.querySelector('.no-selection-message');
-    this.title = document.getElementById('editor-title');
-    this.messageEditor = document.querySelector('.message-editor');
-    this.functionEditor = document.querySelector('.function-editor');
+
+    /** @type {SidePanelElements} */
+    this.elements = {
+      panel: document.querySelector("#side-panel"),
+      content: document.querySelector(".editor-content"),
+      noSelection: document.querySelector(".no-selection-message"),
+      title: document.getElementById("editor-title"),
+      messageEditor: document.querySelector(".message-editor"),
+      functionEditor: document.querySelector(".function-editor"),
+    };
 
     this.setupEventListeners();
   }
 
+  /**
+   * Sets up event listeners for the editors
+   */
   setupEventListeners() {
     // Message editor change handler
-    document.getElementById('message-editor').onchange = (e) => {
+    document.getElementById("message-editor").onchange = (e) => {
       const selectedNode = this.graph.getSelectedNode();
       if (selectedNode && selectedNode.properties.messages) {
         selectedNode.properties.messages[0].content = e.target.value;
@@ -27,7 +53,11 @@ export class SidePanel {
       }
     };
 
-    // Setup action editors
+    /**
+     * Sets up an action editor
+     * @param {string} elementId - ID of the editor element
+     * @param {string} propertyName - Name of the property to update
+     */
     const setupActionEditor = (elementId, propertyName) => {
       document.getElementById(elementId).onchange = (e) => {
         const selectedNode = this.graph.getSelectedNode();
@@ -43,32 +73,32 @@ export class SidePanel {
             e.target.value = JSON.stringify(
               selectedNode.properties[propertyName],
               null,
-              2
+              2,
             );
           }
         }
       };
     };
 
-    setupActionEditor('pre-actions-editor', 'pre_actions');
-    setupActionEditor('post-actions-editor', 'post_actions');
+    setupActionEditor("pre-actions-editor", "pre_actions");
+    setupActionEditor("post-actions-editor", "post_actions");
 
     // Function editor change handler
-    document.getElementById('function-editor').onchange = (e) => {
+    document.getElementById("function-editor").onchange = (e) => {
       const selectedNode = this.graph.getSelectedNode();
       if (selectedNode) {
         try {
           const parsed = JSON.parse(e.target.value);
-          if (parsed.type === 'function' && parsed.function) {
+          if (parsed.type === "function" && parsed.function) {
             selectedNode.properties.function = parsed.function;
             selectedNode.setDirtyCanvas(true);
           } else {
-            throw new Error('Invalid function format');
+            throw new Error("Invalid function format");
           }
         } catch (error) {
-          console.error('Invalid JSON in function');
+          console.error("Invalid JSON in function");
           const currentData = {
-            type: 'function',
+            type: "function",
             function: selectedNode.properties.function,
           };
           e.target.value = JSON.stringify(currentData, null, 2);
@@ -77,51 +107,55 @@ export class SidePanel {
     };
   }
 
+  /**
+   * Updates the side panel with node data
+   * @param {import('../nodes/baseNode').PipecatBaseNode|null} node - The selected node or null
+   */
   updatePanel(node) {
     if (!node) {
-      this.content.style.display = 'none';
-      this.noSelection.style.display = 'block';
-      this.title.textContent = 'Node Editor';
+      this.elements.content.style.display = "none";
+      this.elements.noSelection.style.display = "block";
+      this.elements.title.textContent = "Node Editor";
       return;
     }
 
-    this.content.style.display = 'block';
-    this.noSelection.style.display = 'none';
-    this.title.textContent = `Edit ${node.title}`;
+    this.elements.content.style.display = "block";
+    this.elements.noSelection.style.display = "none";
+    this.elements.title.textContent = `Edit ${node.title}`;
 
     // Handle different node types
-    if (node.constructor.name === 'PipecatFunctionNode') {
+    if (node.constructor.name === "PipecatFunctionNode") {
       // Show function editor, hide message editor
-      this.messageEditor.style.display = 'none';
-      this.functionEditor.style.display = 'block';
+      this.elements.messageEditor.style.display = "none";
+      this.elements.functionEditor.style.display = "block";
 
       // Update function editor with the complete function structure
       const functionData = {
-        type: 'function',
+        type: "function",
         function: node.properties.function,
       };
-      document.getElementById('function-editor').value = JSON.stringify(
+      document.getElementById("function-editor").value = JSON.stringify(
         functionData,
         null,
-        2
+        2,
       );
     } else if (node.properties.messages) {
       // Show message editor, hide function editor
-      this.messageEditor.style.display = 'block';
-      this.functionEditor.style.display = 'none';
+      this.elements.messageEditor.style.display = "block";
+      this.elements.functionEditor.style.display = "none";
 
       // Update message and action editors
-      document.getElementById('message-editor').value =
+      document.getElementById("message-editor").value =
         node.properties.messages[0].content;
-      document.getElementById('pre-actions-editor').value = JSON.stringify(
+      document.getElementById("pre-actions-editor").value = JSON.stringify(
         node.properties.pre_actions || [],
         null,
-        2
+        2,
       );
-      document.getElementById('post-actions-editor').value = JSON.stringify(
+      document.getElementById("post-actions-editor").value = JSON.stringify(
         node.properties.post_actions || [],
         null,
-        2
+        2,
       );
     }
   }
