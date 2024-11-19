@@ -97,7 +97,7 @@ git clone git@github.com:pipecat-ai/pipecat-flows.git
 Navigate to project directory
 
 ```bash
-cd pipecat-flows
+cd pipecat-flows/editor
 ```
 
 Install dependencies
