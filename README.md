@@ -71,6 +71,8 @@ async def on_first_participant_joined(transport, participant):
 
 A visual editor for creating and managing Pipecat conversation flows.
 
+![Food ordering flow example](https://raw.githubusercontent.com/pipecat-ai/pipecat-flows/main/images/food-ordering-flow.png)
+
 ### Features
 
 - Visual flow creation and editing
