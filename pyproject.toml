@@ -7,7 +7,7 @@ name = "pipecat-ai-flows"
 dynamic = ["version"]
 description = "Conversation Flow management for Pipecat AI applications"
 license = { text = "BSD 2-Clause License" }
-readme = "pipecat_flows/README.md"
+readme = "src/pipecat_flows/README.md"
 requires-python = ">=3.10"
 keywords = ["pipecat", " conversation", "flows", "state machine", "ai", "llm"]
 classifiers = [
