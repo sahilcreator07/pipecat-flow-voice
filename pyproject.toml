@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8"]
+requires = ["setuptools>=64"]  # Removed setuptools_scm
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipecat-ai-flows"
-dynamic = ["version"]
+version = "0.0.1"
 description = "Conversation Flow management for Pipecat AI applications"
 license = { text = "BSD 2-Clause License" }
-readme = "src/pipecat_flows/README.md"
+readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["pipecat", " conversation", "flows", "state machine", "ai", "llm"]
 classifiers = [
@@ -26,16 +26,6 @@ dependencies = [
 [project.urls]
 Source = "https://github.com/pipecat-ai/pipecat-flows"
 Website = "https://www.pipecat.ai"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-
-[tool.setuptools_scm]
-local_scheme = "no-local-version"
-fallback_version = "0.0.0-dev"
 
 [tool.ruff]
 line-length = 100
