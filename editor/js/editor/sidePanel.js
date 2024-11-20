@@ -26,6 +26,7 @@ export class SidePanel {
    */
   constructor(graph) {
     this.graph = graph;
+    this.selectedNode = null;
 
     /** @type {SidePanelElements} */
     this.elements = {
@@ -44,93 +45,140 @@ export class SidePanel {
    * Sets up event listeners for the editors
    */
   setupEventListeners() {
+    // First verify elements exist
+    const messageEditor = document.getElementById("message-editor");
+    const preActionsEditor = document.getElementById("pre-actions-editor");
+    const postActionsEditor = document.getElementById("post-actions-editor");
+    const functionEditor = document.getElementById("function-editor");
+
+    console.log("Found editors:", {
+      messageEditor,
+      preActionsEditor,
+      postActionsEditor,
+      functionEditor,
+    });
+
+    // Prevent node deselection when clicking in the side panel
+    this.elements.panel.addEventListener("mousedown", (e) => {
+      e.stopPropagation();
+    });
+
+    if (!messageEditor) {
+      console.error("Message editor element not found!");
+      return;
+    }
+
     // Message editor change handler
-    document.getElementById("message-editor").onchange = (e) => {
-      const selectedNode = this.graph.getSelectedNode();
-      if (selectedNode && selectedNode.properties) {
+    messageEditor.addEventListener("change", (e) => {
+      console.log("Message editor change event fired");
+      if (!this.selectedNode) {
+        console.log("No node selected");
+        return;
+      }
+
+      try {
+        const messages = JSON.parse(e.target.value);
+        console.log("Parsed messages:", messages);
+
+        if (Array.isArray(messages)) {
+          console.log("Updating node messages");
+          this.selectedNode.properties.messages = messages;
+          this.selectedNode.setDirtyCanvas(true);
+          this.graph.change();
+          console.log("Updated node properties:", this.selectedNode.properties);
+        }
+      } catch (error) {
+        console.error("JSON parse error:", error);
+        e.target.value = JSON.stringify(
+          this.selectedNode.properties.messages,
+          null,
+          2,
+        );
+      }
+    });
+
+    // Also try the input event
+    messageEditor.addEventListener("input", (e) => {
+      console.log("Message editor input event fired");
+    });
+
+    // Action editors
+    const setupActionEditor = (element, propertyName) => {
+      if (!element) {
+        console.error(`${propertyName} editor element not found!`);
+        return;
+      }
+
+      element.addEventListener("change", (e) => {
+        console.log(`${propertyName} editor change event fired`);
+        if (!this.selectedNode) return;
+
         try {
-          const messages = JSON.parse(e.target.value);
-          if (Array.isArray(messages)) {
-            selectedNode.properties.messages = messages;
-            selectedNode.setDirtyCanvas(true);
-          }
+          const parsed = JSON.parse(e.target.value);
+          this.selectedNode.properties[propertyName] = Array.isArray(parsed)
+            ? parsed
+            : [];
+          this.selectedNode.setDirtyCanvas(true);
+          this.graph.change();
         } catch (error) {
-          console.error("Invalid JSON in messages");
-          // Restore original value
+          console.error(`Invalid JSON in ${propertyName}`);
           e.target.value = JSON.stringify(
-            selectedNode.properties.messages,
+            this.selectedNode.properties[propertyName],
             null,
             2,
           );
         }
-      }
+      });
     };
 
-    /**
-     * Sets up an action editor
-     * @param {string} elementId - ID of the editor element
-     * @param {string} propertyName - Name of the property to update
-     */
-    const setupActionEditor = (elementId, propertyName) => {
-      document.getElementById(elementId).onchange = (e) => {
-        const selectedNode = this.graph.getSelectedNode();
-        if (selectedNode) {
-          try {
-            const parsed = JSON.parse(e.target.value);
-            selectedNode.properties[propertyName] = Array.isArray(parsed)
-              ? parsed
-              : [];
-            selectedNode.setDirtyCanvas(true);
-          } catch (error) {
-            console.error(`Invalid JSON in ${propertyName}`);
-            e.target.value = JSON.stringify(
-              selectedNode.properties[propertyName],
-              null,
-              2,
-            );
-          }
-        }
-      };
-    };
+    setupActionEditor(preActionsEditor, "pre_actions");
+    setupActionEditor(postActionsEditor, "post_actions");
 
-    setupActionEditor("pre-actions-editor", "pre_actions");
-    setupActionEditor("post-actions-editor", "post_actions");
+    // Function editor
+    if (functionEditor) {
+      functionEditor.addEventListener("change", (e) => {
+        console.log("Function editor change event fired");
+        if (!this.selectedNode) return;
 
-    // Function editor change handler
-    document.getElementById("function-editor").onchange = (e) => {
-      const selectedNode = this.graph.getSelectedNode();
-      if (selectedNode) {
         try {
           const parsed = JSON.parse(e.target.value);
           if (parsed.type === "function" && parsed.function) {
-            selectedNode.properties.function = parsed.function;
-            selectedNode.setDirtyCanvas(true);
-          } else {
-            throw new Error("Invalid function format");
+            this.selectedNode.properties.function = parsed.function;
+            this.selectedNode.setDirtyCanvas(true);
+            this.graph.change();
           }
         } catch (error) {
           console.error("Invalid JSON in function");
           const currentData = {
             type: "function",
-            function: selectedNode.properties.function,
+            function: this.selectedNode.properties.function,
           };
           e.target.value = JSON.stringify(currentData, null, 2);
         }
-      }
-    };
+      });
+    }
   }
 
   /**
    * Updates the side panel with node data
-   * @param {PipecatBaseNode|null}
+   * @param {PipecatBaseNode|null} node
    */
   updatePanel(node) {
+    console.log("updatePanel called with node:", node);
+
+    // Update the selected node reference
+    this.selectedNode = node;
+
     if (!node) {
+      console.log("No node provided, hiding panel");
       this.elements.content.style.display = "none";
       this.elements.noSelection.style.display = "block";
       this.elements.title.textContent = "Node Editor";
       return;
     }
+
+    console.log("Node type:", node.constructor.name);
+    console.log("Node properties:", node.properties);
 
     this.elements.content.style.display = "block";
     this.elements.noSelection.style.display = "none";
