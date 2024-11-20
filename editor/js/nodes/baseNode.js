@@ -77,6 +77,7 @@ export class PipecatBaseNode extends LiteGraph.LGraphNode {
     const padding = 15;
     const textColor = "#ddd";
     const labelColor = "#aaa";
+    let currentY = 40;
 
     /**
      * Draws wrapped text with a label
@@ -114,13 +115,19 @@ export class PipecatBaseNode extends LiteGraph.LGraphNode {
       return y + 25;
     };
 
-    let currentY = 40;
-    currentY = drawWrappedText(
-      this.properties.messages[0].content,
-      currentY,
-      "System Message",
-    );
+    // Draw each message
+    if (this.properties.messages) {
+      this.properties.messages.forEach((message) => {
+        currentY = drawWrappedText(
+          message.content,
+          currentY,
+          `Role: ${message.role.charAt(0).toUpperCase() + message.role.slice(1)}`,
+        );
+        currentY += 10; // Add spacing between messages
+      });
+    }
 
+    // Draw pre-actions
     if (this.properties.pre_actions && this.properties.pre_actions.length > 0) {
       currentY = drawWrappedText(
         formatActions(this.properties.pre_actions),
@@ -129,6 +136,7 @@ export class PipecatBaseNode extends LiteGraph.LGraphNode {
       );
     }
 
+    // Draw post-actions
     if (
       this.properties.post_actions &&
       this.properties.post_actions.length > 0
