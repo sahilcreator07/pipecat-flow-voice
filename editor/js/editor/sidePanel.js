@@ -47,9 +47,22 @@ export class SidePanel {
     // Message editor change handler
     document.getElementById("message-editor").onchange = (e) => {
       const selectedNode = this.graph.getSelectedNode();
-      if (selectedNode && selectedNode.properties.messages) {
-        selectedNode.properties.messages[0].content = e.target.value;
-        selectedNode.setDirtyCanvas(true);
+      if (selectedNode && selectedNode.properties) {
+        try {
+          const messages = JSON.parse(e.target.value);
+          if (Array.isArray(messages)) {
+            selectedNode.properties.messages = messages;
+            selectedNode.setDirtyCanvas(true);
+          }
+        } catch (error) {
+          console.error("Invalid JSON in messages");
+          // Restore original value
+          e.target.value = JSON.stringify(
+            selectedNode.properties.messages,
+            null,
+            2,
+          );
+        }
       }
     };
 
@@ -145,8 +158,13 @@ export class SidePanel {
       this.elements.functionEditor.style.display = "none";
 
       // Update message and action editors
-      document.getElementById("message-editor").value =
-        node.properties.messages[0].content;
+      document.getElementById("message-editor").value = JSON.stringify(
+        node.properties.messages,
+        null,
+        2,
+      );
+
+      // Update action editors
       document.getElementById("pre-actions-editor").value = JSON.stringify(
         node.properties.pre_actions || [],
         null,
