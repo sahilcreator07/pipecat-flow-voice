@@ -1,16 +1,14 @@
 /**
- * Copyright (c) 2024, Daily
- *
- * SPDX-License-Identifier: BSD 2-Clause License
+ * @fileoverview Manages the side panel UI for the flow editor, providing JSON editing capabilities
+ * with validation and visual feedback.
+ * @copyright 2024, Daily
+ * @license BSD 2-Clause License
  */
 
-import { editorState } from "./editorState.js";
-
 /**
- * Handles JSON editing with validation and visual feedback
- */
-/**
- * Handles JSON editing with validation and visual feedback
+ * Handles JSON editing with validation and visual feedback.
+ * Provides real-time validation, error messaging, and state management
+ * for JSON content editing.
  */
 class JsonEditor {
   /**
