@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "http-server",
+    "start": "vite",
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
+    "setup": "mkdir -p public/lib/litegraph && cp node_modules/litegraph.js/build/litegraph.js public/lib/litegraph/ && cp node_modules/litegraph.js/css/litegraph.css public/lib/litegraph/",
     "watch": "vite build --watch",
     "lint": "eslint js/",
     "lint:fix": "eslint js/ --fix",

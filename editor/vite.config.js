@@ -1,12 +1,13 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  root: "./",
-  base: "/",
+  base: process.env.NODE_ENV === "production" ? "/pipecat-flows/" : "/",
+  build: {
+    outDir: "../dist",
+    emptyOutDir: true,
+  },
   server: {
     port: 5173,
   },
-  build: {
-    outDir: "dist",
-  },
+  publicDir: "public",
 });
