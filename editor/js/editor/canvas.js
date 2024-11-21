@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LGraphCanvas } from "litegraph.js";
+
 /**
  * Sets up the canvas and its event handlers
  * @param {LGraph} graph - The LiteGraph instance

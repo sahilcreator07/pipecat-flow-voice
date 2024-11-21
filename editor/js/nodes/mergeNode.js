@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LGraphNode } from "litegraph.js";
+
 /**
  * @typedef {Object} MergeNodeSize
  * @property {number} width - Node width
@@ -14,7 +16,7 @@
  * Represents a merge node that combines multiple inputs into one output
  * @extends LGraphNode
  */
-export class PipecatMergeNode extends LiteGraph.LGraphNode {
+export class PipecatMergeNode extends LGraphNode {
   /**
    * Creates a new merge node
    */

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LGraphNode, LiteGraph } from "litegraph.js";
+
 import { editorState } from "../editor/editorState.js";
 
 /**
@@ -35,7 +37,7 @@ import { editorState } from "../editor/editorState.js";
  * Represents a function node in the flow
  * @extends LGraphNode
  */
-export class PipecatFunctionNode extends LiteGraph.LGraphNode {
+export class PipecatFunctionNode extends LGraphNode {
   /**
    * Creates a new function node
    */

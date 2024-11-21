@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LGraph, LiteGraph } from "litegraph.js";
+import 'litegraph.js/css/litegraph.css';
+
 import { registerNodes } from "./nodes/index.js";
 import { SidePanel } from "./editor/sidePanel.js";
 import { Toolbar } from "./editor/toolbar.js";
