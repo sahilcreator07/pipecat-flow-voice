@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { resolve } from "path";
 
 export default defineConfig({
   base: process.env.NODE_ENV === "production" ? "/pipecat-flows/" : "/",
@@ -9,5 +10,5 @@ export default defineConfig({
   server: {
     port: 5173,
   },
-  publicDir: "public",
+  publicDir: resolve(__dirname, "public"),
 });

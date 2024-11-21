@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "preview:prod": "vite preview --base=/pipecat-flows/",
     "setup": "mkdir -p public/lib/litegraph && cp node_modules/litegraph.js/build/litegraph.js public/lib/litegraph/ && cp node_modules/litegraph.js/css/litegraph.css public/lib/litegraph/",
     "watch": "vite build --watch",
     "lint": "eslint js/",
