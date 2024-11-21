@@ -129,7 +129,7 @@ Open the page in your browser: http://localhost:5173.
 
 #### Examples
 
-The `examples/` directory contains sample flow configurations:
+The `editor/examples/` directory contains sample flow configurations:
 
 - `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions.
 
@@ -139,7 +139,7 @@ To use an example:
 2. Click "Import Flow"
 3. Select an example JSON file
 
-See the [examples directory](examples/) for the complete files and documentation.
+See the [examples directory](editor/examples/) for the complete files and documentation.
 
 ### Development
 
