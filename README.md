@@ -7,6 +7,7 @@
 Pipecat's conversation flow system allows you to create structured, multi-turn conversations by defining your flow in JSON and processing it through the `FlowManager`. The system treats conversations as a series of connected nodes, where each node represents a distinct state with specific behaviors and options.
 
 Pipecat Flows is comprised of:
+
 - A [python module](#pipecat-flows-package) for building conversation flows with Pipecat
 - A [visual editor](#pipecat-flows-editor) for visualizing conversations and exporting into flow_configs
 
@@ -116,7 +117,7 @@ Start development server
 npm run dev
 ```
 
-Open the page in your browser at: http://localhost:8080.
+Open the page in your browser: http://localhost:5173.
 
 #### Usage
 
@@ -133,6 +134,7 @@ The `examples/` directory contains sample flow configurations:
 - `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions.
 
 To use an example:
+
 1. Open the editor
 2. Click "Import Flow"
 3. Select an example JSON file

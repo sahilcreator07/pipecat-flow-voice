@@ -62,7 +62,6 @@ export class PipecatMergeNode extends LiteGraph.LGraphNode {
     if (activeConnections > 0) {
       ctx.fillStyle = "#ddd";
       ctx.font = "11px Arial";
-      ctx.fillText(`${activeConnections} connected`, 10, 20);
     }
   }
 }

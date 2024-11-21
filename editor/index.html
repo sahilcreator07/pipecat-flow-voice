@@ -5,68 +5,139 @@ SPDX-License-Identifier: BSD 2-Clause License
 -->
 
 <!DOCTYPE html>
-<html>
+<html data-theme="dark">
 
 <head>
   <title>Pipecat Flow Editor</title>
 
-  <!-- SVG favicon -->
+  <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-
-  <!-- Fallback favicon -->
   <link rel="alternate icon" type="image/png" href="/favicon.png">
 
+  <!-- Styles -->
   <link rel="stylesheet" href="/node_modules/litegraph.js/css/litegraph.css">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/tailwind.css">
 </head>
 
-<body>
-  <div id="toolbar">
-    <button id="new-flow">New Flow</button>
-    <button id="import-flow">Import Flow</button>
-    <button id="export-flow">Export Flow</button>
-  </div>
-  <div id="main-container">
-    <div id="side-panel">
-      <div id="side-panel-content">
-        <h2 id="editor-title">Node Editor</h2>
-        <div class="no-selection-message">
-          Select a node to edit its contents
+<body class="min-h-screen bg-base-300">
+  <!-- Main Layout Container -->
+  <div class="flex h-screen">
+    <!-- Side Panel -->
+    <div id="side-panel" class="w-[350px] bg-base-200 flex flex-col">
+      <!-- Toolbar Section -->
+      <div class="p-4 border-b border-base-300">
+        <div class="flex justify-center gap-6">
+          <button id="new-flow" class="btn btn-sm btn-primary">New Flow</button>
+          <button id="import-flow" class="btn btn-sm btn-primary">Import</button>
+          <button id="export-flow" class="btn btn-sm btn-primary">Export</button>
         </div>
-        <div class="editor-content" style="display: none;">
-          <!-- For Start, Flow, and End nodes -->
-          <div class="message-editor">
-            <div class="section">
-              <h3>Message</h3>
-              <textarea id="message-editor" rows="8"></textarea>
-            </div>
-            <div class="section">
-              <h3>Pre-actions</h3>
-              <textarea id="pre-actions-editor" rows="6"></textarea>
-            </div>
-            <div class="section">
-              <h3>Post-actions</h3>
-              <textarea id="post-actions-editor" rows="6"></textarea>
-            </div>
+      </div>
+
+      <!-- Editor Content Section -->
+      <div class="flex-1 overflow-y-auto">
+        <div class="p-5">
+          <!-- Editor Title -->
+          <h2 id="editor-title" class="text-xl font-bold mb-2 border-base-300">
+            Node Editor
+          </h2>
+
+          <!-- No Selection Message -->
+          <div class="no-selection-message text-center text-base-content/60 p-5">
+            Select a node to edit its contents
           </div>
-          <!-- For Function nodes -->
-          <div class="function-editor" style="display: none;">
-            <div class="section">
-              <h3>Function</h3>
-              <textarea id="function-editor" rows="12"></textarea>
+
+          <!-- Editor Content (hidden by default) -->
+          <div class="editor-content hidden space-y-4">
+            <!-- Message Editor Section -->
+            <div class="message-editor">
+              <!-- Message Input -->
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Message</span>
+                </label>
+                <textarea id="message-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(50vh-200px)]"></textarea>
+              </div>
+
+              <!-- Pre-actions Input -->
+              <div class="form-control mt-4">
+                <label class="label">
+                  <span class="label-text">Pre-actions</span>
+                </label>
+                <textarea id="pre-actions-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(25vh-100px)]"></textarea>
+              </div>
+
+              <!-- Post-actions Input -->
+              <div class="form-control mt-4">
+                <label class="label">
+                  <span class="label-text">Post-actions</span>
+                </label>
+                <textarea id="post-actions-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(25vh-100px)]"></textarea>
+              </div>
+            </div>
+
+            <!-- Function Editor Section (hidden by default) -->
+            <div class="function-editor hidden">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Function</span>
+                </label>
+                <textarea id="function-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(100vh-300px)]"></textarea>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div id="graph-container">
+
+    <!-- Graph Container -->
+    <div id="graph-container" class="flex-1 relative bg-base-300">
       <canvas id="graph-canvas"></canvas>
+
+      <!-- Zoom Controls -->
+      <div class="absolute bottom-4 right-4">
+        <div class="bg-base-200 rounded-lg flex flex-col divide-y divide-base-300">
+          <button id="zoom-in"
+            class="p-2 aspect-square focus:outline-none hover:bg-base-300 transition-colors rounded-t-lg rounded-b-none">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+              stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </button>
+          <button id="zoom-out"
+            class="p-2 aspect-square focus:outline-none hover:bg-base-300 transition-colors rounded-b-lg rounded-t-none">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+              stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
+  <!-- Scripts -->
   <script src="/node_modules/litegraph.js/build/litegraph.js"></script>
-  <!-- Change to module type -->
   <script type="module" src="/js/main.js"></script>
+
+  <!-- Confirmation modal before creating new flow -->
+  <dialog id="new-flow-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Create New Flow?</h3>
+      <p class="py-4">This will clear your current work. Are you sure you want to continue?</p>
+      <div class="modal-action">
+        <button id="cancel-new-flow" class="btn btn-sm btn-secondary">Cancel</button>
+        <button id="confirm-new-flow" class="btn btn-sm btn-primary">Create New</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 </body>
 
 </html>

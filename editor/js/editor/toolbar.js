@@ -7,6 +7,7 @@
 import { generateFlowConfig } from "../utils/export.js";
 import { createFlowFromConfig } from "../utils/import.js";
 import { validateFlow } from "../utils/validation.js";
+import { editorState } from "../editor/editorState.js";
 
 /**
  * Manages the toolbar UI and actions
@@ -25,7 +26,27 @@ export class Toolbar {
    * Sets up toolbar button event listeners
    */
   setupButtons() {
-    document.getElementById("new-flow").onclick = () => this.handleNew();
+    // Get modal elements
+    const newFlowModal = document.getElementById("new-flow-modal");
+    const cancelNewFlow = document.getElementById("cancel-new-flow");
+    const confirmNewFlow = document.getElementById("confirm-new-flow");
+
+    // New Flow button now opens the modal
+    document.getElementById("new-flow").onclick = () => {
+      newFlowModal.showModal();
+    };
+
+    // Cancel button closes the modal
+    cancelNewFlow.onclick = () => {
+      newFlowModal.close();
+    };
+
+    // Confirm button clears the graph and closes the modal
+    confirmNewFlow.onclick = () => {
+      this.handleNew();
+      newFlowModal.close();
+    };
+
     document.getElementById("import-flow").onclick = () => this.handleImport();
     document.getElementById("export-flow").onclick = () => this.handleExport();
   }
@@ -34,7 +55,11 @@ export class Toolbar {
    * Handles creating a new flow
    */
   handleNew() {
+    // Clear the graph
     this.graph.clear();
+
+    // Reset sidebar state
+    editorState.updateSidePanel(null);
   }
 
   /**
@@ -55,10 +80,10 @@ export class Toolbar {
             .replace(/\r\n/g, "\n")
             .replace(/\r/g, "\n");
 
-          console.log("Cleaned input:", cleanInput);
+          console.debug("Cleaned input:", cleanInput);
 
           const flowConfig = JSON.parse(cleanInput);
-          console.log("Parsed config:", flowConfig);
+          console.debug("Parsed config:", flowConfig);
 
           // Validate imported flow
           const validation = validateFlow(flowConfig);
