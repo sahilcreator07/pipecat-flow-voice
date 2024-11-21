@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "http-server",
-    "dev": "http-server -c-1",
+    "dev": "vite",
+    "build": "vite build",
+    "watch": "vite build --watch",
     "lint": "eslint js/",
     "lint:fix": "eslint js/ --fix",
     "format": "prettier --write .",
@@ -17,11 +19,16 @@
     "litegraph.js": "^0.7.14"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "daisyui": "^4.12.14",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jsdoc": "^48.0.2",
     "http-server": "^14.1.1",
-    "prettier": "^3.1.1"
+    "postcss": "^8.4.49",
+    "prettier": "^3.1.1",
+    "tailwindcss": "^3.4.15",
+    "vite": "^5.4.11"
   }
 }
