@@ -25,7 +25,27 @@ export class Toolbar {
    * Sets up toolbar button event listeners
    */
   setupButtons() {
-    document.getElementById("new-flow").onclick = () => this.handleNew();
+    // Get modal elements
+    const newFlowModal = document.getElementById("new-flow-modal");
+    const cancelNewFlow = document.getElementById("cancel-new-flow");
+    const confirmNewFlow = document.getElementById("confirm-new-flow");
+
+    // New Flow button now opens the modal
+    document.getElementById("new-flow").onclick = () => {
+      newFlowModal.showModal();
+    };
+
+    // Cancel button closes the modal
+    cancelNewFlow.onclick = () => {
+      newFlowModal.close();
+    };
+
+    // Confirm button clears the graph and closes the modal
+    confirmNewFlow.onclick = () => {
+      this.handleNew();
+      newFlowModal.close();
+    };
+
     document.getElementById("import-flow").onclick = () => this.handleImport();
     document.getElementById("export-flow").onclick = () => this.handleExport();
   }

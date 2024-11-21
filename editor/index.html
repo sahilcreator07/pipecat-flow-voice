@@ -102,6 +102,21 @@ SPDX-License-Identifier: BSD 2-Clause License
   <!-- Scripts -->
   <script src="/node_modules/litegraph.js/build/litegraph.js"></script>
   <script type="module" src="/js/main.js"></script>
+
+  <!-- Confirmation modal before creating new flow -->
+  <dialog id="new-flow-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Create New Flow?</h3>
+      <p class="py-4">This will clear your current work. Are you sure you want to continue?</p>
+      <div class="modal-action">
+        <button id="cancel-new-flow" class="btn btn-sm btn-secondary">Cancel</button>
+        <button id="confirm-new-flow" class="btn btn-sm btn-primary">Create New</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 </body>
 
 </html>

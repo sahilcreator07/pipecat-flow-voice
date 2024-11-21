@@ -14,6 +14,10 @@ module.exports = {
           "primary-focus": "#4338CA", // Darker shade for hover/focus
           "primary-content": "#ffffff", // Text on primary background
 
+          secondary: "#6B7280", // Gray-500
+          "secondary-focus": "#4B5563", // Gray-600 for hover
+          "secondary-content": "#ffffff", // Text on secondary background
+
           // Background colors
           "base-100": "#111111", // Darkest - for sidebar
           "base-200": "#1a1a1a", // Dark - for content areas
