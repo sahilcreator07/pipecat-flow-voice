@@ -180,7 +180,8 @@ export class SidePanel {
 
     // Create save button container
     const saveContainer = document.createElement("div");
-    saveContainer.className = "save-button-container flex justify-end gap-2";
+    saveContainer.className =
+      "save-button-container flex justify-end gap-2 mt-4";
 
     // Add cancel button
     this.cancelButton = document.createElement("button");
@@ -201,40 +202,6 @@ export class SidePanel {
 
     // Add styles
     const style = document.createElement("style");
-    style.textContent = `
-      textarea.invalid {
-        border-color: #e74c3c !important;
-      }
-      textarea.unsaved {
-        border-style: dashed !important;
-      }
-      .save-button-container {
-        margin-top: 15px;
-        text-align: right;
-      }
-      .save-button {
-        padding: 8px 16px;
-        background: #3498db;
-        border: none;
-        border-radius: 3px;
-        color: white;
-        cursor: pointer;
-        font-size: 14px;
-      }
-      .save-button:hover {
-        background: #2980b9;
-      }
-      .save-button:disabled {
-        background: #bdc3c7;
-        cursor: not-allowed;
-      }
-      .json-error-message {
-        color: #e74c3c;
-        font-size: 12px;
-        margin-top: 4px;
-        margin-bottom: 8px;
-      }
-    `;
     document.head.appendChild(style);
 
     this.setupEventListeners();
