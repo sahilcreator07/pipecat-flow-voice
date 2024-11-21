@@ -154,7 +154,6 @@ See the [examples directory](editor/examples/) for the complete files and docume
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build locally
 - `npm run preview:prod` - Preview production build with base path
-- `npm run setup` - Set up required library files
 - `npm run lint` - Check for linting issues
 - `npm run lint:fix` - Fix linting issues
 - `npm run format` - Format code with Prettier
