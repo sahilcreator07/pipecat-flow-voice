@@ -80,10 +80,10 @@ export class Toolbar {
             .replace(/\r\n/g, "\n")
             .replace(/\r/g, "\n");
 
-          console.log("Cleaned input:", cleanInput);
+          console.debug("Cleaned input:", cleanInput);
 
           const flowConfig = JSON.parse(cleanInput);
-          console.log("Parsed config:", flowConfig);
+          console.debug("Parsed config:", flowConfig);
 
           // Validate imported flow
           const validation = validateFlow(flowConfig);
