@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LGraphNode } from "litegraph.js";
+
 import { editorState } from "../editor/editorState.js";
 import { formatActions } from "../utils/helpers.js";
 
@@ -30,7 +32,7 @@ import { formatActions } from "../utils/helpers.js";
  * Base class for all Pipecat nodes
  * @extends LGraphNode
  */
-export class PipecatBaseNode extends LiteGraph.LGraphNode {
+export class PipecatBaseNode extends LGraphNode {
   /**
    * Creates a new PipecatBaseNode
    * @param {string} title - The display title of the node

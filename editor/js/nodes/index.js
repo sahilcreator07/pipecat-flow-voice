@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD 2-Clause License
  */
 
+import { LiteGraph } from "litegraph.js";
+
 import { PipecatStartNode } from "./startNode.js";
 import { PipecatFlowNode } from "./flowNode.js";
 import { PipecatEndNode } from "./endNode.js";
