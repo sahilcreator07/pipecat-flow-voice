@@ -7,6 +7,7 @@
 import { generateFlowConfig } from "../utils/export.js";
 import { createFlowFromConfig } from "../utils/import.js";
 import { validateFlow } from "../utils/validation.js";
+import { editorState } from "../editor/editorState.js";
 
 /**
  * Manages the toolbar UI and actions
@@ -54,7 +55,11 @@ export class Toolbar {
    * Handles creating a new flow
    */
   handleNew() {
+    // Clear the graph
     this.graph.clear();
+
+    // Reset sidebar state
+    editorState.updateSidePanel(null);
   }
 
   /**
