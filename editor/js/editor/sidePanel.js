@@ -23,6 +23,7 @@ class JsonEditor {
     this.onValid = onValid;
     this.onInvalid = onInvalid;
     this.validator = validator;
+    this.originalValue = element.value;
 
     // Create error message element
     this.errorElement = document.createElement("div");
@@ -122,6 +123,16 @@ class JsonEditor {
    */
   setValue(value) {
     this.element.value = JSON.stringify(value, null, 2);
+    this.originalValue = this.element.value;
+    this.element.classList.remove("valid", "invalid", "unsaved");
+    this.hideError();
+  }
+
+  /**
+   * Restores the fields to their original values
+   */
+  restoreOriginal() {
+    this.element.value = this.originalValue;
     this.element.classList.remove("valid", "invalid", "unsaved");
     this.hideError();
   }
@@ -169,13 +180,19 @@ export class SidePanel {
 
     // Create save button container
     const saveContainer = document.createElement("div");
-    saveContainer.className = "save-button-container";
+    saveContainer.className = "save-button-container flex justify-end gap-2";
+
+    // Add cancel button
+    this.cancelButton = document.createElement("button");
+    this.cancelButton.className =
+      "btn btn-sm btn-secondary cancel-button hidden";
+    this.cancelButton.textContent = "Cancel";
+    saveContainer.appendChild(this.cancelButton);
 
     // Add save button
     this.saveButton = document.createElement("button");
-    this.saveButton.className = "save-button";
+    this.saveButton.className = "btn btn-sm btn-primary save-button hidden";
     this.saveButton.textContent = "Save changes";
-    this.saveButton.style.display = "none";
     saveContainer.appendChild(this.saveButton);
 
     // Add save button after the editors
@@ -236,6 +253,21 @@ export class SidePanel {
     document.querySelectorAll(".save-button").forEach((button) => {
       button.addEventListener("click", () => {
         this.saveAllEditors();
+      });
+    });
+
+    document.querySelectorAll(".cancel-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        Object.values(this.editors).forEach((editor) => {
+          if (editor.hasUnsavedChanges()) {
+            editor.restoreOriginal();
+          }
+        });
+        document
+          .querySelectorAll(".save-button, .cancel-button")
+          .forEach((btn) => {
+            btn.style.display = "none";
+          });
       });
     });
 
@@ -324,9 +356,11 @@ export class SidePanel {
       const hasUnsavedChanges = Object.values(this.editors).some((editor) =>
         editor.hasUnsavedChanges(),
       );
-      document.querySelectorAll(".save-button").forEach((button) => {
-        button.style.display = hasUnsavedChanges ? "inline-block" : "none";
-      });
+      document
+        .querySelectorAll(".save-button, .cancel-button")
+        .forEach((button) => {
+          button.style.display = hasUnsavedChanges ? "inline-block" : "none";
+        });
     };
 
     // Add change monitoring to each editor
@@ -371,6 +405,13 @@ export class SidePanel {
       if (!confirm("You have unsaved changes. Discard them?")) {
         return;
       }
+
+      // Hide both buttons when discarding changes
+      document
+        .querySelectorAll(".save-button, .cancel-button")
+        .forEach((button) => {
+          button.style.display = "none";
+        });
     }
 
     console.log("updatePanel called with node:", node);
