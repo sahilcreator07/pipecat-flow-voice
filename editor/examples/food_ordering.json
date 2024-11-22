@@ -5,7 +5,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are an order-taking assistant. You must ALWAYS use one of the available functions to progress the conversation. For this step, ask the user if they want pizza or sushi, and wait for them to use a function to choose."
+          "content": "You are an order-taking assistant. You must ALWAYS use one of the available functions to progress the conversation. For this step, ask the user if they want pizza or sushi, and wait for them to use a function to choose. Start off by greeting them. Be friendly and casual; you're taking an order for food over the phone."
         }
       ],
       "functions": [
@@ -37,21 +37,10 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are handling a pizza order. Use the available functions:- Use select_pizza_size when the user specifies a size (can be used multiple times if they change their mind)- Use the end function ONLY when the user confirms they are done with their orderAfter each size selection, confirm the selection and ask if they want to change it or complete their order.Only use the end function after the user confirms they are satisfied with their order."
+          "content": "You are handling a pizza order. Use the available functions:\n - Use select_pizza_size when the user specifies a size (can be used multiple times if they change their mind or want to order multiple pizzas)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each size selection, confirm the selection and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual."
         }
       ],
       "functions": [
-        {
-          "type": "function",
-          "function": {
-            "name": "end",
-            "description": "Complete the order (use only after user confirms)",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
-          }
-        },
         {
           "type": "function",
           "function": {
@@ -69,12 +58,69 @@
               "required": ["size"]
             }
           }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "end",
+            "description": "Complete the order (use only after user confirms)",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
         }
       ],
       "pre_actions": [
         {
           "type": "tts_say",
           "text": "Ok, let me help you with your pizza order..."
+        }
+      ]
+    },
+    "choose_sushi": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are handling a sushi order. Use the available functions:\n - Use select_roll_count when the user specifies how many rolls (can be used multiple times if they change their mind or if they want to order multiple sushi rolls)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each roll count selection, confirm the count and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "select_roll_count",
+            "description": "Record the number of sushi rolls",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "Number of rolls to order"
+                }
+              },
+              "required": ["count"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "end",
+            "description": "Complete the order (use only after user confirms)",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Ok, let me help you with your sushi order..."
         }
       ]
     },
@@ -95,52 +141,6 @@
       "post_actions": [
         {
           "type": "end_conversation"
-        }
-      ]
-    },
-    "choose_sushi": {
-      "messages": [
-        {
-          "role": "system",
-          "content": "You are handling a sushi order. Use the available functions:- Use select_roll_count when the user specifies how many rolls (can be used multiple times if they change their mind)- Use the end function ONLY when the user confirms they are done with their orderAfter each roll count selection, confirm the count and ask if they want to change it or complete their order.Only use the end function after the user confirms they are satisfied with their order."
-        }
-      ],
-      "functions": [
-        {
-          "type": "function",
-          "function": {
-            "name": "end",
-            "description": "Complete the order (use only after user confirms)",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
-          }
-        },
-        {
-          "type": "function",
-          "function": {
-            "name": "select_roll_count",
-            "description": "Record the number of sushi rolls",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 10,
-                  "description": "Number of rolls to order"
-                }
-              },
-              "required": ["count"]
-            }
-          }
-        }
-      ],
-      "pre_actions": [
-        {
-          "type": "tts_say",
-          "text": "Ok, let me help you with your sushi order..."
         }
       ]
     }
