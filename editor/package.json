@@ -17,6 +17,7 @@
     "docs:serve": "http-server docs"
   },
   "dependencies": {
+    "dagre": "^0.8.5",
     "jsdoc": "^4.0.4",
     "litegraph.js": "^0.7.14"
   },
