@@ -11,6 +11,7 @@ import {
   PipecatFunctionNode,
   PipecatMergeNode,
 } from "../nodes/index.js";
+import dagre from "dagre";
 
 /**
  * Creates a graph from a flow configuration
@@ -25,14 +26,20 @@ export function createFlowFromConfig(graph, flowConfig) {
     horizontal: 400,
     vertical: 150,
   };
-  const startX = 100;
-  const startY = 100;
   /** @type {Object.<string, { node: LGraphNode, config: any }>} */
   const nodes = {};
 
-  // First pass: Create all main nodes
-  let currentX = startX;
-  let currentY = startY;
+  // Create dagre graph
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({
+    rankdir: "LR", // Left to right layout
+    nodesep: nodeSpacing.vertical,
+    ranksep: nodeSpacing.horizontal,
+    edgesep: 50,
+    marginx: 100,
+    marginy: 100,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
 
   // Create start node
   const startNode = new PipecatStartNode();
@@ -41,10 +48,13 @@ export function createFlowFromConfig(graph, flowConfig) {
     pre_actions: flowConfig.nodes.start.pre_actions || [],
     post_actions: flowConfig.nodes.start.post_actions || [],
   };
-  startNode.pos = [currentX, currentY];
   graph.add(startNode);
   nodes.start = { node: startNode, config: flowConfig.nodes.start };
-  currentX += nodeSpacing.horizontal;
+  g.setNode("start", {
+    width: startNode.size[0],
+    height: startNode.size[1],
+    node: startNode,
+  });
 
   // Create intermediate nodes
   Object.entries(flowConfig.nodes).forEach(([nodeId, nodeConfig]) => {
@@ -56,10 +66,13 @@ export function createFlowFromConfig(graph, flowConfig) {
         pre_actions: nodeConfig.pre_actions || [],
         post_actions: nodeConfig.post_actions || [],
       };
-      node.pos = [currentX, currentY];
       graph.add(node);
       nodes[nodeId] = { node: node, config: nodeConfig };
-      currentX += nodeSpacing.horizontal;
+      g.setNode(nodeId, {
+        width: node.size[0],
+        height: node.size[1],
+        node: node,
+      });
     }
   });
 
@@ -71,94 +84,135 @@ export function createFlowFromConfig(graph, flowConfig) {
       pre_actions: flowConfig.nodes.end.pre_actions || [],
       post_actions: flowConfig.nodes.end.post_actions || [],
     };
-    endNode.pos = [currentX, currentY];
     graph.add(endNode);
     nodes.end = { node: endNode, config: flowConfig.nodes.end };
+    g.setNode("end", {
+      width: endNode.size[0],
+      height: endNode.size[1],
+      node: endNode,
+    });
   }
 
-  // Analyze function targets
-  const functionTargets = new Map();
+  // Track function nodes and merge nodes for edge creation
+  const functionNodes = new Map();
+  const mergeNodes = new Map();
+
+  // Create function nodes and analyze connections
   Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
     if (nodeConfig.functions) {
       nodeConfig.functions.forEach((funcConfig) => {
-        // Use explicit target if specified, otherwise use function name
         const targetName =
           funcConfig.function.target || funcConfig.function.name;
-        if (!functionTargets.has(targetName)) {
-          functionTargets.set(targetName, []);
-        }
-        functionTargets.get(targetName).push({
-          sourceNodeId,
-          funcConfig,
+        const functionNode = new PipecatFunctionNode();
+        const { target, ...cleanConfig } = funcConfig.function;
+        functionNode.properties.function = cleanConfig;
+        functionNode.properties.isTerminal = !nodes[targetName];
+
+        graph.add(functionNode);
+
+        // Add function node to dagre graph
+        const funcNodeId = `func_${sourceNodeId}_${targetName}_${Math.random().toString(36).substr(2, 9)}`;
+        g.setNode(funcNodeId, {
+          width: functionNode.size[0],
+          height: functionNode.size[1],
+          node: functionNode,
+        });
+
+        // Connect source to function node in dagre
+        g.setEdge(sourceNodeId, funcNodeId);
+
+        // Store for later LiteGraph connection
+        functionNodes.set(functionNode, {
+          source: nodes[sourceNodeId].node,
+          target: nodes[targetName]?.node,
+          targetName: targetName,
+          funcNodeId: funcNodeId,
         });
       });
     }
   });
 
-  /**
-   * Creates a merge node
-   * @param {Array<LGraphNode>} sourceNodes - Source nodes to merge
-   * @param {LGraphNode} targetNode - Target node
-   * @returns {PipecatMergeNode} The created merge node
-   */
-  function createMergeNode(sourceNodes, targetNode) {
-    const mergeNode = new PipecatMergeNode();
-    graph.add(mergeNode);
-
-    const avgX =
-      sourceNodes.reduce((sum, n) => sum + n.pos[0], 0) / sourceNodes.length;
-    const avgY =
-      sourceNodes.reduce((sum, n) => sum + n.pos[1], 0) / sourceNodes.length;
-
-    mergeNode.pos = [(avgX + targetNode.pos[0]) / 2, avgY];
-
-    while (mergeNode.inputs.length < sourceNodes.length) {
-      mergeNode.addInput(`In ${mergeNode.inputs.length + 1}`, "flow");
-      mergeNode.size[1] += 20;
+  // Group function nodes by target for merge nodes
+  const targetToFunctions = new Map();
+  functionNodes.forEach((data, functionNode) => {
+    if (!targetToFunctions.has(data.targetName)) {
+      targetToFunctions.set(data.targetName, []);
     }
+    targetToFunctions.get(data.targetName).push({ functionNode, ...data });
+  });
 
-    return mergeNode;
-  }
+  // Create merge nodes where needed and connect in dagre
+  targetToFunctions.forEach((functions, targetName) => {
+    if (functions.length > 1 && nodes[targetName]) {
+      // Create merge node
+      const mergeNode = new PipecatMergeNode();
+      while (mergeNode.inputs.length < functions.length) {
+        mergeNode.addInput(`In ${mergeNode.inputs.length + 1}`, "flow");
+        mergeNode.size[1] += 20;
+      }
+      graph.add(mergeNode);
 
-  // Second pass: Create function nodes and handle merging
-  functionTargets.forEach((sourceFunctions, targetName) => {
-    const targetNode = nodes[targetName]?.node;
-    const functionNodes = [];
-    let currentY = startY;
-
-    // Create function nodes
-    sourceFunctions.forEach(({ sourceNodeId, funcConfig }) => {
-      const sourceNode = nodes[sourceNodeId].node;
-      const functionNode = new PipecatFunctionNode();
-
-      // Clean up the function config by removing our temporary target property
-      const { target, ...cleanConfig } = funcConfig.function;
-      functionNode.properties.function = cleanConfig;
-      functionNode.properties.isTerminal = !targetNode;
-
-      functionNode.pos = [
-        sourceNode.pos[0] + nodeSpacing.horizontal / 2,
-        currentY,
-      ];
-      graph.add(functionNode);
-      sourceNode.connect(0, functionNode, 0);
-      functionNodes.push(functionNode);
-      currentY += nodeSpacing.vertical;
-    });
-
-    // Handle merging if needed
-    if (functionNodes.length > 1 && targetNode) {
-      const mergeNode = createMergeNode(functionNodes, targetNode);
-      functionNodes.forEach((functionNode, index) => {
-        functionNode.connect(0, mergeNode, index);
+      // Add merge node to dagre
+      const mergeNodeId = `merge_${targetName}`;
+      g.setNode(mergeNodeId, {
+        width: mergeNode.size[0],
+        height: mergeNode.size[1],
+        node: mergeNode,
       });
-      mergeNode.connect(0, targetNode, 0);
-    } else if (targetNode) {
-      functionNodes[0].connect(0, targetNode, 0);
+
+      // Connect function nodes to merge node in dagre
+      functions.forEach(({ funcNodeId }) => {
+        g.setEdge(funcNodeId, mergeNodeId);
+      });
+
+      // Connect merge node to target in dagre
+      g.setEdge(mergeNodeId, targetName);
+
+      // Store for later LiteGraph connection
+      mergeNodes.set(mergeNode, {
+        sources: functions.map((f) => f.functionNode),
+        target: nodes[targetName].node,
+      });
+    } else if (nodes[targetName]) {
+      // Direct connection in dagre
+      g.setEdge(functions[0].funcNodeId, targetName);
     }
   });
 
-  // Center the graph
-  graph.arrange();
+  // Apply dagre layout
+  dagre.layout(g);
+
+  // Apply positions from dagre to nodes
+  g.nodes().forEach((nodeId) => {
+    const dagreNode = g.node(nodeId);
+    if (dagreNode.node) {
+      dagreNode.node.pos = [dagreNode.x, dagreNode.y];
+    }
+  });
+
+  // Create LiteGraph connections
+  functionNodes.forEach((connections, functionNode) => {
+    connections.source.connect(0, functionNode, 0);
+  });
+
+  mergeNodes.forEach((connections, mergeNode) => {
+    connections.sources.forEach((source, index) => {
+      source.connect(0, mergeNode, index);
+    });
+    mergeNode.connect(0, connections.target, 0);
+  });
+
+  // Connect function nodes to their targets when no merge node is involved
+  functionNodes.forEach((connections, functionNode) => {
+    if (
+      connections.target &&
+      !Array.from(mergeNodes.values()).some((mergeData) =>
+        mergeData.sources.includes(functionNode),
+      )
+    ) {
+      functionNode.connect(0, connections.target, 0);
+    }
+  });
+
   graph.setDirtyCanvas(true, true);
 }
