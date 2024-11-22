@@ -36,25 +36,13 @@ export function generateFlowConfig(graphInstance) {
   function getNodeId(node) {
     if (node.constructor.name === "PipecatStartNode") return "start";
     if (node.constructor.name === "PipecatEndNode") return "end";
-    const incomingFunction = findIncomingFunction(node);
-    return incomingFunction ? incomingFunction.properties.function.name : null;
-  }
 
-  /**
-   * Finds the incoming function node
-   * @param {LGraphNode} node - The node to find incoming function for
-   * @returns {LGraphNode|null} The incoming function node or null
-   */
-  function findIncomingFunction(node) {
-    return nodes.find(
-      (n) =>
-        n.constructor.name === "PipecatFunctionNode" &&
-        n.outputs[0].links &&
-        n.outputs[0].links.some((linkId) => {
-          const link = graphInstance.links[linkId];
-          return link && link.target_id === node.id;
-        }),
-    );
+    // For flow nodes, use the node's title which matches the function name that targets it
+    if (node.constructor.name === "PipecatFlowNode") {
+      return node.title; // The title is set to the function name during import
+    }
+
+    return null;
   }
 
   /**
@@ -68,35 +56,44 @@ export function generateFlowConfig(graphInstance) {
     if (node.outputs && node.outputs[0] && node.outputs[0].links) {
       node.outputs[0].links.forEach((linkId) => {
         const link = graphInstance.links[linkId];
-        if (link) {
-          const targetNode = nodes.find((n) => n.id === link.target_id);
-          if (targetNode.constructor.name === "PipecatFunctionNode") {
+        if (!link) return;
+
+        const targetNode = nodes.find((n) => n.id === link.target_id);
+        if (!targetNode) return;
+
+        if (targetNode.constructor.name === "PipecatFunctionNode") {
+          functions.push({
+            type: "function",
+            function: targetNode.properties.function,
+          });
+        } else if (targetNode.constructor.name === "PipecatMergeNode") {
+          // Find where this merge node connects to
+          const mergeOutput = targetNode.outputs[0].links?.[0];
+          if (!mergeOutput) return;
+
+          const mergeLink = graphInstance.links[mergeOutput];
+          if (!mergeLink) return;
+
+          const finalNode = nodes.find((n) => n.id === mergeLink.target_id);
+          if (!finalNode) return;
+
+          // Find all functions that connect to this merge node
+          const connectedFunctions = nodes.filter(
+            (n) =>
+              n.constructor.name === "PipecatFunctionNode" &&
+              n.outputs[0].links?.some((l) => {
+                const funcLink = graphInstance.links[l];
+                return funcLink && funcLink.target_id === targetNode.id;
+              }),
+          );
+
+          // Add all functions with their correct target
+          connectedFunctions.forEach((funcNode) => {
             functions.push({
               type: "function",
-              function: targetNode.properties.function,
+              function: funcNode.properties.function,
             });
-          } else if (targetNode.constructor.name === "PipecatMergeNode") {
-            if (targetNode.outputs[0].links) {
-              const mergeLink =
-                graphInstance.links[targetNode.outputs[0].links[0]];
-              if (mergeLink) {
-                const finalNode = nodes.find(
-                  (n) => n.id === mergeLink.target_id,
-                );
-                if (finalNode.constructor.name === "PipecatEndNode") {
-                  functions.push({
-                    type: "function",
-                    function: {
-                      name: "end",
-                      description:
-                        "Complete the order (use only after user confirms)",
-                      parameters: { type: "object", properties: {} },
-                    },
-                  });
-                }
-              }
-            }
-          }
+          });
         }
       });
     }
@@ -110,7 +107,7 @@ export function generateFlowConfig(graphInstance) {
     nodes: {},
   };
 
-  // Process each node
+  // Process all nodes
   nodes.forEach((node) => {
     if (
       node.constructor.name === "PipecatFunctionNode" ||
@@ -122,11 +119,9 @@ export function generateFlowConfig(graphInstance) {
     const nodeId = getNodeId(node);
     if (!nodeId) return;
 
-    const functions = findConnectedFunctions(node);
-
     flowConfig.nodes[nodeId] = {
       messages: node.properties.messages,
-      functions: functions,
+      functions: findConnectedFunctions(node),
     };
 
     if (node.properties.pre_actions?.length > 0) {
