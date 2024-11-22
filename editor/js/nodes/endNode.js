@@ -5,6 +5,7 @@
  */
 
 import { PipecatBaseNode } from "./baseNode.js";
+import { LiteGraph } from "litegraph.js";
 
 /**
  * Represents the end node of a flow

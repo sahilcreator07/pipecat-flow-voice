@@ -50,6 +50,7 @@ export function createFlowFromConfig(graph, flowConfig) {
   Object.entries(flowConfig.nodes).forEach(([nodeId, nodeConfig]) => {
     if (nodeId !== "start" && nodeId !== "end") {
       const node = new PipecatFlowNode();
+      node.title = nodeId;
       node.properties = {
         messages: nodeConfig.messages,
         pre_actions: nodeConfig.pre_actions || [],
@@ -80,7 +81,9 @@ export function createFlowFromConfig(graph, flowConfig) {
   Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
     if (nodeConfig.functions) {
       nodeConfig.functions.forEach((funcConfig) => {
-        const targetName = funcConfig.function.name;
+        // Use explicit target if specified, otherwise use function name
+        const targetName =
+          funcConfig.function.target || funcConfig.function.name;
         if (!functionTargets.has(targetName)) {
           functionTargets.set(targetName, []);
         }
@@ -127,7 +130,10 @@ export function createFlowFromConfig(graph, flowConfig) {
     sourceFunctions.forEach(({ sourceNodeId, funcConfig }) => {
       const sourceNode = nodes[sourceNodeId].node;
       const functionNode = new PipecatFunctionNode();
-      functionNode.properties.function = funcConfig.function;
+
+      // Clean up the function config by removing our temporary target property
+      const { target, ...cleanConfig } = funcConfig.function;
+      functionNode.properties.function = cleanConfig;
       functionNode.properties.isTerminal = !targetNode;
 
       functionNode.pos = [
@@ -143,11 +149,9 @@ export function createFlowFromConfig(graph, flowConfig) {
     // Handle merging if needed
     if (functionNodes.length > 1 && targetNode) {
       const mergeNode = createMergeNode(functionNodes, targetNode);
-
       functionNodes.forEach((functionNode, index) => {
         functionNode.connect(0, mergeNode, index);
       });
-
       mergeNode.connect(0, targetNode, 0);
     } else if (targetNode) {
       functionNodes[0].connect(0, targetNode, 0);
