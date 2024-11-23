@@ -170,17 +170,32 @@ class FlowManager:
         await self.task.queue_frame(EndFrame())
 
     async def handle_transition(self, function_name: str):
-        """Handle node transition triggered by a function call.
+        """Handle the execution of functions and potential node transitions.
 
-        This method:
+        This method implements the core state transition logic of the conversation flow.
+        It distinguishes between two types of functions:
+
+        1. Transitional Functions:
+           - Function names that match existing node names
+           - Trigger a full node transition with:
+             * Pre-action execution
+             * Context and tool updates
+             * Post-action execution
+
+        2. Terminal Functions:
+           - Function names that don't match any node names
+           - Execute without changing the conversation state
+           - Don't trigger context updates or actions
+
+        The transition process for transitional functions:
         1. Validates the function call against available functions
-        2. Transitions to the new node if appropriate
-        3. Executes any pre-actions before updating the LLM context
-        4. Updates the LLM context with new messages and available functions
-        5. Executes any post-actions after updating the LLM context
+        2. Executes pre-actions of the new node
+        3. Updates the LLM context with new messages
+        4. Updates available tools for the new node
+        5. Executes post-actions of the new node
 
         Args:
-            function_name: Name of the function that was called
+            function_name: Name of the function to execute
 
         Raises:
             RuntimeError: If handle_transition is called before initialization
@@ -189,34 +204,36 @@ class FlowManager:
             raise RuntimeError("FlowManager must be initialized before handling transitions")
 
         available_functions = self.flow.get_available_function_names()
-        current_node = self.flow.get_current_node()
 
-        if function_name in available_functions:
-            new_node = self.flow.transition(function_name)
-            if new_node:
-                # Only execute actions if we actually changed nodes
-                is_new_node = new_node != current_node
-
-                # Execute pre-actions before updating LLM context
-                if is_new_node and self.flow.get_current_pre_actions():
-                    logger.debug(f"Executing pre-actions for node {new_node}")
-                    await self._execute_actions(self.flow.get_current_pre_actions())
-
-                # Update LLM context and tools
-                current_messages = self.flow.get_current_messages()
-                await self.task.queue_frame(LLMMessagesAppendFrame(messages=current_messages))
-                await self.task.queue_frame(
-                    LLMSetToolsFrame(tools=self.flow.get_current_functions())
-                )
-
-                # Execute post-actions after updating LLM context
-                if is_new_node and self.flow.get_current_post_actions():
-                    logger.debug(f"Executing post-actions for node {new_node}")
-                    await self._execute_actions(self.flow.get_current_post_actions())
-
-                logger.debug(f"Transition to node {new_node} complete")
-        else:
+        if function_name not in available_functions:
             logger.warning(
                 f"Received invalid function call '{function_name}' for node '{self.flow.current_node}'. "
                 f"Available functions are: {available_functions}"
             )
+            return
+
+        # Attempt transition - returns new node ID for transitional functions,
+        # None for terminal functions
+        new_node = self.flow.transition(function_name)
+
+        # Only perform node transition logic if we got a new node
+        # (meaning it was a transitional function, not a terminal one)
+        if new_node is not None:
+            # Execute pre-actions before updating LLM context
+            if self.flow.get_current_pre_actions():
+                logger.debug(f"Executing pre-actions for node {new_node}")
+                await self._execute_actions(self.flow.get_current_pre_actions())
+
+            # Update LLM context and tools
+            current_messages = self.flow.get_current_messages()
+            await self.task.queue_frame(LLMMessagesAppendFrame(messages=current_messages))
+            await self.task.queue_frame(LLMSetToolsFrame(tools=self.flow.get_current_functions()))
+
+            # Execute post-actions after updating LLM context
+            if self.flow.get_current_post_actions():
+                logger.debug(f"Executing post-actions for node {new_node}")
+                await self._execute_actions(self.flow.get_current_post_actions())
+
+            logger.debug(f"Transition to node {new_node} complete")
+        else:
+            logger.debug(f"Terminal function {function_name} executed without node transition")
