@@ -135,7 +135,10 @@ Open the page in your browser: http://localhost:5173.
 
 The `editor/examples/` directory contains sample flow configurations:
 
-- `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions.
+- `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions. Shows how to handle branching paths (pizza vs sushi) that merge back to a common endpoint.
+- `movie_booking.json` - A movie ticket booking flow showcasing date-based branching (today vs tomorrow), terminal functions for movie and showtime selection, and proper handling of sequential choices. Demonstrates how to manage time-dependent options and multiple selection criteria.
+- `restaurant_reservation.json` - A comprehensive reservation system for an upscale restaurant that handles party size, date/time selection, availability checking, seating preferences, and special requests. Features a verification step with revision capability and demonstrates proper error handling for unavailable times.
+- `travel_planner.json` - A vacation planning assistant that showcases parallel paths (beach vs mountain) merging into a common booking flow, multiple data collection points, array-based activity selection, and a verification system with revision capabilities. Demonstrates how to handle complex, multi-step planning processes.
 
 To use an example:
 
