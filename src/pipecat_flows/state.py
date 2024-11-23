@@ -132,31 +132,42 @@ class FlowState:
     def transition(self, function_name: str) -> Optional[str]:
         """Attempt to transition to a new node based on a function call.
 
-        Handles both regular transitions (where the function name matches a node)
-        and terminal functions (which execute but don't change nodes).
+        This method handles two types of functions:
+        1. Transitional functions: Functions whose names match node names, triggering
+           a state transition to that node.
+        2. Terminal functions: Functions that execute within the current node without
+           triggering a state change.
 
         Args:
             function_name: Name of the function that was called
 
         Returns:
-            The ID of the new node after transition, or None if transition failed.
-            For terminal functions, returns the current node ID.
+            str | None: The ID of the new node if a transition occurred (transitional function),
+                       or None if no transition should occur (terminal function or invalid function)
+
+        Examples:
+            >>> flow_state.transition("verify_birthday")  # Terminal function
+            None
+            >>> flow_state.transition("get_prescriptions")  # Transitional function
+            "get_prescriptions"
         """
         available_functions = self.get_available_function_names()
         logger.debug(f"Attempting transition from {self.current_node} to {function_name}")
 
-        if function_name in available_functions:
-            if function_name in self.nodes:
-                # Regular transition to a new node
-                previous_node = self.current_node
-                self.current_node = function_name
-                logger.info(f"Transitioned from {previous_node} to node: {self.current_node}")
-                return self.current_node
-            else:
-                # Handle terminal function calls (functions that don't lead to new nodes)
-                logger.info(f"Executed terminal function: {function_name}")
-                return self.current_node
-        return None
+        if function_name not in available_functions:
+            logger.warning(f"Function {function_name} not available in current node")
+            return None
+
+        # Only transition if the function name matches a node name
+        if function_name in self.nodes:
+            previous_node = self.current_node
+            self.current_node = function_name
+            logger.info(f"Transitioned from {previous_node} to node: {self.current_node}")
+            return self.current_node
+        else:
+            # Terminal function - no transition needed
+            logger.info(f"Executed terminal function: {function_name}")
+            return None
 
     def get_current_node(self) -> str:
         """Get the current node ID."""
