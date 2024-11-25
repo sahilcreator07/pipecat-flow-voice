@@ -31,7 +31,10 @@
           "function": {
             "name": "get_prescriptions",
             "description": "Proceed to collecting prescriptions and ask the user what medications they're taking",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -85,7 +88,10 @@
           "function": {
             "name": "get_allergies",
             "description": "Proceed to collecting allergies and ask the user if they have any allergies",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -129,7 +135,10 @@
           "function": {
             "name": "get_conditions",
             "description": "Proceed to collecting medical conditions and ask the user if they have any medical conditions",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -173,7 +182,10 @@
           "function": {
             "name": "get_visit_reasons",
             "description": "Proceed to collecting visit reasons and ask the user why they're visiting",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -217,7 +229,10 @@
           "function": {
             "name": "verify_information",
             "description": "Proceed to information verification, repeat the information back to the user, and have them verify",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -235,14 +250,20 @@
           "function": {
             "name": "end",
             "description": "End the conversation",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
     },
     "end": {
       "messages": [
-        { "role": "system", "content": "Say goodbye and end the conversation." }
+        {
+          "role": "system",
+          "content": "Say goodbye and end the conversation."
+        }
       ],
       "functions": [],
       "pre_actions": [
@@ -251,7 +272,11 @@
           "text": "Thank you for providing your information! We'll see you soon for your visit."
         }
       ],
-      "post_actions": [{ "type": "end_conversation" }]
+      "post_actions": [
+        {
+          "type": "end_conversation"
+        }
+      ]
     }
   }
 }

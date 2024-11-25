@@ -14,7 +14,10 @@
           "function": {
             "name": "choose_beach",
             "description": "User wants to plan a beach vacation",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         },
         {
@@ -22,7 +25,10 @@
           "function": {
             "name": "choose_mountain",
             "description": "User wants to plan a mountain retreat",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -64,7 +70,10 @@
           "function": {
             "name": "get_dates",
             "description": "Proceed to date selection",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -106,7 +115,10 @@
           "function": {
             "name": "get_dates",
             "description": "Proceed to date selection",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -153,7 +165,10 @@
           "function": {
             "name": "get_activities",
             "description": "Proceed to activity selection",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -176,7 +191,9 @@
               "properties": {
                 "activities": {
                   "type": "array",
-                  "items": { "type": "string" },
+                  "items": {
+                    "type": "string"
+                  },
                   "minItems": 1,
                   "maxItems": 3,
                   "description": "Selected activities"
@@ -191,7 +208,10 @@
           "function": {
             "name": "verify_itinerary",
             "description": "Proceed to itinerary verification",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -209,7 +229,10 @@
           "function": {
             "name": "get_dates",
             "description": "Return to date selection to revise the plan",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         },
         {
@@ -217,7 +240,10 @@
           "function": {
             "name": "confirm_booking",
             "description": "Confirm the booking and proceed to end",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ]
@@ -235,7 +261,10 @@
           "function": {
             "name": "end",
             "description": "End the conversation",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -254,7 +283,11 @@
         }
       ],
       "functions": [],
-      "post_actions": [{ "type": "end_conversation" }]
+      "post_actions": [
+        {
+          "type": "end_conversation"
+        }
+      ]
     }
   }
 }
