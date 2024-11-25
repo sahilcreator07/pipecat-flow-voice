@@ -5,7 +5,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are a movie ticket booking assistant. You must ALWAYS use one of the available functions to progress the conversation. For this step, ask if they want to see what's playing today or tomorrow, and wait for them to choose. Start with a warm greeting and be helpful and enthusiastic; you're helping them plan their entertainment."
+          "content": "For this step, ask if they want to see what's playing today or tomorrow, and wait for them to choose. Start with a warm greeting and be helpful and enthusiastic; you're helping them plan their entertainment."
         }
       ],
       "functions": [

@@ -5,7 +5,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are a restaurant reservation assistant for La Maison, an upscale French restaurant. You must ALWAYS use one of the available functions to progress the conversation. For this step, warmly greet the customer and ask how many people are in their party (maximum 12). Once they tell you the party size, use record_party_size to save it and proceed to get_date_time."
+          "content": "For this step, warmly greet the customer and ask how many people are in their party (maximum 12). Once they tell you the party size, use record_party_size to save it and proceed to get_date_time."
         }
       ],
       "functions": [
@@ -33,10 +33,7 @@
           "function": {
             "name": "get_date_time",
             "description": "Proceed to date and time selection",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ],
@@ -83,10 +80,7 @@
           "function": {
             "name": "check_availability",
             "description": "Check if the requested time slot is available",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -104,10 +98,7 @@
           "function": {
             "name": "get_seating_preferences",
             "description": "Proceed to seating preferences",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         },
         {
@@ -115,10 +106,7 @@
           "function": {
             "name": "try_alternative_time",
             "description": "Return to date/time selection with suggested alternatives",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -136,10 +124,7 @@
           "function": {
             "name": "get_date_time",
             "description": "Return to date and time selection",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -175,10 +160,7 @@
           "function": {
             "name": "special_requests",
             "description": "Proceed to special requests",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -213,10 +195,7 @@
           "function": {
             "name": "verify_reservation",
             "description": "Proceed to reservation verification",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -234,10 +213,7 @@
           "function": {
             "name": "confirm_reservation",
             "description": "Confirm the reservation",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         },
         {
@@ -245,10 +221,7 @@
           "function": {
             "name": "revise_reservation",
             "description": "Return to date/time selection to revise details",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -266,10 +239,7 @@
           "function": {
             "name": "get_date_time",
             "description": "Return to date/time selection",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ]
@@ -287,10 +257,7 @@
           "function": {
             "name": "end",
             "description": "End the conversation",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            "parameters": { "type": "object", "properties": {} }
           }
         }
       ],
@@ -303,17 +270,10 @@
     },
     "end": {
       "messages": [
-        {
-          "role": "system",
-          "content": "Say goodbye and end the conversation."
-        }
+        { "role": "system", "content": "Say goodbye and end the conversation." }
       ],
       "functions": [],
-      "post_actions": [
-        {
-          "type": "end_conversation"
-        }
-      ]
+      "post_actions": [{ "type": "end_conversation" }]
     }
   }
 }

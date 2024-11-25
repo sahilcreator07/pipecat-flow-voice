@@ -23,17 +23,21 @@ A Python package for managing conversation flows in Pipecat applications.
 pip install pipecat-ai-flows
 ```
 
-### Features
+If you're using specific Pipecat features, install with the required options
 
-- State machine management for conversation flows
-- Pre and post actions for state transitions
-- Terminal and transitional functions
-- Flexible node configuration
+```
+# For example, to use OpenAI and Deepgram:
+pip install "pipecat-ai[daily,openai,deepgram,silero]"
+```
+
+Learn more about the available options with [Pipecat](https://github.com/pipecat-ai/pipecat).
 
 ### Basic Usage
 
 ```python
-from pipecat_flows import FlowManager
+from pipecat_flows import FlowManager  # When developing with the repository
+# or
+from pipecat.flows import FlowManager  # When installed via pip
 
 # Initialize context and tools
 initial_tools = flow_config["nodes"]["start"]["functions"]  # Available functions for starting state
@@ -69,6 +73,55 @@ async def on_first_participant_joined(transport, participant):
     # Kick off the conversation using the context aggregator
     await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
+
+### Running Examples
+
+The repository includes several complete example implementations in the `examples/` directory:
+
+- `food_ordering.py` - A restaurant order flow demonstrating terminal and transitional functions
+- `movie_booking.py` - A movie ticket booking system with date-based branching
+- `patient_intake.py` - A medical intake system showing complex state management
+- `restaurant_reservation.py` - A reservation system with availability checking
+- `travel_planner.py` - A vacation planning assistant with parallel paths
+
+To run these examples:
+
+1. **Setup Virtual Environment** (recommended):
+
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. **Installation**:
+
+   ```bash
+   # Install the package in development mode
+   pip install -e .
+
+   # Install Pipecat with required options for examples
+   pip install "pipecat-ai[daily,openai,deepgram,silero,examples]"
+   ```
+
+3. **Configuration**:
+
+   - Copy `env.example` to `.env` in the examples directory
+
+   ```bash
+   cp env.example .env
+   ```
+
+   - Add your API keys and configuration:
+     - DEEPGRAM_API_KEY
+     - OPENAI_API_KEY
+     - DAILY_API_KEY
+
+4. **Running**:
+   ```bash
+   python examples/food_ordering.py -u YOUR_DAILY_ROOM_URL
+   ```
+
+Looking for a Daily API key and room URL? Sign up at https://dashboard.daily.co.
 
 ## Pipecat Flows Editor
 
@@ -137,6 +190,7 @@ The `editor/examples/` directory contains sample flow configurations:
 
 - `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions. Shows how to handle branching paths (pizza vs sushi) that merge back to a common endpoint.
 - `movie_booking.json` - A movie ticket booking flow showcasing date-based branching (today vs tomorrow), terminal functions for movie and showtime selection, and proper handling of sequential choices. Demonstrates how to manage time-dependent options and multiple selection criteria.
+- `patient_intake.json` - A medical patient intake flow that handles initial patient information gathering, symptom assessment, and medical history collection. Features branching paths based on symptom severity, conditional questioning based on previous responses, and demonstrates proper handling of sensitive medical information. Shows how to implement complex decision trees with multiple merge points and validation steps.
 - `restaurant_reservation.json` - A comprehensive reservation system for an upscale restaurant that handles party size, date/time selection, availability checking, seating preferences, and special requests. Features a verification step with revision capability and demonstrates proper error handling for unavailable times.
 - `travel_planner.json` - A vacation planning assistant that showcases parallel paths (beach vs mountain) merging into a common booking flow, multiple data collection points, array-based activity selection, and a verification system with revision capabilities. Demonstrates how to handle complex, multi-step planning processes.
 

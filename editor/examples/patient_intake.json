@@ -1,0 +1,257 @@
+{
+  "initial_node": "start",
+  "nodes": {
+    "start": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If the birthday is correct (1983-01-01), use get_prescriptions to proceed."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_birthday",
+            "description": "Verify the user has provided their correct birthday",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "birthday": {
+                  "type": "string",
+                  "description": "The user's birthdate (convert to YYYY-MM-DD format)"
+                }
+              },
+              "required": ["birthday"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_prescriptions",
+            "description": "Proceed to collecting prescriptions and ask the user what medications they're taking",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Hello, I'm Jessica from Tri-County Health Services."
+        }
+      ]
+    },
+    "get_prescriptions": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "This step is for collecting a user's prescription. Ask them what presceriptions they're taking, including the dosage. Use the available functions:\n - Use record_prescriptions when the user lists their medications (must include both name and dosage)\n - Use get_allergies once all prescriptions are recorded\n\nAsk them what prescriptions they're currently taking, making sure to get both medication names and dosages. After they provide their prescriptions (or confirm they have none), acknowledge their response and proceed to allergies"
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "record_prescriptions",
+            "description": "Record the user's prescriptions",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "prescriptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "medication": {
+                        "type": "string",
+                        "description": "The medication's name"
+                      },
+                      "dosage": {
+                        "type": "string",
+                        "description": "The prescription's dosage"
+                      }
+                    },
+                    "required": ["medication", "dosage"]
+                  }
+                }
+              },
+              "required": ["prescriptions"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_allergies",
+            "description": "Proceed to collecting allergies and ask the user if they have any allergies",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ]
+    },
+    "get_allergies": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are collecting allergy information. Use the available functions:\n - Use record_allergies when the user lists their allergies (or confirms they have none)\n - Use get_conditions once allergies are recorded\n\nAsk them about any allergies they have. After they list their allergies (or confirm they have none), acknowledge their response and ask about any medical conditions they have."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "record_allergies",
+            "description": "Record the user's allergies",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "allergies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "What the user is allergic to"
+                      }
+                    },
+                    "required": ["name"]
+                  }
+                }
+              },
+              "required": ["allergies"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_conditions",
+            "description": "Proceed to collecting medical conditions and ask the user if they have any medical conditions",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ]
+    },
+    "get_conditions": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are collecting medical condition information. Use the available functions:\n - Use record_conditions when the user lists their conditions (or confirms they have none)\n - Use get_visit_reasons once conditions are recorded\n\nAsk them about any medical conditions they have. After they list their conditions (or confirm they have none), acknowledge their response and ask about the reason for their visit today."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "record_conditions",
+            "description": "Record the user's medical conditions",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The user's medical condition"
+                      }
+                    },
+                    "required": ["name"]
+                  }
+                }
+              },
+              "required": ["conditions"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_visit_reasons",
+            "description": "Proceed to collecting visit reasons and ask the user why they're visiting",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ]
+    },
+    "get_visit_reasons": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are collecting information about the reason for their visit. Use the available functions:\n - Use record_visit_reasons when they explain their reasons\n - Use verify_information once reasons are recorded\n\nAsk them what brings them to the doctor today. After they explain their reasons, acknowledge their response and let them know you'll review all the information they've provided."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "record_visit_reasons",
+            "description": "Record the reasons for their visit",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "visit_reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The user's reason for visiting"
+                      }
+                    },
+                    "required": ["name"]
+                  }
+                }
+              },
+              "required": ["visit_reasons"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_information",
+            "description": "Proceed to information verification, repeat the information back to the user, and have them verify",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ]
+    },
+    "verify_information": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are reviewing all collected information. Use the available functions:\n - Use get_prescriptions if they need to make any changes\n - Use confirm_intake if everything is correct\n\nSummarize all the information they've provided (prescriptions, allergies, conditions, and visit reasons), then ask them to confirm if everything is correct."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "end",
+            "description": "End the conversation",
+            "parameters": { "type": "object", "properties": {} }
+          }
+        }
+      ]
+    },
+    "end": {
+      "messages": [
+        { "role": "system", "content": "Say goodbye and end the conversation." }
+      ],
+      "functions": [],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Thank you for providing your information! We'll see you soon for your visit."
+        }
+      ],
+      "post_actions": [{ "type": "end_conversation" }]
+    }
+  }
+}
