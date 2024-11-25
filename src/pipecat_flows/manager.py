@@ -236,4 +236,4 @@ class FlowManager:
 
             logger.debug(f"Transition to node {new_node} complete")
         else:
-            logger.debug(f"Terminal function {function_name} executed without node transition")
+            logger.debug(f"Node function {function_name} executed without transition")

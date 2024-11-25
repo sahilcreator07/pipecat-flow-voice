@@ -106,7 +106,7 @@ export function createFlowFromConfig(graph, flowConfig) {
         const functionNode = new PipecatFunctionNode();
         const { target, ...cleanConfig } = funcConfig.function;
         functionNode.properties.function = cleanConfig;
-        functionNode.properties.isTerminal = !nodes[targetName];
+        functionNode.properties.isNodeFunction = !nodes[targetName];
 
         graph.add(functionNode);
 

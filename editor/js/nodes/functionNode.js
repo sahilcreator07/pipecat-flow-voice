@@ -30,7 +30,7 @@ import { editorState } from "../editor/editorState.js";
  * @typedef {Object} FunctionNodeProperties
  * @property {string} type - Always 'function'
  * @property {FunctionDefinition} function - The function definition
- * @property {boolean} isTerminal - Whether this is a terminal function
+ * @property {boolean} isNodeFunction - Whether this is a node function
  */
 
 /**
@@ -60,7 +60,7 @@ export class PipecatFunctionNode extends LGraphNode {
           properties: {},
         },
       },
-      isTerminal: false,
+      isNodeFunction: false,
     };
 
     this.color = "#9b59b6";
@@ -76,15 +76,15 @@ export class PipecatFunctionNode extends LGraphNode {
   }
 
   /**
-   * Updates the terminal status of the function based on its connections
+   * Updates the node status of the function based on its connections
    */
-  updateTerminalStatus() {
+  updateNodeFunctionStatus() {
     const hasOutputConnection =
       this.outputs[0].links && this.outputs[0].links.length > 0;
     const newStatus = !hasOutputConnection;
 
-    if (this.properties.isTerminal !== newStatus) {
-      this.properties.isTerminal = newStatus;
+    if (this.properties.isNodeFunction !== newStatus) {
+      this.properties.isNodeFunction = newStatus;
       this.setDirtyCanvas(true, true);
     }
   }
@@ -101,7 +101,7 @@ export class PipecatFunctionNode extends LGraphNode {
       this.outputs[slot].links = [];
     }
     const result = super.connect(slot, targetNode, targetSlot);
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
     return result;
   }
 
@@ -114,7 +114,7 @@ export class PipecatFunctionNode extends LGraphNode {
       this.outputs[slot].links = [];
     }
     super.disconnectOutput(slot);
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
   }
 
   /**
@@ -123,7 +123,7 @@ export class PipecatFunctionNode extends LGraphNode {
    */
   disconnectInput(slot) {
     super.disconnectInput(slot);
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
   }
 
   /**
@@ -139,7 +139,7 @@ export class PipecatFunctionNode extends LGraphNode {
     }
     super.onConnectionsChange &&
       super.onConnectionsChange(type, slot, connected, link_info);
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
   }
 
   /**
@@ -147,20 +147,20 @@ export class PipecatFunctionNode extends LGraphNode {
    * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
    */
   onDrawForeground(ctx) {
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
 
     const padding = 15;
     const textColor = "#ddd";
     const labelColor = "#aaa";
 
-    this.color = this.properties.isTerminal ? "#e67e22" : "#9b59b6";
+    this.color = this.properties.isNodeFunction ? "#e67e22" : "#9b59b6";
 
-    // Draw terminal/transitional indicator
+    // Draw node/edge indicator
     ctx.fillStyle = labelColor;
     ctx.font = "11px Arial";
-    const typeText = this.properties.isTerminal
-      ? "[Terminal Function]"
-      : "[Transitional Function]";
+    const typeText = this.properties.isNodeFunction
+      ? "[Node Function]"
+      : "[Edge Function]";
     ctx.fillText(typeText, padding, 35);
 
     // Draw function name
@@ -220,6 +220,6 @@ export class PipecatFunctionNode extends LGraphNode {
    * Handles graph changes
    */
   onAfterGraphChange() {
-    this.updateTerminalStatus();
+    this.updateNodeFunctionStatus();
   }
 }

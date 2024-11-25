@@ -5,6 +5,14 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - TBD
+
+### Changed
+
+- Terminal and transitional functions now use graph terms—node and edge
+  functions, respectively. Updates are made throughout the codebase to
+  reflect this terminology change.
+
 ## [0.0.3] - 2024-11-25
 
 ### Added

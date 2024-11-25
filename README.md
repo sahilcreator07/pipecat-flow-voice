@@ -84,7 +84,7 @@ async def on_first_participant_joined(transport, participant):
 
 The repository includes several complete example implementations in the `examples/` directory:
 
-- `food_ordering.py` - A restaurant order flow demonstrating terminal and transitional functions
+- `food_ordering.py` - A restaurant order flow demonstrating node and edge functions
 - `movie_booking.py` - A movie ticket booking system with date-based branching
 - `patient_intake.py` - A medical intake system showing complex state management
 - `restaurant_reservation.py` - A reservation system with availability checking
@@ -144,7 +144,7 @@ A visual editor for creating and managing Pipecat conversation flows.
 
 - Visual flow creation and editing
 - Import/export of flow configurations
-- Support for terminal and transitional functions
+- Support for node and edge functions
 - Merge node support for complex flows
 - Real-time validation
 
@@ -199,7 +199,7 @@ Open the page in your browser: http://localhost:5173.
 
 The `editor/examples/` directory contains sample flow configurations:
 
-- `food_ordering.json` - Restaurant order flow with branching paths (pizza vs sushi) demonstrating basic terminal and transitional functions
+- `food_ordering.json` - Restaurant order flow with branching paths (pizza vs sushi) demonstrating basic node and edge functions
 - `movie_booking.json` - Movie ticket booking with date-based branching and sequential selection of movies and showtimes
 - `patient_intake.json` - Medical intake system with symptom assessment branching and conditional questioning based on patient responses
 - `restaurant_reservation.json` - Restaurant reservation system handling party size, timing, and preferences with verification steps

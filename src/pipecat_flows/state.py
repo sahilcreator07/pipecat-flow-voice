@@ -38,7 +38,7 @@ class FlowState:
     This class handles the state machine logic for conversation flows, where each node
     represents a distinct state with its own messages, available functions, and optional
     pre- and post-actions. It manages transitions between nodes based on function calls
-    and handles both regular and terminal functions.
+    and handles both node and edge functions.
 
     Attributes:
         nodes: Dictionary mapping node IDs to their configurations
@@ -166,7 +166,7 @@ class FlowState:
             return self.current_node
         else:
             # Node function - no transition needed
-            logger.info(f"Executed terminal function: {function_name}")
+            logger.info(f"Executed edge function: {function_name}")
             return None
 
     def get_current_node(self) -> str:

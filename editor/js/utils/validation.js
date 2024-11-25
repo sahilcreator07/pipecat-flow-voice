@@ -63,17 +63,17 @@ export class FlowValidator {
   }
 
   /**
-   * Determines if a function is terminal based on its parameters
+   * Determines if a function is node function based on its parameters
    * @param {string} funcName - Name of the function to check
-   * @returns {boolean} Whether the function is terminal
+   * @returns {boolean} Whether the function is a node function
    * @private
    */
-  isTerminalFunction(funcName) {
+  isNodeFunction(funcName) {
     // Find the function definition in any node
     for (const node of Object.values(this.flow.nodes)) {
       const func = node.functions?.find((f) => f.function.name === funcName);
       if (func) {
-        // Terminal functions are those that:
+        // Node functions are those that:
         // 1. Have parameters with properties (collecting data)
         // 2. Have required fields (must collect specific data)
         // 3. Have constraints (enum, min/max, etc.)
@@ -107,7 +107,7 @@ export class FlowValidator {
 
         functionNames.forEach((funcName) => {
           if (
-            !this.isTerminalFunction(funcName) &&
+            !this.isNodeFunction(funcName) &&
             funcName !== "end" &&
             !this.flow.nodes[funcName]
           ) {
