@@ -38,7 +38,7 @@ class FlowState:
     This class handles the state machine logic for conversation flows, where each node
     represents a distinct state with its own messages, available functions, and optional
     pre- and post-actions. It manages transitions between nodes based on function calls
-    and handles both regular and terminal functions.
+    and handles both node and edge functions.
 
     Attributes:
         nodes: Dictionary mapping node IDs to their configurations
@@ -133,22 +133,22 @@ class FlowState:
         """Attempt to transition to a new node based on a function call.
 
         This method handles two types of functions:
-        1. Transitional functions: Functions whose names match node names, triggering
-           a state transition to that node.
-        2. Terminal functions: Functions that execute within the current node without
-           triggering a state change.
+        1. Edge Functions: Functions whose names match node names, triggering
+        a transition to a new node in the graph.
+        2. Node Functions: Functions that execute within the current node without
+        triggering a state change.
 
         Args:
             function_name: Name of the function that was called
 
         Returns:
-            str | None: The ID of the new node if a transition occurred (transitional function),
-                       or None if no transition should occur (terminal function or invalid function)
+            str | None: The ID of the new node if a transition occurred (edge function),
+                    or None if no transition should occur (node function or invalid function)
 
         Examples:
-            >>> flow_state.transition("verify_birthday")  # Terminal function
+            >>> flow_state.transition("verify_birthday")  # Node function
             None
-            >>> flow_state.transition("get_prescriptions")  # Transitional function
+            >>> flow_state.transition("get_prescriptions")  # Edge function
             "get_prescriptions"
         """
         available_functions = self.get_available_function_names()
@@ -158,15 +158,15 @@ class FlowState:
             logger.warning(f"Function {function_name} not available in current node")
             return None
 
-        # Only transition if the function name matches a node name
+        # Only transition if the function name matches a node name (edge function)
         if function_name in self.nodes:
             previous_node = self.current_node
             self.current_node = function_name
             logger.info(f"Transitioned from {previous_node} to node: {self.current_node}")
             return self.current_node
         else:
-            # Terminal function - no transition needed
-            logger.info(f"Executed terminal function: {function_name}")
+            # Node function - no transition needed
+            logger.info(f"Executed edge function: {function_name}")
             return None
 
     def get_current_node(self) -> str:

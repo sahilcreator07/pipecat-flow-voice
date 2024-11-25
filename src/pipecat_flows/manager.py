@@ -175,19 +175,19 @@ class FlowManager:
         This method implements the core state transition logic of the conversation flow.
         It distinguishes between two types of functions:
 
-        1. Transitional Functions:
-           - Function names that match existing node names
-           - Trigger a full node transition with:
-             * Pre-action execution
-             * Context and tool updates
-             * Post-action execution
+        1. Edge Functions:
+        - Function names that match existing node names
+        - Trigger a transition to a new node with:
+            * Pre-action execution
+            * Context and tool updates
+            * Post-action execution
 
-        2. Terminal Functions:
-           - Function names that don't match any node names
-           - Execute without changing the conversation state
-           - Don't trigger context updates or actions
+        2. Node Functions:
+        - Function names that don't match any node names
+        - Execute within the current node without changing state
+        - Don't trigger context updates or actions
 
-        The transition process for transitional functions:
+        The transition process for edge functions:
         1. Validates the function call against available functions
         2. Executes pre-actions of the new node
         3. Updates the LLM context with new messages
@@ -212,12 +212,12 @@ class FlowManager:
             )
             return
 
-        # Attempt transition - returns new node ID for transitional functions,
-        # None for terminal functions
+        # Attempt transition - returns new node ID for edge functions,
+        # None for node functions
         new_node = self.flow.transition(function_name)
 
         # Only perform node transition logic if we got a new node
-        # (meaning it was a transitional function, not a terminal one)
+        # (meaning it was an edge function, not a node function)
         if new_node is not None:
             # Execute pre-actions before updating LLM context
             if self.flow.get_current_pre_actions():
@@ -236,4 +236,4 @@ class FlowManager:
 
             logger.debug(f"Transition to node {new_node} complete")
         else:
-            logger.debug(f"Terminal function {function_name} executed without node transition")
+            logger.debug(f"Node function {function_name} executed without transition")

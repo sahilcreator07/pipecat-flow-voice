@@ -41,20 +41,20 @@ logger.add(sys.stderr, level="DEBUG")
 # 2. choose_beach/choose_mountain
 #    - Handles destination selection for chosen vacation type
 #    - Functions:
-#      * select_destination (terminal function with location-specific options)
+#      * select_destination (node function with location-specific options)
 #      * get_dates (transitions to date selection)
 #    - Pre-action: Destination-specific welcome message
 #
 # 3. get_dates
 #    - Handles travel date selection
 #    - Functions:
-#      * record_dates (terminal function, can be modified)
+#      * record_dates (node function, can be modified)
 #      * get_activities (transitions to activity selection)
 #
 # 4. get_activities
 #    - Handles activity preference selection
 #    - Functions:
-#      * record_activities (terminal function, array-based selection)
+#      * record_activities (node function, array-based selection)
 #      * verify_itinerary (transitions to verification)
 #
 # 5. verify_itinerary

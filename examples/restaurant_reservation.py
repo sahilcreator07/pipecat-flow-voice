@@ -35,7 +35,7 @@ logger.add(sys.stderr, level="DEBUG")
 # 1. start
 #    - Initial state collecting party size information
 #    - Functions:
-#      * record_party_size (terminal function, validates 1-12 people)
+#      * record_party_size (node function, validates 1-12 people)
 #      * get_date_time (transitions to date/time selection)
 #    - Pre-action: Welcome message from La Maison
 #    - Expected flow: Greet -> Ask party size -> Record -> Transition to date/time
@@ -44,7 +44,7 @@ logger.add(sys.stderr, level="DEBUG")
 #    - Collects preferred reservation date and time
 #    - Operating hours: Tue-Sun, 5 PM - 10 PM (last seating 9 PM)
 #    - Functions:
-#      * record_datetime (terminal function, collects date and time)
+#      * record_datetime (node function, collects date and time)
 #      * check_availability (transitions to availability check)
 #    - Expected flow: Ask preferences -> Record details -> Check availability
 #
@@ -65,14 +65,14 @@ logger.add(sys.stderr, level="DEBUG")
 #    - Collects seating area preference
 #    - Options: main dining room, outdoor terrace, bar area
 #    - Functions:
-#      * record_seating (terminal function, records seating choice)
+#      * record_seating (node function, records seating choice)
 #      * special_requests (transitions to special requests)
 #    - Expected flow: Present options -> Record choice -> Transition to requests
 #
 # 6. special_requests
 #    - Collects any special requirements or dietary needs
 #    - Functions:
-#      * record_requests (terminal function, records requests or empty string)
+#      * record_requests (node function, records requests or empty string)
 #      * verify_reservation (transitions to verification)
 #    - Expected flow: Ask about requests -> Record details -> Transition to verify
 #

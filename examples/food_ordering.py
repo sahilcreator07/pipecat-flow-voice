@@ -40,14 +40,14 @@ logger.add(sys.stderr, level="DEBUG")
 # 2. choose_pizza
 #    - Handles pizza size selection and order confirmation
 #    - Functions:
-#      * select_pizza_size (terminal function, can be called multiple times)
+#      * select_pizza_size (node function, can be called multiple times)
 #      * end (transitions to end node after order confirmation)
 #    - Pre-action: Immediate TTS acknowledgment
 #
 # 3. choose_sushi
 #    - Handles sushi roll count selection and order confirmation
 #    - Functions:
-#      * select_roll_count (terminal function, can be called multiple times)
+#      * select_roll_count (node function, can be called multiple times)
 #      * end (transitions to end node after order confirmation)
 #    - Pre-action: Immediate TTS acknowledgment
 #

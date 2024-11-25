@@ -35,7 +35,7 @@ logger.add(sys.stderr, level="DEBUG")
 # 1. start
 #    - Initial state where system verifies patient identity through birthday
 #    - Functions:
-#      * verify_birthday (terminal function to check DOB)
+#      * verify_birthday (node function to check DOB)
 #      * get_prescriptions (transitions to prescription collection)
 #    - Pre-action: Initial greeting from Jessica
 #    - Expected flow: Greet -> Ask DOB -> Verify -> Transition to prescriptions
@@ -43,28 +43,28 @@ logger.add(sys.stderr, level="DEBUG")
 # 2. get_prescriptions
 #    - Collects information about patient's current medications
 #    - Functions:
-#      * record_prescriptions (terminal function, collects medication name and dosage)
+#      * record_prescriptions (node function, collects medication name and dosage)
 #      * get_allergies (transitions to allergy collection)
 #    - Expected flow: Ask about prescriptions -> Record details -> Transition to allergies
 #
 # 3. get_allergies
 #    - Collects information about patient's allergies
 #    - Functions:
-#      * record_allergies (terminal function, records allergy information)
+#      * record_allergies (node function, records allergy information)
 #      * get_conditions (transitions to medical conditions)
 #    - Expected flow: Ask about allergies -> Record details -> Transition to conditions
 #
 # 4. get_conditions
 #    - Collects information about patient's medical conditions
 #    - Functions:
-#      * record_conditions (terminal function, records medical conditions)
+#      * record_conditions (node function, records medical conditions)
 #      * get_visit_reasons (transitions to visit reason collection)
 #    - Expected flow: Ask about conditions -> Record details -> Transition to visit reasons
 #
 # 5. get_visit_reasons
 #    - Collects information about why patient is visiting
 #    - Functions:
-#      * record_visit_reasons (terminal function, records visit reasons)
+#      * record_visit_reasons (node function, records visit reasons)
 #      * verify_information (transitions to verification)
 #    - Expected flow: Ask about visit reason -> Record details -> Transition to verification
 #

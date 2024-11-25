@@ -41,16 +41,16 @@ logger.add(sys.stderr, level="DEBUG")
 # 2. check_today
 #    - Handles movie selection for today's showings
 #    - Functions:
-#      * select_movie (terminal function with today's movies)
-#      * select_showtime (terminal function with available times)
+#      * select_movie (node function with today's movies)
+#      * select_showtime (node function with available times)
 #      * end (transitions to end node after confirmation)
 #    - Pre-action: Today's movie listing message
 #
 # 3. check_tomorrow
 #    - Handles movie selection for tomorrow's showings
 #    - Functions:
-#      * select_movie (terminal function with tomorrow's movies)
-#      * select_showtime (terminal function with available times)
+#      * select_movie (node function with tomorrow's movies)
+#      * select_showtime (node function with available times)
 #      * end (transitions to end node after confirmation)
 #    - Pre-action: Tomorrow's movie listing message
 #
