@@ -19,21 +19,31 @@ A Python package for managing conversation flows in Pipecat applications.
 
 ### Installation
 
+If you're already using Pipecat:
+
 ```bash
 pip install pipecat-ai-flows
 ```
 
-### Features
+If you're starting fresh:
 
-- State machine management for conversation flows
-- Pre and post actions for state transitions
-- Terminal and transitional functions
-- Flexible node configuration
+```bash
+# Basic installation
+pip install pipecat-ai-flows
+
+# Install Pipecat with required options
+# For example, to use Daily, OpenAI, and Deepgram:
+pip install "pipecat-ai[daily, openai,deepgram]"
+```
+
+Learn more about the available options with [Pipecat](https://github.com/pipecat-ai/pipecat).
 
 ### Basic Usage
 
 ```python
-from pipecat_flows import FlowManager
+from pipecat_flows import FlowManager  # When developing with the repository
+# or
+from pipecat.flows import FlowManager  # When installed via pip
 
 # Initialize context and tools
 initial_tools = flow_config["nodes"]["start"]["functions"]  # Available functions for starting state
@@ -69,6 +79,60 @@ async def on_first_participant_joined(transport, participant):
     # Kick off the conversation using the context aggregator
     await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
+
+### Running Examples
+
+The repository includes several complete example implementations in the `examples/` directory:
+
+- `food_ordering.py` - A restaurant order flow demonstrating terminal and transitional functions
+- `movie_booking.py` - A movie ticket booking system with date-based branching
+- `patient_intake.py` - A medical intake system showing complex state management
+- `restaurant_reservation.py` - A reservation system with availability checking
+- `travel_planner.py` - A vacation planning assistant with parallel paths
+
+To run these examples:
+
+1. **Setup Virtual Environment** (recommended):
+
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. **Installation**:
+
+   Install the package in development mode:
+
+   ```bash
+   pip install -e .
+   ```
+
+   Install Pipecat with required options for examples:
+
+   ```bash
+   pip install "pipecat-ai[daily,openai,deepgram,silero,examples]"
+   ```
+
+3. **Configuration**:
+
+   Copy `env.example` to `.env` in the examples directory:
+
+   ```bash
+   cp env.example .env
+   ```
+
+   Add your API keys and configuration:
+
+   - DEEPGRAM_API_KEY
+   - OPENAI_API_KEY
+   - DAILY_API_KEY
+
+   Looking for a Daily API key and room URL? Sign up on the [Daily Dashboard](https://dashboard.daily.co).
+
+4. **Running**:
+   ```bash
+   python examples/food_ordering.py -u YOUR_DAILY_ROOM_URL
+   ```
 
 ## Pipecat Flows Editor
 
@@ -135,10 +199,11 @@ Open the page in your browser: http://localhost:5173.
 
 The `editor/examples/` directory contains sample flow configurations:
 
-- `food_ordering.json` - A restaurant order flow demonstrating terminal and transitional functions, merge nodes, and actions. Shows how to handle branching paths (pizza vs sushi) that merge back to a common endpoint.
-- `movie_booking.json` - A movie ticket booking flow showcasing date-based branching (today vs tomorrow), terminal functions for movie and showtime selection, and proper handling of sequential choices. Demonstrates how to manage time-dependent options and multiple selection criteria.
-- `restaurant_reservation.json` - A comprehensive reservation system for an upscale restaurant that handles party size, date/time selection, availability checking, seating preferences, and special requests. Features a verification step with revision capability and demonstrates proper error handling for unavailable times.
-- `travel_planner.json` - A vacation planning assistant that showcases parallel paths (beach vs mountain) merging into a common booking flow, multiple data collection points, array-based activity selection, and a verification system with revision capabilities. Demonstrates how to handle complex, multi-step planning processes.
+- `food_ordering.json` - Restaurant order flow with branching paths (pizza vs sushi) demonstrating basic terminal and transitional functions
+- `movie_booking.json` - Movie ticket booking with date-based branching and sequential selection of movies and showtimes
+- `patient_intake.json` - Medical intake system with symptom assessment branching and conditional questioning based on patient responses
+- `restaurant_reservation.json` - Restaurant reservation system handling party size, timing, and preferences with verification steps
+- `travel_planner.json` - Vacation planner with parallel planning paths (beach/mountain) and multi-step activity selection
 
 To use an example:
 

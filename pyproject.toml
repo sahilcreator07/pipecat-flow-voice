@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipecat-ai-flows"
-version = "0.0.2"
+version = "0.0.3"
 description = "Conversation Flow management for Pipecat AI applications"
 license = { text = "BSD 2-Clause License" }
 readme = "README.md"
@@ -19,6 +19,7 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio",
 ]
 dependencies = [
+    "pipecat-ai>=0.0.49",
     "loguru~=0.7.2",
 ]
 

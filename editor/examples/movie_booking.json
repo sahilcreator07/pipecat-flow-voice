@@ -5,7 +5,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are a movie ticket booking assistant. You must ALWAYS use one of the available functions to progress the conversation. For this step, ask if they want to see what's playing today or tomorrow, and wait for them to choose. Start with a warm greeting and be helpful and enthusiastic; you're helping them plan their entertainment."
+          "content": "For this step, ask if they want to see what's playing today or tomorrow, and wait for them to choose. Start with a warm greeting and be helpful and enthusiastic; you're helping them plan their entertainment."
         }
       ],
       "functions": [
@@ -14,7 +14,10 @@
           "function": {
             "name": "check_today",
             "description": "User wants to see today's movies",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         },
         {
@@ -22,7 +25,10 @@
           "function": {
             "name": "check_tomorrow",
             "description": "User wants to see tomorrow's movies",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -82,12 +88,18 @@
           "function": {
             "name": "end",
             "description": "Complete the booking (use only after user confirms)",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
       "pre_actions": [
-        { "type": "tts_say", "text": "Let me show you what's playing today..." }
+        {
+          "type": "tts_say",
+          "text": "Let me show you what's playing today..."
+        }
       ]
     },
     "check_tomorrow": {
@@ -139,7 +151,10 @@
           "function": {
             "name": "end",
             "description": "Complete the booking (use only after user confirms)",
-            "parameters": { "type": "object", "properties": {} }
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
           }
         }
       ],
@@ -164,7 +179,11 @@
           "text": "Your tickets are confirmed! Enjoy the show!"
         }
       ],
-      "post_actions": [{ "type": "end_conversation" }]
+      "post_actions": [
+        {
+          "type": "end_conversation"
+        }
+      ]
     }
   }
 }
