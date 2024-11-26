@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (must match pyproject.toml)'
+        description: 'Version to publish (must match pyproject.toml, e.g. 0.0.4)'
         required: true
         type: string
 
@@ -29,7 +29,8 @@ jobs:
 
       - name: Verify version matches
         run: |
-          PROJECT_VERSION=$(python -c "from configparser import ConfigParser; p = ConfigParser(); p.read('pyproject.toml'); print(eval(p['project']['version']))")
+          pip install tomli
+          PROJECT_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
           if [ "$PROJECT_VERSION" != "${{ github.event.inputs.version }}" ]; then
             echo "Error: Input version (${{ github.event.inputs.version }}) does not match pyproject.toml version ($PROJECT_VERSION)"
             exit 1
