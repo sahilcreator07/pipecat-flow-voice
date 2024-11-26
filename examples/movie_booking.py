@@ -227,6 +227,19 @@ flow_config = {
 }
 
 
+# Node function handlers
+async def select_movie_handler(function_name, tool_call_id, args, llm, context, result_callback):
+    movie = args["movie"]
+    # In a real app, this would store the selection
+    await result_callback({"status": "success", "movie": movie})
+
+
+async def select_showtime_handler(function_name, tool_call_id, args, llm, context, result_callback):
+    time = args["time"]
+    # In a real app, this would store the selection
+    await result_callback({"status": "success", "time": time})
+
+
 async def main():
     async with aiohttp.ClientSession() as session:
         (room_url, _) = await configure(session)
@@ -234,7 +247,7 @@ async def main():
         transport = DailyTransport(
             room_url,
             None,
-            "Respond bot",
+            "Movie booking bot",
             DailyParams(
                 audio_out_enabled=True,
                 vad_enabled=True,
@@ -246,6 +259,10 @@ async def main():
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        # Register node function handlers with LLM
+        llm.register_function("select_movie", select_movie_handler)
+        llm.register_function("select_showtime", select_showtime_handler)
 
         # Get initial tools from the first node
         initial_tools = flow_config["nodes"]["start"]["functions"]
@@ -276,10 +293,7 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager
-        flow_manager = FlowManager(flow_config, task, tts)
-
-        # Register functions with LLM service
-        await flow_manager.register_functions(llm)
+        flow_manager = FlowManager(flow_config, task, llm, tts)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):

@@ -241,7 +241,39 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are reviewing all collected information. Use the available functions:\n - Use get_prescriptions if they need to make any changes\n - Use confirm_intake if everything is correct\n\nSummarize all the information they've provided (prescriptions, allergies, conditions, and visit reasons), then ask them to confirm if everything is correct."
+          "content": "Review all collected information. Summarize their prescriptions, allergies, conditions, and visit reasons. Use the available functions:\n - Use get_prescriptions if they need to make any changes\n - Use confirm_intake if they confirm everything is correct\n\nBe thorough in reviewing all details and ask for their explicit confirmation."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_prescriptions",
+            "description": "Return to prescriptions to revise information",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "confirm_intake",
+            "description": "Confirm the intake information and proceed",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ]
+    },
+    "confirm_intake": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "The intake information is confirmed. Thank them for providing their information, let them know what to expect next, and use end to complete the conversation."
         }
       ],
       "functions": [
@@ -256,13 +288,19 @@
             }
           }
         }
+      ],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Perfect! I've recorded all your information for your visit."
+        }
       ]
     },
     "end": {
       "messages": [
         {
           "role": "system",
-          "content": "Say goodbye and end the conversation."
+          "content": "Thank them for their time and end the conversation."
         }
       ],
       "functions": [],

@@ -53,12 +53,12 @@ context_aggregator = llm.create_context_aggregator(context)
 # Create your pipeline: No new processors are required
 pipeline = Pipeline(
     [
-        transport.input(),  # Transport user input
-        stt,  # STT
+        transport.input(),               # Transport user input
+        stt,                             # STT
         context_aggregator.user(),  # User responses
-        llm,  # LLM
-        tts,  # TTS
-        transport.output(),  # Transport bot output
+        llm,                             # LLM
+        tts,                             # TTS
+        transport.output(),              # Transport bot output
         context_aggregator.assistant(),  # Assistant spoken responses
     ]
 )
@@ -67,8 +67,7 @@ pipeline = Pipeline(
 task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
 # Initialize flow management
-flow_manager = FlowManager(flow_config, task, tts_service)  # Create flow manager
-await flow_manager.register_functions(llm_service)          # Register all possible functions
+flow_manager = FlowManager(flow_config, task, llm, tts)  # Create flow manager
 
 # Initialize with starting messages
 @transport.event_handler("on_first_participant_joined")
@@ -86,6 +85,7 @@ The repository includes several complete example implementations in the `example
 
 - `food_ordering.py` - A restaurant order flow demonstrating node and edge functions
 - `movie_booking.py` - A movie ticket booking system with date-based branching
+- `movie_explorer.py` - Movie information bot demonstrating real API integration with TMDB
 - `patient_intake.py` - A medical intake system showing complex state management
 - `restaurant_reservation.py` - A reservation system with availability checking
 - `travel_planner.py` - A vacation planning assistant with parallel paths
@@ -211,11 +211,12 @@ Open the page in your browser: http://localhost:5173.
 
 The `editor/examples/` directory contains sample flow configurations:
 
-- `food_ordering.json` - Restaurant order flow with branching paths (pizza vs sushi) demonstrating basic node and edge functions
-- `movie_booking.json` - Movie ticket booking with date-based branching and sequential selection of movies and showtimes
-- `patient_intake.json` - Medical intake system with symptom assessment branching and conditional questioning based on patient responses
-- `restaurant_reservation.json` - Restaurant reservation system handling party size, timing, and preferences with verification steps
-- `travel_planner.json` - Vacation planner with parallel planning paths (beach/mountain) and multi-step activity selection
+- `food_ordering.json`
+- `movie_booking.json`
+- `movie_explorer.py`
+- `patient_intake.json`
+- `restaurant_reservation.json`
+- `travel_planner.json`
 
 To use an example:
 

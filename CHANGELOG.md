@@ -5,13 +5,39 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - TBD
+## [0.0.4] - 2024-11-26
+
+### Added
+
+- New example `movie_explorer.py` demonstrating:
+  - Real API integration with TMDB
+  - Node functions for API calls
+  - Edge functions for state transitions
+  - Proper function registration pattern
 
 ### Changed
 
-- Terminal and transitional functions now use graph terms—node and edge
-  functions, respectively. Updates are made throughout the codebase to
-  reflect this terminology change.
+- Renamed function types to use graph terminology:
+
+  - "Terminal functions" are now "node functions" (operations within a state)
+  - "Transitional functions" are now "edge functions" (transitions between states)
+
+- Updated function registration process:
+
+  - Node functions must be registered directly with the LLM before flow initialization
+  - Edge functions are automatically registered by FlowManager during initialization
+  - LLM instance is now required in FlowManager constructor
+
+- Added flexibility to node naming with the Editor:
+  - Start nodes can now use any descriptive name (e.g., "greeting")
+  - End nodes conventionally use "end" but support custom names
+  - Flow configuration's `initial_node` property determines the starting state
+
+### Updated
+
+- All examples updated to use new function registration pattern
+- Documentation updated to reflect new terminology and patterns
+- Editor updated to support flexible node naming
 
 ## [0.0.3] - 2024-11-25
 
