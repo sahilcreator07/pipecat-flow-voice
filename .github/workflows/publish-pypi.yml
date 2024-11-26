@@ -1,4 +1,4 @@
-name: Publish to TestPyPI
+name: Publish to PyPI
 
 on:
   workflow_dispatch:
@@ -12,10 +12,11 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     environment:
-      name: testpypi
-      url: https://test.pypi.org/p/pipecat-ai-flows
+      name: pypi
+      url: https://pypi.org/p/pipecat-ai-flows
     permissions:
       id-token: write # IMPORTANT: this permission is needed for trusted publishing
+      contents: write # Needed for tagging
 
     steps:
       - name: Checkout code
@@ -44,9 +45,15 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Publish to TestPyPI
+      - name: Create release tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "v${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
+
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
           verbose: true
           print-hash: true
