@@ -41,57 +41,39 @@ export function createFlowFromConfig(graph, flowConfig) {
   });
   g.setDefaultEdgeLabel(() => ({}));
 
-  // Create start node
-  const startNode = new PipecatStartNode();
-  startNode.properties = {
-    messages: flowConfig.nodes.start.messages,
-    pre_actions: flowConfig.nodes.start.pre_actions || [],
-    post_actions: flowConfig.nodes.start.post_actions || [],
-  };
-  graph.add(startNode);
-  nodes.start = { node: startNode, config: flowConfig.nodes.start };
-  g.setNode("start", {
-    width: startNode.size[0],
-    height: startNode.size[1],
-    node: startNode,
-  });
-
-  // Create intermediate nodes
+  // Create nodes based on configuration
   Object.entries(flowConfig.nodes).forEach(([nodeId, nodeConfig]) => {
-    if (nodeId !== "start" && nodeId !== "end") {
-      const node = new PipecatFlowNode();
-      node.title = nodeId;
-      node.properties = {
-        messages: nodeConfig.messages,
-        pre_actions: nodeConfig.pre_actions || [],
-        post_actions: nodeConfig.post_actions || [],
-      };
-      graph.add(node);
-      nodes[nodeId] = { node: node, config: nodeConfig };
-      g.setNode(nodeId, {
-        width: node.size[0],
-        height: node.size[1],
-        node: node,
-      });
-    }
-  });
+    let node;
 
-  // Create end node
-  if (flowConfig.nodes.end) {
-    const endNode = new PipecatEndNode();
-    endNode.properties = {
-      messages: flowConfig.nodes.end.messages,
-      pre_actions: flowConfig.nodes.end.pre_actions || [],
-      post_actions: flowConfig.nodes.end.post_actions || [],
+    if (nodeId === flowConfig.initial_node) {
+      // Create start node with the initial_node name
+      node = new PipecatStartNode();
+      node.title = nodeId;
+    } else if (nodeId === "end") {
+      node = new PipecatEndNode();
+      node.title = nodeId;
+    } else {
+      node = new PipecatFlowNode();
+      node.title = nodeId;
+    }
+
+    // Set node properties
+    node.properties = {
+      messages: nodeConfig.messages,
+      pre_actions: nodeConfig.pre_actions || [],
+      post_actions: nodeConfig.post_actions || [],
     };
-    graph.add(endNode);
-    nodes.end = { node: endNode, config: flowConfig.nodes.end };
-    g.setNode("end", {
-      width: endNode.size[0],
-      height: endNode.size[1],
-      node: endNode,
+
+    graph.add(node);
+    nodes[nodeId] = { node, config: nodeConfig };
+
+    // Add to dagre graph
+    g.setNode(nodeId, {
+      width: node.size[0],
+      height: node.size[1],
+      node: node,
     });
-  }
+  });
 
   // Track function nodes and merge nodes for edge creation
   const functionNodes = new Map();
@@ -101,11 +83,9 @@ export function createFlowFromConfig(graph, flowConfig) {
   Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
     if (nodeConfig.functions) {
       nodeConfig.functions.forEach((funcConfig) => {
-        const targetName =
-          funcConfig.function.target || funcConfig.function.name;
+        const targetName = funcConfig.function.name;
         const functionNode = new PipecatFunctionNode();
-        const { target, ...cleanConfig } = funcConfig.function;
-        functionNode.properties.function = cleanConfig;
+        functionNode.properties.function = funcConfig.function;
         functionNode.properties.isNodeFunction = !nodes[targetName];
 
         graph.add(functionNode);

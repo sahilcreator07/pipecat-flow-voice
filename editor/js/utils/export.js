@@ -29,23 +29,6 @@ export function generateFlowConfig(graphInstance) {
   }
 
   /**
-   * Gets the ID for a node
-   * @param {LGraphNode} node - The node to get ID for
-   * @returns {string|null} The node ID or null
-   */
-  function getNodeId(node) {
-    if (node.constructor.name === "PipecatStartNode") return "start";
-    if (node.constructor.name === "PipecatEndNode") return "end";
-
-    // For flow nodes, use the node's title which matches the function name that targets it
-    if (node.constructor.name === "PipecatFlowNode") {
-      return node.title; // The title is set to the function name during import
-    }
-
-    return null;
-  }
-
-  /**
    * Finds all functions connected to a node
    * @param {LGraphNode} node - The node to find functions for
    * @returns {Array<Object>} Array of function configurations
@@ -101,9 +84,9 @@ export function generateFlowConfig(graphInstance) {
     return functions;
   }
 
-  // Build the flow configuration
+  // Build the flow configuration using the start node's title as initial_node
   const flowConfig = {
-    initial_node: "start",
+    initial_node: startNode.title,
     nodes: {},
   };
 
@@ -116,19 +99,17 @@ export function generateFlowConfig(graphInstance) {
       return;
     }
 
-    const nodeId = getNodeId(node);
-    if (!nodeId) return;
-
-    flowConfig.nodes[nodeId] = {
+    // Use node.title directly as the node ID
+    flowConfig.nodes[node.title] = {
       messages: node.properties.messages,
       functions: findConnectedFunctions(node),
     };
 
     if (node.properties.pre_actions?.length > 0) {
-      flowConfig.nodes[nodeId].pre_actions = node.properties.pre_actions;
+      flowConfig.nodes[node.title].pre_actions = node.properties.pre_actions;
     }
     if (node.properties.post_actions?.length > 0) {
-      flowConfig.nodes[nodeId].post_actions = node.properties.post_actions;
+      flowConfig.nodes[node.title].post_actions = node.properties.post_actions;
     }
   });
 
