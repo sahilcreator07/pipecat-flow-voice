@@ -35,17 +35,19 @@ class FlowManager:
     - Transitions between nodes via function calls
     """
 
-    def __init__(self, flow_config: dict, task, tts=None):
+    def __init__(self, flow_config: dict, task, llm, tts=None):
         """Initialize the flow manager.
 
         Args:
-            flow_config: Dictionary containing the complete flow configuration,
-                        including initial_node and node configurations
-            task: PipelineTask instance used to queue frames into the pipeline
+            flow_config: Dictionary containing the flow configuration
+            task: PipelineTask instance used to queue frames
+            llm: LLM service for handling functions
+            tts: Optional TTS service for voice actions
         """
         self.flow = FlowState(flow_config)
         self.initialized = False
         self.task = task
+        self.llm = llm
         self.tts = tts
         self.action_handlers: Dict[str, Callable] = {}
 
@@ -64,6 +66,8 @@ class FlowManager:
                             to include in the context
         """
         if not self.initialized:
+            await self.register_functions()
+
             messages = initial_messages + self.flow.get_current_messages()
             await self.task.queue_frame(LLMMessagesUpdateFrame(messages=messages))
             await self.task.queue_frame(LLMSetToolsFrame(tools=self.flow.get_current_functions()))
@@ -72,19 +76,15 @@ class FlowManager:
         else:
             logger.warning("Attempted to initialize FlowManager multiple times")
 
-    async def register_functions(self, llm_service):
+    async def register_functions(self):
         """Register all functions from the flow configuration with the LLM service.
 
         This method sets up function handlers for all functions defined across all nodes.
         It distinguishes between:
         - Node functions: Execute operations without state change
         - Edge functions: Trigger state transitions
-
-        Args:
-            llm_service: The LLM service to register functions with
         """
-        # Track registered handlers to avoid duplicates
-        registered_handlers = {}
+        registered_handlers = set()
 
         async def handle_edge_function(
             function_name, tool_call_id, arguments, llm, context, result_callback
@@ -107,14 +107,14 @@ class FlowManager:
                 if is_node_function:
                     # Don't override existing node function handlers
                     if not hasattr(
-                        llm_service, "has_function_handler"
-                    ) or not llm_service.has_function_handler(function_name):
+                        self.llm, "has_function_handler"
+                    ) or not self.llm.has_function_handler(function_name):
                         logger.debug(f"Found node function: {function_name}")
-                    registered_handlers[function_name] = "node"
+                    registered_handlers.add(function_name)
                 else:
                     # Register edge function handler
-                    llm_service.register_function(function_name, handle_edge_function)
-                    registered_handlers[function_name] = "edge"
+                    self.llm.register_function(function_name, handle_edge_function)
+                    registered_handlers.add(function_name)
                     logger.debug(f"Registered edge function: {function_name}")
 
     def register_action(self, action_type: str, handler: Callable):

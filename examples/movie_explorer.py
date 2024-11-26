@@ -394,10 +394,7 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager
-        flow_manager = FlowManager(flow_config, task, tts)
-
-        # Register functions with LLM service
-        await flow_manager.register_functions(llm)
+        flow_manager = FlowManager(flow_config, task, llm, tts)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
