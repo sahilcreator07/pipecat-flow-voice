@@ -1,0 +1,129 @@
+{
+  "initial_node": "greeting",
+  "nodes": {
+    "greeting": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know what movies are currently playing in theaters. Use get_movies to fetch the current movies when they're interested."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_movies",
+            "description": "Fetch currently playing movies",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "explore_movie",
+            "description": "Move to movie exploration",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Welcome! I can tell you about movies currently playing in theaters."
+        }
+      ]
+    },
+    "explore_movie": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use greeting) or end the conversation."
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_movie_details",
+            "description": "Get details about a specific movie including cast",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "movie_id": {
+                  "type": "integer",
+                  "description": "TMDB movie ID"
+                }
+              },
+              "required": ["movie_id"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_similar_movies",
+            "description": "Get similar movies as recommendations",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "movie_id": {
+                  "type": "integer",
+                  "description": "TMDB movie ID"
+                }
+              },
+              "required": ["movie_id"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "greeting",
+            "description": "Return to current movies list",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "end",
+            "description": "End the conversation",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ]
+    },
+    "end": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "Thank the user and end the conversation."
+        }
+      ],
+      "functions": [],
+      "pre_actions": [
+        {
+          "type": "tts_say",
+          "text": "Thanks for exploring movies with me! Goodbye!"
+        }
+      ],
+      "post_actions": [
+        {
+          "type": "end_conversation"
+        }
+      ]
+    }
+  }
+}
