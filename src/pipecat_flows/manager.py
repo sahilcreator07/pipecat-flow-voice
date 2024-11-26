@@ -76,18 +76,17 @@ class FlowManager:
         """Register all functions from the flow configuration with the LLM service.
 
         This method sets up function handlers for all functions defined across all nodes.
-        When a function is called, it will automatically trigger the appropriate node
-        transition.
-
-        Note: This registers handlers for all possible functions, but the LLM's access
-        to functions is controlled separately through LLMSetToolsFrame. The LLM will
-        only see the functions available in the current node.
+        It distinguishes between:
+        - Node functions: Execute operations without state change
+        - Edge functions: Trigger state transitions
 
         Args:
             llm_service: The LLM service to register functions with
         """
+        # Track registered handlers to avoid duplicates
+        registered_handlers = {}
 
-        async def handle_function_call(
+        async def handle_edge_function(
             function_name, tool_call_id, arguments, llm, context, result_callback
         ):
             await self.handle_transition(function_name)
@@ -97,7 +96,26 @@ class FlowManager:
         for node in self.flow.nodes.values():
             for function in node.functions:
                 function_name = function["function"]["name"]
-                llm_service.register_function(function_name, handle_function_call)
+
+                # Skip if already registered
+                if function_name in registered_handlers:
+                    continue
+
+                # Check if this is a node function (doesn't match any node name)
+                is_node_function = function_name not in self.flow.nodes
+
+                if is_node_function:
+                    # Don't override existing node function handlers
+                    if not hasattr(
+                        llm_service, "has_function_handler"
+                    ) or not llm_service.has_function_handler(function_name):
+                        logger.debug(f"Found node function: {function_name}")
+                    registered_handlers[function_name] = "node"
+                else:
+                    # Register edge function handler
+                    llm_service.register_function(function_name, handle_edge_function)
+                    registered_handlers[function_name] = "edge"
+                    logger.debug(f"Registered edge function: {function_name}")
 
     def register_action(self, action_type: str, handler: Callable):
         """Register a handler for a specific action type.
