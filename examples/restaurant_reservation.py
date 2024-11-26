@@ -159,6 +159,23 @@ flow_config = {
 }
 
 
+# Node function handlers
+async def record_party_size_handler(
+    function_name, tool_call_id, args, llm, context, result_callback
+):
+    """Handler for recording party size."""
+    size = args["size"]
+    # In a real app, this would store the reservation details
+    await result_callback({"status": "success", "size": size})
+
+
+async def record_time_handler(function_name, tool_call_id, args, llm, context, result_callback):
+    """Handler for recording reservation time."""
+    time = args["time"]
+    # In a real app, this would validate availability and store the time
+    await result_callback({"status": "success", "time": time})
+
+
 async def main():
     async with aiohttp.ClientSession() as session:
         (room_url, _) = await configure(session)
@@ -166,7 +183,7 @@ async def main():
         transport = DailyTransport(
             room_url,
             None,
-            "Respond bot",
+            "Reservation bot",
             DailyParams(
                 audio_out_enabled=True,
                 vad_enabled=True,
@@ -178,6 +195,10 @@ async def main():
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        # Register node function handlers with LLM
+        llm.register_function("record_party_size", record_party_size_handler)
+        llm.register_function("record_time", record_time_handler)
 
         # Get initial tools from the first node
         initial_tools = flow_config["nodes"]["start"]["functions"]
@@ -207,11 +228,8 @@ async def main():
 
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
-        # Initialize flow manager
-        flow_manager = FlowManager(flow_config, task, tts)
-
-        # Register functions with LLM service
-        await flow_manager.register_functions(llm)
+        # Initialize flow manager with LLM
+        flow_manager = FlowManager(flow_config, task, llm, tts)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):

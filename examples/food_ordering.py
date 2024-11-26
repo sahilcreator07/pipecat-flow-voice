@@ -180,14 +180,32 @@ flow_config = {
 }
 
 
+# Node function handlers
+async def select_pizza_size_handler(
+    function_name, tool_call_id, args, llm, context, result_callback
+):
+    size = args["size"]
+    # In a real app, this would store the selection
+    await result_callback({"status": "success", "size": size})
+
+
+async def select_roll_count_handler(
+    function_name, tool_call_id, args, llm, context, result_callback
+):
+    count = args["count"]
+    # In a real app, this would store the selection
+    await result_callback({"status": "success", "count": count})
+
+
 async def main():
+    """Main function to set up and run the food ordering bot."""
     async with aiohttp.ClientSession() as session:
         (room_url, _) = await configure(session)
 
         transport = DailyTransport(
             room_url,
             None,
-            "Respond bot",
+            "Food Ordering Bot",
             DailyParams(
                 audio_out_enabled=True,
                 vad_enabled=True,
@@ -198,7 +216,11 @@ async def main():
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
-        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4")
+
+        # Register node function handlers with LLM
+        llm.register_function("select_pizza_size", select_pizza_size_handler)
+        llm.register_function("select_roll_count", select_roll_count_handler)
 
         # Get initial tools from the first node
         initial_tools = flow_config["nodes"]["start"]["functions"]
@@ -207,7 +229,7 @@ async def main():
         messages = [
             {
                 "role": "system",
-                "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversations and your responses will be converted to audio. Avoid outputting special characters and emojis.",
+                "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
             }
         ]
 
@@ -228,11 +250,8 @@ async def main():
 
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
-        # Initialize flow manager
-        flow_manager = FlowManager(flow_config, task, tts)
-
-        # Register functions with LLM service
-        await flow_manager.register_functions(llm)
+        # Initialize flow manager with LLM
+        flow_manager = FlowManager(flow_config, task, llm, tts)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):

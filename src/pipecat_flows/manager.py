@@ -33,6 +33,13 @@ class FlowManager:
     - Initial node
     - Available nodes and their configurations
     - Transitions between nodes via function calls
+
+    Function handling is split between:
+    - Node functions: Registered directly with the LLM before flow initialization
+    - Edge functions: Registered by FlowManager during initialization
+
+    While all functions are registered with the LLM, only functions defined in the
+    current node's configuration are available for use at any given time.
     """
 
     def __init__(self, flow_config: dict, task, llm, tts=None):
@@ -58,8 +65,10 @@ class FlowManager:
     async def initialize(self, initial_messages: List[dict]):
         """Initialize the flow with starting messages and functions.
 
-        This method sets up the initial context, combining any system-level
-        messages with the initial node's message and functions.
+        This method:
+        1. Registers edge functions with the LLM (node functions should already be registered)
+        2. Sets up the initial context with system messages and node messages
+        3. Sets available tools based on the initial node's configuration
 
         Args:
             initial_messages: List of initial messages (typically system messages)
@@ -77,12 +86,19 @@ class FlowManager:
             logger.warning("Attempted to initialize FlowManager multiple times")
 
     async def register_functions(self):
-        """Register all functions from the flow configuration with the LLM service.
+        """Register edge functions from the flow configuration with the LLM service.
 
-        This method sets up function handlers for all functions defined across all nodes.
-        It distinguishes between:
-        - Node functions: Execute operations without state change
-        - Edge functions: Trigger state transitions
+        This method:
+        1. Identifies functions defined in the flow configuration
+        2. For node functions (names that don't match node names):
+        - Expects them to be already registered with the LLM
+        - Logs their presence but doesn't register them
+        3. For edge functions (names that match node names):
+        - Registers them with the LLM using handle_edge_function
+        - These trigger state transitions when called
+
+        Node functions should be registered with the LLM before flow initialization.
+        Edge functions are automatically registered during initialization.
         """
         registered_handlers = set()
 
@@ -197,19 +213,20 @@ class FlowManager:
         - Function names that match existing node names
         - Trigger a transition to a new node with:
             * Pre-action execution
-            * Context and tool updates
+            * Context and tool updates (making new node's functions available)
             * Post-action execution
 
         2. Node Functions:
         - Function names that don't match any node names
         - Execute within the current node without changing state
         - Don't trigger context updates or actions
+        - Must be registered with LLM before flow initialization
 
         The transition process for edge functions:
         1. Validates the function call against available functions
         2. Executes pre-actions of the new node
         3. Updates the LLM context with new messages
-        4. Updates available tools for the new node
+        4. Updates available tools for the new node (via LLMSetToolsFrame)
         5. Executes post-actions of the new node
 
         Args:

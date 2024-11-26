@@ -347,7 +347,7 @@ async def main():
         transport = DailyTransport(
             room_url,
             None,
-            "Movie Explorer",
+            "Movie Explorer Bot",
             DailyParams(
                 audio_out_enabled=True,
                 vad_enabled=True,
@@ -381,13 +381,13 @@ async def main():
 
         pipeline = Pipeline(
             [
-                transport.input(),
-                stt,
-                context_aggregator.user(),
-                llm,
-                tts,
-                transport.output(),
-                context_aggregator.assistant(),
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
             ]
         )
 
