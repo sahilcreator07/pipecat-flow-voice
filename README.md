@@ -148,6 +148,16 @@ A visual editor for creating and managing Pipecat conversation flows.
 - Merge node support for complex flows
 - Real-time validation
 
+### Naming Conventions
+
+While the underlying system is flexible with node naming, the editor follows these conventions for clarity:
+
+- **Start Node**: Named after your initial conversation state (e.g., "greeting", "welcome")
+- **End Node**: Conventionally named "end" for clarity, though other names are supported
+- **Flow Nodes**: Named to reflect their purpose in the conversation (e.g., "get_time", "confirm_order")
+
+These conventions help maintain readable and maintainable flows while preserving technical flexibility.
+
 ### Online Editor
 
 The editor is available online at [flows.pipecat.ai](https://flows.pipecat.ai).
@@ -191,6 +201,8 @@ Open the page in your browser: http://localhost:5173.
 
 1. Create a new flow using the toolbar buttons
 2. Add nodes by right-clicking in the canvas
+   - Start nodes can have descriptive names (e.g., "greeting")
+   - End nodes are conventionally named "end"
 3. Connect nodes by dragging from outputs to inputs
 4. Edit node properties in the side panel
 5. Export your flow configuration using the toolbar
