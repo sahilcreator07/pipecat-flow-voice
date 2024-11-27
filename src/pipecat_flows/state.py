@@ -5,9 +5,11 @@
 #
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
+
+from .formats import LLMFormatParser
 
 
 @dataclass
@@ -18,10 +20,8 @@ class NodeConfig:
     information needed for that particular point in the conversation.
 
     Attributes:
-        messages: List of message dicts to be added to LLM context at this node.
-                 Each message should have 'role' (system/user/assistant) and 'content'.
-                 Messages are added in order, allowing for complex prompt building.
-        functions: List of available function definitions for this node
+        messages: List of message dicts in provider-specific format
+        functions: List of function definitions in provider-specific format
         pre_actions: Optional list of actions to execute before LLM inference
         post_actions: Optional list of actions to execute after LLM inference
     """
@@ -43,20 +43,23 @@ class FlowState:
     Attributes:
         nodes: Dictionary mapping node IDs to their configurations
         current_node: ID of the currently active node
+        provider: LLM provider type for format parsing
     """
 
-    def __init__(self, flow_config: dict):
+    def __init__(self, flow_config: dict, llm):
         """Initialize the conversation flow.
 
         Args:
             flow_config: Dictionary containing the complete flow configuration,
                         must include 'initial_node' and 'nodes' keys
+            llm: LLM service instance for determining provider type
 
         Raises:
             ValueError: If required configuration keys are missing
         """
         self.nodes: Dict[str, NodeConfig] = {}
         self.current_node: str = flow_config["initial_node"]
+        self.provider = LLMFormatParser.get_provider(llm)
         self._load_config(flow_config)
 
     def _load_config(self, config: dict):
@@ -85,7 +88,7 @@ class FlowState:
         """Get the messages for the current node.
 
         Returns:
-            List of message dictionaries for the current node
+            List of message dictionaries for the current node in provider-specific format
         """
         return self.nodes[self.current_node].messages
 
@@ -93,7 +96,8 @@ class FlowState:
         """Get the available functions for the current node.
 
         Returns:
-            List of function definitions available in the current node
+            List of function definitions available for the current node in provider-specific
+                format
         """
         return self.nodes[self.current_node].functions
 
@@ -125,9 +129,32 @@ class FlowState:
         Returns:
             Set of function names that can be called from the current node
         """
-        names = {f["function"]["name"] for f in self.nodes[self.current_node].functions}
+        functions = self.nodes[self.current_node].functions
+        names = {LLMFormatParser.get_function_name(self.provider, f) for f in functions}
         logger.debug(f"Available function names for node {self.current_node}: {names}")
         return names
+
+    def get_function_name_from_call(self, function_call: Dict[str, Any]) -> str:
+        """Extract function name from a function call.
+
+        Args:
+            function_call: Function call in provider-specific format
+
+        Returns:
+            Function name as string
+        """
+        return LLMFormatParser.get_function_name(self.provider, function_call)
+
+    def get_function_args_from_call(self, function_call: Dict[str, Any]) -> dict:
+        """Extract function arguments from a function call.
+
+        Args:
+            function_call: Function call in provider-specific format
+
+        Returns:
+            Dictionary of function arguments
+        """
+        return LLMFormatParser.get_function_args(self.provider, function_call)
 
     def transition(self, function_name: str) -> Optional[str]:
         """Attempt to transition to a new node based on a function call.
@@ -144,12 +171,6 @@ class FlowState:
         Returns:
             str | None: The ID of the new node if a transition occurred (edge function),
                     or None if no transition should occur (node function or invalid function)
-
-        Examples:
-            >>> flow_state.transition("verify_birthday")  # Node function
-            None
-            >>> flow_state.transition("get_prescriptions")  # Edge function
-            "get_prescriptions"
         """
         available_functions = self.get_available_function_names()
         logger.debug(f"Attempting transition from {self.current_node} to {function_name}")
@@ -166,7 +187,7 @@ class FlowState:
             return self.current_node
         else:
             # Node function - no transition needed
-            logger.info(f"Executed edge function: {function_name}")
+            logger.info(f"Executed node function: {function_name}")
             return None
 
     def get_current_node(self) -> str:

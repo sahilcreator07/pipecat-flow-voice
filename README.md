@@ -86,6 +86,7 @@ The repository includes several complete example implementations in the `example
 - `food_ordering.py` - A restaurant order flow demonstrating node and edge functions
 - `movie_booking.py` - A movie ticket booking system with date-based branching
 - `movie_explorer.py` - Movie information bot demonstrating real API integration with TMDB
+- `movie_explorer_anthropic.py` - The `movie_explorer.py` example but using an Anthropic LLM
 - `patient_intake.py` - A medical intake system showing complex state management
 - `restaurant_reservation.py` - A reservation system with availability checking
 - `travel_planner.py` - A vacation planning assistant with parallel paths
@@ -125,6 +126,7 @@ To run these examples:
 
    - DEEPGRAM_API_KEY
    - OPENAI_API_KEY
+   - ANTHROPIC_API_KEY
    - DAILY_API_KEY
 
    Looking for a Daily API key and room URL? Sign up on the [Daily Dashboard](https://dashboard.daily.co).
