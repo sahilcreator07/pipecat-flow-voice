@@ -277,7 +277,7 @@ flow_config = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use greeting) or end the conversation.",
+                    "content": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use explore_movie) or end the conversation.",
                 }
             ],
             "functions": [
@@ -312,7 +312,7 @@ flow_config = {
                 {
                     "type": "function",
                     "function": {
-                        "name": "greeting",
+                        "name": "explore_movie",
                         "description": "Return to current movies list",
                         "parameters": {"type": "object", "properties": {}},
                     },
