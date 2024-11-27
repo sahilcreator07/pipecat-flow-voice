@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for Anthropic LLMs
+- Added LLM support for:
 
-- Added a new example called `movie_explorer_anthropic.py` using Anthropic's
-  Claude 3.5 latest model.
+  - Anthropic
+  - Google Gemini
+
+- Added `LLMFormatParser`, a format parser to handle LLM provider-specific
+  messages and function call formats
+
+- Added new examples:
+
+  - movie_explorer_anthropic.py (Claude 3.5)
+  - movie_explorer_gemini.py (Gemini 1.5 Flash)
+  - travel_planner_gemini.py (Gemini 1.5 Flash)
 
 ## [0.0.4] - 2024-11-26
 

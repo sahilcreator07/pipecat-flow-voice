@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
-from .formats import LLMFormatParser
+from .formats import LLMFormatParser, LLMProvider
 
 
 @dataclass
@@ -90,7 +90,8 @@ class FlowState:
         Returns:
             List of message dictionaries for the current node in provider-specific format
         """
-        return self.nodes[self.current_node].messages
+        messages = self.nodes[self.current_node].messages
+        return messages
 
     def get_current_functions(self) -> List[dict]:
         """Get the available functions for the current node.
@@ -99,7 +100,17 @@ class FlowState:
             List of function definitions available for the current node in provider-specific
                 format
         """
-        return self.nodes[self.current_node].functions
+        functions = self.nodes[self.current_node].functions
+
+        if self.provider == LLMProvider.GEMINI:
+            # For Gemini, combine all function declarations into a single tools object
+            all_declarations = []
+            for func in functions:
+                if "function_declarations" in func:
+                    all_declarations.extend(func["function_declarations"])
+            return [{"function_declarations": all_declarations}] if all_declarations else []
+
+        return functions
 
     def get_current_pre_actions(self) -> Optional[List[dict]]:
         """Get the pre-actions for the current node.
@@ -130,6 +141,15 @@ class FlowState:
             Set of function names that can be called from the current node
         """
         functions = self.nodes[self.current_node].functions
+
+        if self.provider == LLMProvider.GEMINI:
+            # Flatten Gemini's nested function declarations
+            flattened = []
+            for func in functions:
+                if "function_declarations" in func:
+                    flattened.extend(func["function_declarations"])
+            functions = flattened
+
         names = {LLMFormatParser.get_function_name(self.provider, f) for f in functions}
         logger.debug(f"Available function names for node {self.current_node}: {names}")
         return names
@@ -144,6 +164,24 @@ class FlowState:
             Function name as string
         """
         return LLMFormatParser.get_function_name(self.provider, function_call)
+
+    def get_all_available_function_names(self) -> Set[str]:
+        """Get all function names across all nodes without modifying state.
+
+        Returns:
+            Set of all unique function names available in any node
+        """
+        all_functions = set()
+        current = self.current_node  # Store current node
+
+        try:
+            for node_id in self.nodes.keys():
+                self.current_node = node_id
+                all_functions.update(self.get_available_function_names())
+        finally:
+            self.current_node = current  # Ensure we restore the original node
+
+        return all_functions
 
     def get_function_args_from_call(self, function_call: Dict[str, Any]) -> dict:
         """Extract function arguments from a function call.
