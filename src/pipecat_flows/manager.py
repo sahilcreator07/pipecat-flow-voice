@@ -24,8 +24,8 @@ class FlowManager:
 
     This manager handles the progression through a flow defined by nodes, where each node
     represents a state in the conversation. Each node has:
-    - Messages for the LLM (system/user/assistant messages)
-    - Available functions that can be called
+    - Messages for the LLM (in provider-specific format)
+    - Available functions that can be called (in provider-specific format)
     - Optional pre-actions to execute before LLM inference
     - Optional post-actions to execute after LLM inference
 
@@ -51,7 +51,7 @@ class FlowManager:
             llm: LLM service for handling functions
             tts: Optional TTS service for voice actions
         """
-        self.flow = FlowState(flow_config)
+        self.flow = FlowState(flow_config, llm)
         self.initialized = False
         self.task = task
         self.llm = llm
@@ -111,7 +111,8 @@ class FlowManager:
         # Register all functions from all nodes
         for node in self.flow.nodes.values():
             for function in node.functions:
-                function_name = function["function"]["name"]
+                # Use LLMFormatParser to get function name
+                function_name = self.flow.get_function_name_from_call(function)
 
                 # Skip if already registered
                 if function_name in registered_handlers:
