@@ -8,14 +8,16 @@ from enum import Enum
 from typing import Any, Dict
 
 from pipecat.services.anthropic import AnthropicLLMService
+from pipecat.services.google import GoogleLLMService
 from pipecat.services.openai import OpenAILLMService
 
 
 class LLMProvider(Enum):
     """Supported LLM providers."""
 
-    OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 class LLMFormatParser:
@@ -44,6 +46,8 @@ class LLMFormatParser:
             return LLMProvider.OPENAI
         elif isinstance(llm, AnthropicLLMService):
             return LLMProvider.ANTHROPIC
+        elif isinstance(llm, GoogleLLMService):
+            return LLMProvider.GEMINI
         raise ValueError(f"Unsupported LLM type: {type(llm)}")
 
     @staticmethod
@@ -61,10 +65,10 @@ class LLMFormatParser:
             ValueError: If provider is not supported
         """
         if provider == LLMProvider.OPENAI:
-            # OpenAI format: {"type": "function", "function": {"name": "func_name", ...}}
             return function_def["function"]["name"]
         elif provider == LLMProvider.ANTHROPIC:
-            # Anthropic format: {"name": "func_name", ...}
+            return function_def["name"]
+        elif provider == LLMProvider.GEMINI:
             return function_def["name"]
         raise ValueError(f"Unsupported provider: {provider}")
 
@@ -83,11 +87,11 @@ class LLMFormatParser:
             ValueError: If provider is not supported
         """
         if provider == LLMProvider.OPENAI:
-            # OpenAI format: {"arguments": {...}}
             return function_call.get("arguments", {})
         elif provider == LLMProvider.ANTHROPIC:
-            # Anthropic format: {"arguments": {...}}
             return function_call.get("arguments", {})
+        elif provider == LLMProvider.GEMINI:
+            return function_call.get("args", {})
         raise ValueError(f"Unsupported provider: {provider}")
 
     @staticmethod
@@ -111,5 +115,7 @@ class LLMFormatParser:
                 return " ".join(
                     item["text"] for item in message["content"] if item["type"] == "text"
                 )
+            return message["content"]
+        elif provider == LLMProvider.GEMINI:
             return message["content"]
         raise ValueError(f"Unsupported provider: {provider}")

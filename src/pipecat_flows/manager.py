@@ -89,16 +89,13 @@ class FlowManager:
         """Register edge functions from the flow configuration with the LLM service.
 
         This method:
-        1. Identifies functions defined in the flow configuration
+        1. Gets all available function names across all nodes using the format parser
         2. For node functions (names that don't match node names):
-        - Expects them to be already registered with the LLM
-        - Logs their presence but doesn't register them
+            - Expects them to be already registered with the LLM
+            - Logs their presence but doesn't register them
         3. For edge functions (names that match node names):
-        - Registers them with the LLM using handle_edge_function
-        - These trigger state transitions when called
-
-        Node functions should be registered with the LLM before flow initialization.
-        Edge functions are automatically registered during initialization.
+            - Registers them with the LLM using handle_edge_function
+            - These trigger state transitions when called
         """
         registered_handlers = set()
 
@@ -108,31 +105,30 @@ class FlowManager:
             await self.handle_transition(function_name)
             await result_callback("Acknowledged")
 
-        # Register all functions from all nodes
-        for node in self.flow.nodes.values():
-            for function in node.functions:
-                # Use LLMFormatParser to get function name
-                function_name = self.flow.get_function_name_from_call(function)
+        # Get all available function names across all nodes safely
+        all_functions = self.flow.get_all_available_function_names()
 
-                # Skip if already registered
-                if function_name in registered_handlers:
-                    continue
+        # Register each function
+        for function_name in all_functions:
+            # Skip if already registered
+            if function_name in registered_handlers:
+                continue
 
-                # Check if this is a node function (doesn't match any node name)
-                is_node_function = function_name not in self.flow.nodes
+            # Check if this is a node function (doesn't match any node name)
+            is_node_function = function_name not in self.flow.nodes
 
-                if is_node_function:
-                    # Don't override existing node function handlers
-                    if not hasattr(
-                        self.llm, "has_function_handler"
-                    ) or not self.llm.has_function_handler(function_name):
-                        logger.debug(f"Found node function: {function_name}")
-                    registered_handlers.add(function_name)
-                else:
-                    # Register edge function handler
-                    self.llm.register_function(function_name, handle_edge_function)
-                    registered_handlers.add(function_name)
-                    logger.debug(f"Registered edge function: {function_name}")
+            if is_node_function:
+                # Don't override existing node function handlers
+                if not hasattr(
+                    self.llm, "has_function_handler"
+                ) or not self.llm.has_function_handler(function_name):
+                    logger.debug(f"Found node function: {function_name}")
+            else:
+                # Register edge function handler
+                self.llm.register_function(function_name, handle_edge_function)
+                logger.debug(f"Registered edge function: {function_name}")
+
+            registered_handlers.add(function_name)
 
     def register_action(self, action_type: str, handler: Callable):
         """Register a handler for a specific action type.
