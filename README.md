@@ -87,9 +87,13 @@ The repository includes several complete example implementations in the `example
 - `movie_booking.py` - A movie ticket booking system with date-based branching
 - `movie_explorer.py` - Movie information bot demonstrating real API integration with TMDB
 - `movie_explorer_anthropic.py` - The `movie_explorer.py` example but using an Anthropic LLM
+- `movie_explorer_gemini.py` - The `movie_explorer.py` example but using a Google Gemini LLM
 - `patient_intake.py` - A medical intake system showing complex state management
 - `restaurant_reservation.py` - A reservation system with availability checking
 - `travel_planner.py` - A vacation planning assistant with parallel paths
+- `travel_planner_gemini.py` - The `travel_planner.py` example but using a Google Gemini LLM
+
+Each LLM provider (OpenAI, Anthropic, Google) has slightly different function calling formats, but Pipecat Flows handles these differences internally while maintaining a consistent API for developers.
 
 To run these examples:
 
@@ -112,6 +116,15 @@ To run these examples:
 
    ```bash
    pip install "pipecat-ai[daily,openai,deepgram,silero,examples]"
+   ```
+
+   If you're running Google or Anthropic examples, you will need to update the installed options. For example:
+
+   ```bash
+   # Install Google Gemini
+   pip install "pipecat-ai[daily,google,deepgram,silero,examples]"
+   # Install Anthropic
+   pip install "pipecat-ai[daily,anthropic,deepgram,silero,examples]"
    ```
 
 3. **Configuration**:
