@@ -5,6 +5,15 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - TBD
+
+### Added
+
+- Added support for Anthropic LLMs
+
+- Added a new example called `movie_explorer_anthropic.py` using Anthropic's
+  Claude 3.5 latest model.
+
 ## [0.0.4] - 2024-11-26
 
 ### Added
