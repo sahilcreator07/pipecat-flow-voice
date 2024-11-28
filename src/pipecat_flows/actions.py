@@ -14,6 +14,8 @@ from pipecat.frames.frames import (
 )
 from pipecat.pipeline.task import PipelineTask
 
+from .exceptions import ActionError
+
 
 class ActionManager:
     """Manages the registration and execution of flow actions."""
@@ -54,6 +56,9 @@ class ActionManager:
         Args:
             actions: List of action configurations to execute
 
+        Raises:
+            ActionError: If action execution fails
+
         Note:
             Each action must have a 'type' field matching a registered handler
         """
@@ -63,13 +68,11 @@ class ActionManager:
         for action in actions:
             action_type = action.get("type")
             if not action_type:
-                logger.error("Action missing 'type' field")
-                continue
+                raise ActionError("Action missing required 'type' field")
 
             handler = self.action_handlers.get(action_type)
             if not handler:
-                logger.warning(f"No handler registered for action type: {action_type}")
-                continue
+                raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
                 if asyncio.iscoroutinefunction(handler):
@@ -78,7 +81,7 @@ class ActionManager:
                     handler(action)
                 logger.debug(f"Successfully executed action: {action_type}")
             except Exception as e:
-                logger.warning(f"Error executing action {action_type}: {e}")
+                raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
 
     async def _handle_tts_action(self, action: dict) -> None:
         """Built-in handler for TTS actions.

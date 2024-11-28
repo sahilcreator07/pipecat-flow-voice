@@ -15,6 +15,7 @@ from pipecat.frames.frames import (
 
 from .actions import ActionManager
 from .config import FlowConfig
+from .exceptions import FlowInitializationError, FlowTransitionError, InvalidFunctionError
 from .state import FlowState
 
 
@@ -65,17 +66,24 @@ class FlowManager:
         3. Sets available tools based on the initial node's configuration
 
         Args:
-            initial_messages: List of initial messages (typically system messages)
-                            to include in the context
+            initial_messages: List of initial messages to include in the context
+
+        Raises:
+            FlowInitializationError: If initialization fails or is attempted multiple times
         """
         if not self.initialized:
-            await self.register_functions()
+            try:
+                await self.register_functions()
 
-            messages = initial_messages + self.flow.get_current_messages()
-            await self.task.queue_frame(LLMMessagesUpdateFrame(messages=messages))
-            await self.task.queue_frame(LLMSetToolsFrame(tools=self.flow.get_current_functions()))
-            self.initialized = True
-            logger.debug(f"Initialized flow at node: {self.flow.current_node}")
+                messages = initial_messages + self.flow.get_current_messages()
+                await self.task.queue_frame(LLMMessagesUpdateFrame(messages=messages))
+                await self.task.queue_frame(
+                    LLMSetToolsFrame(tools=self.flow.get_current_functions())
+                )
+                self.initialized = True
+                logger.debug(f"Initialized flow at node: {self.flow.current_node}")
+            except Exception as e:
+                raise FlowInitializationError(f"Failed to initialize flow: {str(e)}") from e
         else:
             logger.warning("Attempted to initialize FlowManager multiple times")
 
@@ -180,41 +188,46 @@ class FlowManager:
             function_name: Name of the function to execute
 
         Raises:
-            RuntimeError: If handle_transition is called before initialization
+                FlowTransitionError: If transition fails
+                InvalidFunctionError: If function is not available in current node
         """
         if not self.initialized:
-            raise RuntimeError("FlowManager must be initialized before handling transitions")
+            raise FlowTransitionError("FlowManager must be initialized before handling transitions")
 
         available_functions = self.flow.get_available_function_names()
 
         if function_name not in available_functions:
-            logger.warning(
-                f"Received invalid function call '{function_name}' for node '{self.flow.current_node}'. "
+            raise InvalidFunctionError(
+                f"Function '{function_name}' not available in node '{self.flow.current_node}'. "
                 f"Available functions are: {available_functions}"
             )
-            return
 
         # Attempt transition - returns new node ID for edge functions,
         # None for node functions
-        new_node = self.flow.transition(function_name)
+        try:
+            new_node = self.flow.transition(function_name)
 
-        # Only perform node transition logic for edge functions
-        if new_node is not None:
-            # Execute pre-actions before updating LLM context
-            if self.flow.get_current_pre_actions():
-                logger.debug(f"Executing pre-actions for node {new_node}")
-                await self.action_manager.execute_actions(self.flow.get_current_pre_actions())
+            # Only perform node transition logic for edge functions
+            if new_node is not None:
+                # Execute pre-actions before updating LLM context
+                if self.flow.get_current_pre_actions():
+                    logger.debug(f"Executing pre-actions for node {new_node}")
+                    await self.action_manager.execute_actions(self.flow.get_current_pre_actions())
 
-            # Update LLM context and tools
-            current_messages = self.flow.get_current_messages()
-            await self.task.queue_frame(LLMMessagesAppendFrame(messages=current_messages))
-            await self.task.queue_frame(LLMSetToolsFrame(tools=self.flow.get_current_functions()))
+                # Update LLM context and tools
+                current_messages = self.flow.get_current_messages()
+                await self.task.queue_frame(LLMMessagesAppendFrame(messages=current_messages))
+                await self.task.queue_frame(
+                    LLMSetToolsFrame(tools=self.flow.get_current_functions())
+                )
 
-            # Execute post-actions after updating LLM context
-            if self.flow.get_current_post_actions():
-                logger.debug(f"Executing post-actions for node {new_node}")
-                await self.action_manager.execute_actions(self.flow.get_current_post_actions())
+                # Execute post-actions after updating LLM context
+                if self.flow.get_current_post_actions():
+                    logger.debug(f"Executing post-actions for node {new_node}")
+                    await self.action_manager.execute_actions(self.flow.get_current_post_actions())
 
-            logger.debug(f"Transition to node {new_node} complete")
-        else:
-            logger.debug(f"Node function {function_name} executed without transition")
+                logger.debug(f"Transition to node {new_node} complete")
+            else:
+                logger.debug(f"Node function {function_name} executed without transition")
+        except Exception as e:
+            raise FlowTransitionError(f"Failed to execute transition: {str(e)}") from e
