@@ -70,7 +70,7 @@ class FlowState:
         Returns:
             List of message dictionaries for the current node in provider-specific format
         """
-        messages = self.nodes[self.current_node].messages
+        messages = self.nodes[self.current_node]["messages"]
         return messages
 
     def get_current_functions(self) -> List[dict]:
@@ -80,7 +80,7 @@ class FlowState:
             List of function definitions available for the current node in provider-specific
                 format
         """
-        functions = self.nodes[self.current_node].functions
+        functions = self.nodes[self.current_node]["functions"]
 
         if self.provider == LLMProvider.GEMINI:
             # For Gemini, combine all function declarations into a single tools object
@@ -101,7 +101,7 @@ class FlowState:
         Returns:
             List of pre-actions to execute, or None if no pre-actions
         """
-        return self.nodes[self.current_node].pre_actions
+        return self.nodes[self.current_node].get("pre_actions")
 
     def get_current_post_actions(self) -> Optional[List[dict]]:
         """Get the post-actions for the current node.
@@ -112,7 +112,7 @@ class FlowState:
         Returns:
             List of post-actions to execute, or None if no post-actions
         """
-        return self.nodes[self.current_node].post_actions
+        return self.nodes[self.current_node].get("post_actions")
 
     def get_available_function_names(self) -> Set[str]:
         """Get the names of available functions for the current node.
@@ -120,7 +120,7 @@ class FlowState:
         Returns:
             Set of function names that can be called from the current node
         """
-        functions = self.nodes[self.current_node].functions
+        functions = self.nodes[self.current_node]["functions"]
 
         if self.provider == LLMProvider.GEMINI:
             # Flatten Gemini's nested function declarations
