@@ -4,18 +4,16 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-from asyncio import iscoroutinefunction
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List
 
 from loguru import logger
 from pipecat.frames.frames import (
-    EndFrame,
     LLMMessagesAppendFrame,
     LLMMessagesUpdateFrame,
     LLMSetToolsFrame,
-    TTSSpeakFrame,
 )
 
+from .actions import ActionManager
 from .state import FlowState
 
 
@@ -55,12 +53,7 @@ class FlowManager:
         self.initialized = False
         self.task = task
         self.llm = llm
-        self.tts = tts
-        self.action_handlers: Dict[str, Callable] = {}
-
-        # Register built-in actions
-        self.register_action("tts_say", self._handle_tts_action)
-        self.register_action("end_conversation", self._handle_end_action)
+        self.action_manager = ActionManager(task, tts)
 
     async def initialize(self, initial_messages: List[dict]):
         """Initialize the flow with starting messages and functions.
@@ -84,6 +77,32 @@ class FlowManager:
             logger.debug(f"Initialized flow at node: {self.flow.current_node}")
         else:
             logger.warning("Attempted to initialize FlowManager multiple times")
+
+    def register_action(self, action_type: str, handler: Callable) -> None:
+        """Register a handler for a specific action type.
+
+        Args:
+            action_type: String identifier for the action (e.g., "tts_say")
+            handler: Async or sync function that handles the action
+
+        Example:
+            async def custom_notification(action: dict):
+                notification_text = action.get("notification_text", "")
+                # Custom notification logic here
+
+            flow_manager.register_action("send_notification", custom_notification)
+
+            # Can then be used in flow configuration:
+            {
+                "pre_actions": [
+                    {
+                        "type": "send_notification",
+                        "notification_text": "Starting process..."
+                    }
+                ]
+            }
+        """
+        self.action_manager._register_action(action_type, handler)
 
     async def register_functions(self):
         """Register edge functions from the flow configuration with the LLM service.
@@ -129,76 +148,6 @@ class FlowManager:
                 logger.debug(f"Registered edge function: {function_name}")
 
             registered_handlers.add(function_name)
-
-    def register_action(self, action_type: str, handler: Callable):
-        """Register a handler for a specific action type.
-
-        Args:
-            action_type: String identifier for the action (e.g., "tts_say")
-            handler: Async or sync function that handles the action.
-                    Should accept action configuration as parameter.
-        """
-        if not callable(handler):
-            raise ValueError("Action handler must be callable")
-        self.action_handlers[action_type] = handler
-
-    async def _execute_actions(self, actions: Optional[List[dict]]) -> None:
-        """Execute actions specified for the current node.
-
-        Args:
-            actions: List of action configurations to execute
-
-        Note:
-            Each action must have a 'type' field matching a registered handler
-        """
-        if not actions:
-            return
-
-        for action in actions:
-            action_type = action["type"]
-            if action_type in self.action_handlers:
-                handler = self.action_handlers[action_type]
-                try:
-                    if iscoroutinefunction(handler):
-                        await handler(action)
-                    else:
-                        handler(action)
-                except Exception as e:
-                    logger.warning(f"Error executing action {action_type}: {e}")
-            else:
-                logger.warning(f"No handler registered for action type: {action_type}")
-
-    async def _handle_tts_action(self, action: dict):
-        """Built-in handler for TTS actions that speak immediately.
-
-        This handler attempts to use the TTS service directly to speak the text
-        immediately, bypassing the pipeline queue. If no TTS service is available,
-        it falls back to queueing the text through the pipeline.
-
-        Args:
-            action: Dictionary containing the action configuration.
-                Must include a 'text' key with the text to speak.
-        """
-        if self.tts:
-            # Direct call to TTS service to speak text immediately
-            await self.tts.say(action["text"])
-        else:
-            # Fall back to queued TTS if no direct service available
-            await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
-
-    async def _handle_end_action(self, action: dict):
-        """Built-in handler for ending the conversation.
-
-        This handler queues an EndFrame to terminate the conversation. If the action
-        includes a 'text' key, it will queue that text to be spoken before ending.
-
-        Args:
-            action: Dictionary containing the action configuration.
-                Optional 'text' key for a goodbye message.
-        """
-        if action.get("text"):  # Optional goodbye message
-            await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
-        await self.task.queue_frame(EndFrame())
 
     async def handle_transition(self, function_name: str):
         """Handle the execution of functions and potential node transitions.
@@ -248,13 +197,12 @@ class FlowManager:
         # None for node functions
         new_node = self.flow.transition(function_name)
 
-        # Only perform node transition logic if we got a new node
-        # (meaning it was an edge function, not a node function)
+        # Only perform node transition logic for edge functions
         if new_node is not None:
             # Execute pre-actions before updating LLM context
             if self.flow.get_current_pre_actions():
                 logger.debug(f"Executing pre-actions for node {new_node}")
-                await self._execute_actions(self.flow.get_current_pre_actions())
+                await self.action_manager.execute_actions(self.flow.get_current_pre_actions())
 
             # Update LLM context and tools
             current_messages = self.flow.get_current_messages()
@@ -264,7 +212,7 @@ class FlowManager:
             # Execute post-actions after updating LLM context
             if self.flow.get_current_post_actions():
                 logger.debug(f"Executing post-actions for node {new_node}")
-                await self._execute_actions(self.flow.get_current_post_actions())
+                await self.action_manager.execute_actions(self.flow.get_current_post_actions())
 
             logger.debug(f"Transition to node {new_node} complete")
         else:
