@@ -4,32 +4,12 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
+from .config import FlowConfig, NodeConfig
 from .formats import LLMFormatParser, LLMProvider
-
-
-@dataclass
-class NodeConfig:
-    """Configuration for a single node in the flow.
-
-    A node represents a state in the conversation flow, containing all the
-    information needed for that particular point in the conversation.
-
-    Attributes:
-        messages: List of message dicts in provider-specific format
-        functions: List of function definitions in provider-specific format
-        pre_actions: Optional list of actions to execute before LLM inference
-        post_actions: Optional list of actions to execute after LLM inference
-    """
-
-    messages: List[dict]
-    functions: List[dict]
-    pre_actions: Optional[List[dict]] = None
-    post_actions: Optional[List[dict]] = None
 
 
 class FlowState:
@@ -46,7 +26,7 @@ class FlowState:
         provider: LLM provider type for format parsing
     """
 
-    def __init__(self, flow_config: dict, llm):
+    def __init__(self, flow_config: FlowConfig, llm):
         """Initialize the conversation flow.
 
         Args:
@@ -62,7 +42,7 @@ class FlowState:
         self.provider = LLMFormatParser.get_provider(llm)
         self._load_config(flow_config)
 
-    def _load_config(self, config: dict):
+    def _load_config(self, config: FlowConfig):
         """Load and validate the flow configuration.
 
         Args:

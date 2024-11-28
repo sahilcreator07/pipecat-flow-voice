@@ -14,6 +14,7 @@ from pipecat.frames.frames import (
 )
 
 from .actions import ActionManager
+from .config import FlowConfig
 from .state import FlowState
 
 
@@ -40,7 +41,7 @@ class FlowManager:
     current node's configuration are available for use at any given time.
     """
 
-    def __init__(self, flow_config: dict, task, llm, tts=None):
+    def __init__(self, flow_config: FlowConfig, task, llm, tts=None):
         """Initialize the flow manager.
 
         Args:

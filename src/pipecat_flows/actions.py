@@ -5,7 +5,7 @@
 #
 
 import asyncio
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -48,7 +48,7 @@ class ActionManager:
         self.action_handlers[action_type] = handler
         logger.debug(f"Registered handler for action type: {action_type}")
 
-    async def execute_actions(self, actions: Optional[List[dict]]) -> None:
+    async def execute_actions(self, actions: Optional[List[Dict[str, Any]]]) -> None:
         """Execute a list of actions.
 
         Args:
