@@ -149,6 +149,47 @@ To run these examples:
    python examples/food_ordering.py -u YOUR_DAILY_ROOM_URL
    ```
 
+### Running Tests
+
+The package includes a comprehensive test suite covering the core functionality.
+
+#### Setup Test Environment
+
+1. **Create Virtual Environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. **Install Test Dependencies**:
+   ```bash
+   pip install -r dev-requirements.txt -r test-requirements.txt
+   pip install "pipecat-ai[google,openai,anthropic]"
+   pip install -e .
+   ```
+
+#### Running Tests
+
+Run all tests:
+```bash
+pytest tests/
+```
+
+Run specific test file:
+```bash
+pytest tests/test_state.py
+```
+
+Run specific test:
+```bash
+pytest tests/test_state.py -k test_initialization
+```
+
+Run with coverage report:
+```bash
+pytest tests/ --cov=pipecat_flows
+```
+
 ## Pipecat Flows Editor
 
 A visual editor for creating and managing Pipecat conversation flows.
