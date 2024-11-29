@@ -4,32 +4,12 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
-from .formats import LLMFormatParser, LLMProvider
-
-
-@dataclass
-class NodeConfig:
-    """Configuration for a single node in the flow.
-
-    A node represents a state in the conversation flow, containing all the
-    information needed for that particular point in the conversation.
-
-    Attributes:
-        messages: List of message dicts in provider-specific format
-        functions: List of function definitions in provider-specific format
-        pre_actions: Optional list of actions to execute before LLM inference
-        post_actions: Optional list of actions to execute after LLM inference
-    """
-
-    messages: List[dict]
-    functions: List[dict]
-    pre_actions: Optional[List[dict]] = None
-    post_actions: Optional[List[dict]] = None
+from .adapters import GeminiAdapter, create_adapter
+from .config import FlowConfig, NodeConfig
 
 
 class FlowState:
@@ -43,15 +23,14 @@ class FlowState:
     Attributes:
         nodes: Dictionary mapping node IDs to their configurations
         current_node: ID of the currently active node
-        provider: LLM provider type for format parsing
+        adapter: LLM-specific format adapter
     """
 
-    def __init__(self, flow_config: dict, llm):
+    def __init__(self, flow_config: FlowConfig, llm):
         """Initialize the conversation flow.
 
         Args:
-            flow_config: Dictionary containing the complete flow configuration,
-                        must include 'initial_node' and 'nodes' keys
+            flow_config: Configuration defining the conversation flow
             llm: LLM service instance for determining provider type
 
         Raises:
@@ -59,10 +38,10 @@ class FlowState:
         """
         self.nodes: Dict[str, NodeConfig] = {}
         self.current_node: str = flow_config["initial_node"]
-        self.provider = LLMFormatParser.get_provider(llm)
+        self.adapter = create_adapter(llm)
         self._load_config(flow_config)
 
-    def _load_config(self, config: dict):
+    def _load_config(self, config: FlowConfig):
         """Load and validate the flow configuration.
 
         Args:
@@ -76,13 +55,7 @@ class FlowState:
         if "nodes" not in config:
             raise ValueError("Flow config must specify 'nodes'")
 
-        for node_id, node_config in config["nodes"].items():
-            self.nodes[node_id] = NodeConfig(
-                messages=node_config["messages"],
-                functions=node_config["functions"],
-                pre_actions=node_config.get("pre_actions"),
-                post_actions=node_config.get("post_actions"),
-            )
+        self.nodes = config["nodes"]
 
     def get_current_messages(self) -> List[dict]:
         """Get the messages for the current node.
@@ -90,8 +63,7 @@ class FlowState:
         Returns:
             List of message dictionaries for the current node in provider-specific format
         """
-        messages = self.nodes[self.current_node].messages
-        return messages
+        return self.nodes[self.current_node]["messages"]
 
     def get_current_functions(self) -> List[dict]:
         """Get the available functions for the current node.
@@ -100,17 +72,8 @@ class FlowState:
             List of function definitions available for the current node in provider-specific
                 format
         """
-        functions = self.nodes[self.current_node].functions
-
-        if self.provider == LLMProvider.GEMINI:
-            # For Gemini, combine all function declarations into a single tools object
-            all_declarations = []
-            for func in functions:
-                if "function_declarations" in func:
-                    all_declarations.extend(func["function_declarations"])
-            return [{"function_declarations": all_declarations}] if all_declarations else []
-
-        return functions
+        functions = self.nodes[self.current_node]["functions"]
+        return self.adapter.format_functions(functions)
 
     def get_current_pre_actions(self) -> Optional[List[dict]]:
         """Get the pre-actions for the current node.
@@ -121,7 +84,7 @@ class FlowState:
         Returns:
             List of pre-actions to execute, or None if no pre-actions
         """
-        return self.nodes[self.current_node].pre_actions
+        return self.nodes[self.current_node].get("pre_actions")
 
     def get_current_post_actions(self) -> Optional[List[dict]]:
         """Get the post-actions for the current node.
@@ -132,7 +95,7 @@ class FlowState:
         Returns:
             List of post-actions to execute, or None if no post-actions
         """
-        return self.nodes[self.current_node].post_actions
+        return self.nodes[self.current_node].get("post_actions")
 
     def get_available_function_names(self) -> Set[str]:
         """Get the names of available functions for the current node.
@@ -140,17 +103,21 @@ class FlowState:
         Returns:
             Set of function names that can be called from the current node
         """
-        functions = self.nodes[self.current_node].functions
+        functions = self.nodes[self.current_node]["functions"]
+        names = set()
 
-        if self.provider == LLMProvider.GEMINI:
-            # Flatten Gemini's nested function declarations
-            flattened = []
-            for func in functions:
-                if "function_declarations" in func:
-                    flattened.extend(func["function_declarations"])
-            functions = flattened
+        for func in functions:
+            # Special case for Gemini's nested function declarations
+            if isinstance(self.adapter, GeminiAdapter) and "function_declarations" in func:
+                declarations = func["function_declarations"]
+                if declarations and isinstance(declarations, list):
+                    names.update(decl["name"] for decl in declarations if "name" in decl)
+            else:
+                # Normal case for other providers
+                name = self.adapter.get_function_name(func)
+                if name:
+                    names.add(name)
 
-        names = {LLMFormatParser.get_function_name(self.provider, f) for f in functions}
         logger.debug(f"Available function names for node {self.current_node}: {names}")
         return names
 
@@ -163,7 +130,7 @@ class FlowState:
         Returns:
             Function name as string
         """
-        return LLMFormatParser.get_function_name(self.provider, function_call)
+        return self.adapter.get_function_name(function_call)
 
     def get_all_available_function_names(self) -> Set[str]:
         """Get all function names across all nodes without modifying state.
@@ -192,7 +159,7 @@ class FlowState:
         Returns:
             Dictionary of function arguments
         """
-        return LLMFormatParser.get_function_args(self.provider, function_call)
+        return self.adapter.get_function_args(function_call)
 
     def transition(self, function_name: str) -> Optional[str]:
         """Attempt to transition to a new node based on a function call.
