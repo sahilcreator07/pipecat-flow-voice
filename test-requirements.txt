@@ -1,0 +1,5 @@
+pipecat-ai>=0.0.49
+loguru~=0.7.2
+anthropic~=0.30.0
+google-generativeai~=0.7.2
+openai~=1.37.2

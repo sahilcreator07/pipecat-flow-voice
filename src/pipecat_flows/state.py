@@ -36,6 +36,11 @@ class FlowState:
         Raises:
             ValueError: If required configuration keys are missing
         """
+        if "initial_node" not in flow_config:
+            raise ValueError("Flow config must specify 'initial_node'")
+        if "nodes" not in flow_config:
+            raise ValueError("Flow config must specify 'nodes'")
+
         self.nodes: Dict[str, NodeConfig] = {}
         self.current_node: str = flow_config["initial_node"]
         self.adapter = create_adapter(llm)
@@ -48,13 +53,20 @@ class FlowState:
             config: Dictionary containing the flow configuration
 
         Raises:
-            ValueError: If required configuration keys are missing
+            ValueError: If required configuration keys are missing or invalid
         """
-        if "initial_node" not in config:
-            raise ValueError("Flow config must specify 'initial_node'")
-        if "nodes" not in config:
-            raise ValueError("Flow config must specify 'nodes'")
+        initial_node = config["initial_node"]
+        if initial_node not in config["nodes"]:
+            raise ValueError(f"Initial node '{initial_node}' not found in nodes")
 
+        # Validate node structure
+        for node_id, node in config["nodes"].items():
+            if "messages" not in node:
+                raise ValueError(f"Node '{node_id}' missing required 'messages' field")
+            if "functions" not in node:
+                raise ValueError(f"Node '{node_id}' missing required 'functions' field")
+
+        # Load the nodes
         self.nodes = config["nodes"]
 
     def get_current_messages(self) -> List[dict]:
