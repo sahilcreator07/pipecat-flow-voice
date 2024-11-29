@@ -42,15 +42,10 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r dev-requirements.txt -r test-requirements.txt
+          pip install "pipecat-ai[google,openai,anthropic]"
           pip install -e .
 
       - name: Test with pytest
         run: |
           source .venv/bin/activate
-          pytest tests/ --cov=pipecat_flows --cov-report=xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: true
+          pytest tests/ --cov=pipecat_flows
