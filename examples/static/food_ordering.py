@@ -61,17 +61,26 @@ logger.add(sys.stderr, level="DEBUG")
 #    - Post-action: Ends conversation
 
 
+# Type definitions
+class PizzaSizeResult(FlowResult):
+    size: str
+
+
+class RollCountResult(FlowResult):
+    count: int
+
+
 # Function handlers
-async def select_pizza_size(args: FlowArgs) -> FlowResult:
+async def select_pizza_size(args: FlowArgs) -> PizzaSizeResult:
     """Handle pizza size selection."""
     size = args["size"]
-    return {"status": "success", "size": size}
+    return {"size": size}
 
 
-async def select_roll_count(args: FlowArgs) -> FlowResult:
+async def select_roll_count(args: FlowArgs) -> RollCountResult:
     """Handle sushi roll count selection."""
     count = args["count"]
-    return {"status": "success", "count": count}
+    return {"count": count}
 
 
 flow_config: FlowConfig = {

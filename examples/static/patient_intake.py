@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import List, TypedDict
 
 import aiohttp
 from dotenv import load_dotenv
@@ -85,40 +86,80 @@ logger.add(sys.stderr, level="DEBUG")
 #    - Post-action: Ends conversation
 
 
-async def verify_birthday(args: FlowArgs) -> FlowResult:
+# Type definitions
+class Prescription(TypedDict):
+    medication: str
+    dosage: str
+
+
+class Allergy(TypedDict):
+    name: str
+
+
+class Condition(TypedDict):
+    name: str
+
+
+class VisitReason(TypedDict):
+    name: str
+
+
+# Result types for each handler
+class BirthdayVerificationResult(FlowResult):
+    verified: bool
+
+
+class PrescriptionRecordResult(FlowResult):
+    count: int
+
+
+class AllergyRecordResult(FlowResult):
+    count: int
+
+
+class ConditionRecordResult(FlowResult):
+    count: int
+
+
+class VisitReasonRecordResult(FlowResult):
+    count: int
+
+
+# Function handlers
+async def verify_birthday(args: FlowArgs) -> BirthdayVerificationResult:
     """Handler for birthday verification."""
     birthday = args["birthday"]
     # In a real app, this would verify against patient records
     is_valid = birthday == "1983-01-01"
-    return {"status": "success", "verified": is_valid}
+    return BirthdayVerificationResult(verified=is_valid)
 
 
-async def record_prescriptions(args: FlowArgs) -> FlowResult:
+async def record_prescriptions(args: FlowArgs) -> PrescriptionRecordResult:
     """Handler for recording prescriptions."""
-    prescriptions = args["prescriptions"]
+    prescriptions: List[Prescription] = args["prescriptions"]
     # In a real app, this would store in patient records
-    return {"status": "success", "count": len(prescriptions)}
+    return PrescriptionRecordResult(count=len(prescriptions))
 
 
-async def record_allergies(args: FlowArgs) -> FlowResult:
+async def record_allergies(args: FlowArgs) -> AllergyRecordResult:
     """Handler for recording allergies."""
-    allergies = args["allergies"]
+    allergies: List[Allergy] = args["allergies"]
     # In a real app, this would store in patient records
-    return {"status": "success", "count": len(allergies)}
+    return AllergyRecordResult(count=len(allergies))
 
 
-async def record_conditions(args: FlowArgs) -> FlowResult:
+async def record_conditions(args: FlowArgs) -> ConditionRecordResult:
     """Handler for recording medical conditions."""
-    conditions = args["conditions"]
+    conditions: List[Condition] = args["conditions"]
     # In a real app, this would store in patient records
-    return {"status": "success", "count": len(conditions)}
+    return ConditionRecordResult(count=len(conditions))
 
 
-async def record_visit_reasons(args: FlowArgs) -> FlowResult:
+async def record_visit_reasons(args: FlowArgs) -> VisitReasonRecordResult:
     """Handler for recording visit reasons."""
-    visit_reasons = args["visit_reasons"]
+    visit_reasons: List[VisitReason] = args["visit_reasons"]
     # In a real app, this would store in patient records
-    return {"status": "success", "count": len(visit_reasons)}
+    return VisitReasonRecordResult(count=len(visit_reasons))
 
 
 flow_config: FlowConfig = {

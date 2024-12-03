@@ -26,7 +26,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import List, TypedDict
+from typing import List, Literal, TypedDict, Union
 
 import aiohttp
 from dotenv import load_dotenv
@@ -69,6 +69,23 @@ class MovieDetails(TypedDict):
     overview: str
     genres: List[str]
     cast: List[str]  # List of "Actor Name as Character Name"
+
+
+class MoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class MovieDetailsResult(FlowResult, MovieDetails):
+    pass
+
+
+class SimilarMoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class ErrorResult(FlowResult):
+    status: Literal["error"]
+    error: str
 
 
 class TMDBApi:
@@ -197,20 +214,20 @@ tmdb_api = TMDBApi(TMDB_API_KEY)
 # These are node functions that perform operations without changing conversation state
 # Function handlers for the LLM
 # These are node functions that perform operations without changing conversation state
-async def get_movies() -> FlowResult:
+async def get_movies() -> Union[MoviesResult, ErrorResult]:
     """Handler for fetching current movies."""
     logger.debug("Calling TMDB API: get_movies")
     async with aiohttp.ClientSession() as session:
         try:
             movies = await tmdb_api.fetch_current_movies(session)
             logger.debug(f"TMDB API Response: {movies}")
-            return {"movies": movies}
+            return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return {"error": "Failed to fetch movies"}
+            return ErrorResult(error="Failed to fetch movies")
 
 
-async def get_movie_details(args: FlowArgs) -> FlowResult:
+async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
     """Handler for fetching movie details including cast."""
     movie_id = args["movie_id"]
     logger.debug(f"Calling TMDB API: get_movie_details for ID {movie_id}")
@@ -218,13 +235,13 @@ async def get_movie_details(args: FlowArgs) -> FlowResult:
         try:
             details = await tmdb_api.fetch_movie_details(session, movie_id)
             logger.debug(f"TMDB API Response: {details}")
-            return details
+            return MovieDetailsResult(**details)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return {"error": f"Failed to fetch details for movie {movie_id}"}
+            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
 
 
-async def get_similar_movies(args: FlowArgs) -> FlowResult:
+async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
     """Handler for fetching similar movies."""
     movie_id = args["movie_id"]
     logger.debug(f"Calling TMDB API: get_similar_movies for ID {movie_id}")
@@ -232,10 +249,10 @@ async def get_similar_movies(args: FlowArgs) -> FlowResult:
         try:
             similar = await tmdb_api.fetch_similar_movies(session, movie_id)
             logger.debug(f"TMDB API Response: {similar}")
-            return {"movies": similar}
+            return SimilarMoviesResult(movies=similar)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return {"error": f"Failed to fetch similar movies for {movie_id}"}
+            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
 
 
 # Flow configuration

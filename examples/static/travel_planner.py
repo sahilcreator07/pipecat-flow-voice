@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import List
 
 import aiohttp
 from dotenv import load_dotenv
@@ -77,27 +78,41 @@ logger.add(sys.stderr, level="DEBUG")
 #    - Post-action: Ends conversation
 
 
-# Node function handlers
-async def select_destination(args: FlowArgs) -> FlowResult:
+# Type definitions
+class DestinationResult(FlowResult):
+    destination: str
+
+
+class DatesResult(FlowResult):
+    check_in: str
+    check_out: str
+
+
+class ActivitiesResult(FlowResult):
+    activities: List[str]
+
+
+# Function handlers
+async def select_destination(args: FlowArgs) -> DestinationResult:
     """Handler for destination selection."""
     destination = args["destination"]
     # In a real app, this would store the selection
-    return {"status": "success", "destination": destination}
+    return DestinationResult(destination=destination)
 
 
-async def record_dates(args: FlowArgs) -> FlowResult:
+async def record_dates(args: FlowArgs) -> DatesResult:
     """Handler for travel date recording."""
     check_in = args["check_in"]
     check_out = args["check_out"]
     # In a real app, this would validate and store the dates
-    return {"status": "success", "check_in": check_in, "check_out": check_out}
+    return DatesResult(check_in=check_in, check_out=check_out)
 
 
-async def record_activities(args: FlowArgs) -> FlowResult:
+async def record_activities(args: FlowArgs) -> ActivitiesResult:
     """Handler for activity selection."""
     activities = args["activities"]
     # In a real app, this would validate and store the activities
-    return {"status": "success", "activities": activities}
+    return ActivitiesResult(activities=activities)
 
 
 flow_config: FlowConfig = {

@@ -66,18 +66,28 @@ logger.add(sys.stderr, level="DEBUG")
 # clear and efficient reservation process.
 
 
+# Type definitions
+class PartySizeResult(FlowResult):
+    size: int
+
+
+class TimeResult(FlowResult):
+    time: str
+
+
+# Function handlers
 async def record_party_size(args: FlowArgs) -> FlowResult:
     """Handler for recording party size."""
     size = args["size"]
     # In a real app, this would store the reservation details
-    return {"status": "success", "size": size}
+    return PartySizeResult(size=size)
 
 
 async def record_time(args: FlowArgs) -> FlowResult:
     """Handler for recording reservation time."""
     time = args["time"]
     # In a real app, this would validate availability and store the time
-    return {"status": "success", "time": time}
+    return TimeResult(time=time)
 
 
 flow_config: FlowConfig = {

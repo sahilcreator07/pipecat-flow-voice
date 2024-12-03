@@ -4,10 +4,10 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, NotRequired, TypedDict
 
 
-class FlowResult(TypedDict, total=False):
+class FlowResult(TypedDict):
     """Base type for function results.
 
     Example:
@@ -18,8 +18,8 @@ class FlowResult(TypedDict, total=False):
         }
     """
 
-    status: str
-    error: str
+    status: NotRequired[str]
+    error: NotRequired[str]
 
 
 FlowArgs = Dict[str, Any]
@@ -79,8 +79,8 @@ class NodeConfig(TypedDict):
 
     messages: List[dict]
     functions: List[dict]
-    pre_actions: Optional[List[Dict[str, Any]]]
-    post_actions: Optional[List[Dict[str, Any]]]
+    pre_actions: NotRequired[List[Dict[str, Any]]]
+    post_actions: NotRequired[List[Dict[str, Any]]]
 
 
 class FlowConfig(TypedDict):

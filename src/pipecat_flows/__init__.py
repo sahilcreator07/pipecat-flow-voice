@@ -63,7 +63,7 @@ from .exceptions import (
     InvalidFunctionError,
 )
 from .manager import FlowManager
-from .types import FlowArgs, FlowConfig, FlowResult
+from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig
 
 __all__ = [
     # Flow Manager
@@ -72,6 +72,7 @@ __all__ = [
     "FlowArgs",
     "FlowConfig",
     "FlowResult",
+    "NodeConfig",
     # Exceptions
     "FlowError",
     "FlowInitializationError",

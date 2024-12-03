@@ -30,7 +30,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, TypedDict
+from typing import Dict, TypedDict, Union
 
 import aiohttp
 from dotenv import load_dotenv
@@ -47,7 +47,7 @@ from pipecat.transports.services.daily import DailyParams, DailyTransport
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
 
-from pipecat_flows import FlowArgs, FlowManager, FlowResult
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
 
 load_dotenv(override=True)
 
@@ -62,6 +62,22 @@ class InsuranceQuote(TypedDict):
     deductible: int
 
 
+class AgeCollectionResult(FlowResult):
+    age: int
+
+
+class MaritalStatusResult(FlowResult):
+    marital_status: str
+
+
+class QuoteCalculationResult(FlowResult, InsuranceQuote):
+    pass
+
+
+class CoverageUpdateResult(FlowResult, InsuranceQuote):
+    pass
+
+
 # Simulated insurance data
 INSURANCE_RATES = {
     "young_single": {"base_rate": 150, "risk_multiplier": 1.5},
@@ -72,25 +88,25 @@ INSURANCE_RATES = {
 
 
 # Function handlers
-async def collect_age(args: FlowArgs) -> FlowResult:
+async def collect_age(args: FlowArgs) -> AgeCollectionResult:
     """Process age collection."""
     age = args["age"]
-    logger.debug(f"Processing age: {age}")
+    logger.debug(f"collect_age handler executing with age: {age}")
     return {"age": age}
 
 
-async def collect_marital_status(args: FlowArgs) -> FlowResult:
+async def collect_marital_status(args: FlowArgs) -> MaritalStatusResult:
     """Process marital status collection."""
     status = args["marital_status"]
-    logger.debug(f"Processing marital status: {status}")
+    logger.debug(f"collect_marital_status handler executing with status: {status}")
     return {"marital_status": status}
 
 
-async def calculate_quote(args: FlowArgs) -> FlowResult:
+async def calculate_quote(args: FlowArgs) -> QuoteCalculationResult:
     """Calculate insurance quote based on age and marital status."""
     age = args["age"]
     marital_status = args["marital_status"]
-    logger.debug(f"Calculating quote for age: {age}, status: {marital_status}")
+    logger.debug(f"calculate_quote handler executing with age: {age}, status: {marital_status}")
 
     # Determine rate category
     age_category = "young" if age < 25 else "adult"
@@ -99,71 +115,63 @@ async def calculate_quote(args: FlowArgs) -> FlowResult:
 
     # Calculate quote
     monthly_premium = rates["base_rate"] * rates["risk_multiplier"]
-    quote = {
+
+    return {
         "monthly_premium": monthly_premium,
         "coverage_amount": 250000,
         "deductible": 1000,
     }
 
-    logger.debug(f"Generated quote: {quote}")
-    return quote
 
-
-async def update_coverage(args: FlowArgs) -> FlowResult:
+async def update_coverage(args: FlowArgs) -> CoverageUpdateResult:
     """Update coverage options and recalculate premium."""
     coverage_amount = args["coverage_amount"]
     deductible = args["deductible"]
-    logger.debug(f"Updating coverage: amount={coverage_amount}, deductible={deductible}")
+    logger.debug(
+        f"update_coverage handler executing with amount: {coverage_amount}, deductible: {deductible}"
+    )
 
     # Calculate adjusted quote
     monthly_premium = (coverage_amount / 250000) * 100
     if deductible > 1000:
         monthly_premium *= 0.9  # 10% discount for higher deductible
 
-    adjusted_quote = {
+    return {
         "monthly_premium": monthly_premium,
         "coverage_amount": coverage_amount,
         "deductible": deductible,
     }
 
-    logger.debug(f"Adjusted quote: {adjusted_quote}")
-    return adjusted_quote
-
 
 async def end_quote() -> FlowResult:
     """Handle quote completion."""
-    logger.debug("Completing quote process")
+    logger.debug("end_quote handler executing")
     return {"status": "completed"}
 
 
 # Node configurations
-def create_initial_node():
+def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
     return {
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are an insurance agent. Ask the customer for their age. "
-                    "Wait for their response before calling collect_age. "
-                    "Only call collect_age after the customer provides their age."
-                ),
+                "content": "You are an insurance agent. Start by asking for the customer's age.",
             }
         ],
         "functions": [
             {
-                "function_declarations": [
-                    {
-                        "name": "collect_age",
-                        "handler": collect_age,
-                        "description": "Record customer's age after they provide it",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"age": {"type": "integer"}},
-                            "required": ["age"],
-                        },
-                    }
-                ]
+                "type": "function",
+                "function": {
+                    "name": "collect_age",
+                    "handler": collect_age,
+                    "description": "Record customer's age",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"age": {"type": "integer"}},
+                        "required": ["age"],
+                    },
+                },
             }
         ],
         "pre_actions": [
@@ -172,7 +180,7 @@ def create_initial_node():
     }
 
 
-def create_marital_status_node():
+def create_marital_status_node() -> NodeConfig:
     """Create node for collecting marital status."""
     return {
         "messages": [
@@ -207,7 +215,7 @@ def create_marital_status_node():
     }
 
 
-def create_quote_calculation_node(age: int, marital_status: str):
+def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
     """Create node for calculating initial quote."""
     return {
         "messages": [
@@ -242,7 +250,9 @@ def create_quote_calculation_node(age: int, marital_status: str):
     }
 
 
-def create_quote_results_node(quote: Dict[str, Any]):
+def create_quote_results_node(
+    quote: Union[QuoteCalculationResult, CoverageUpdateResult],
+) -> NodeConfig:
     """Create node for showing quote and adjustment options."""
     return {
         "messages": [
@@ -291,7 +301,7 @@ def create_quote_results_node(quote: Dict[str, Any]):
     }
 
 
-def create_end_node():
+def create_end_node() -> NodeConfig:
     """Create the final node."""
     return {
         "messages": [
