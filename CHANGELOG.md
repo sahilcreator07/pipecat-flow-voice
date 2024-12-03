@@ -5,19 +5,28 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.6] - 2024-12-02
 
 ### Added
 
-- Extended the FlowManager to support both static and dynamic conversation
-  flows
-- Added new dynamic flow examples for OpenAI, Anthropic, and Gemini
-- New type system with FlowArgs and FlowResult for better type safety
+- New FlowManager supporting both static and dynamic conversation flows
+  - Static flows: Configuration-driven with predefined paths
+  - Dynamic flows: Runtime-determined conversation paths
+  - Documentation: [Guide](https://docs.pipecat.ai/guides/pipecat-flow) and [Reference](https://docs.pipecat.ai/api-reference/utilities/flows/pipecat-flows)
+- Provider-specific examples demonstrating dynamic flows:
+  - OpenAI: `insurance_openai.py`
+  - Anthropic: `insurance_anthropic.py`
+  - Gemini: `insurance_gemini.py`
+- Type safety improvements:
+  - `FlowArgs`: Type-safe function arguments
+  - `FlowResult`: Type-safe function returns
 
 ### Changed
 
-- Simplified function handler registration process
-- Updated all examples to use the new unified FlowManager
+- Simplified function handling:
+  - Automatic LLM function registration
+  - Optional handlers for edge nodes
+- Updated all examples to use unified FlowManager interface
 
 ## [0.0.5] - 2024-11-27
 
