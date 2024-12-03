@@ -4,7 +4,34 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, NotRequired, TypedDict
+
+
+class FlowResult(TypedDict):
+    """Base type for function results.
+
+    Example:
+        {
+            "status": "success",
+            "data": {"processed": True},
+            "error": None  # Optional error message
+        }
+    """
+
+    status: NotRequired[str]
+    error: NotRequired[str]
+
+
+FlowArgs = Dict[str, Any]
+"""Type alias for function handler arguments.
+
+Example:
+    {
+        "user_name": "John",
+        "age": 25,
+        "preferences": {"color": "blue"}
+    }
+"""
 
 
 class NodeConfig(TypedDict):
@@ -52,8 +79,8 @@ class NodeConfig(TypedDict):
 
     messages: List[dict]
     functions: List[dict]
-    pre_actions: Optional[List[Dict[str, Any]]]
-    post_actions: Optional[List[Dict[str, Any]]]
+    pre_actions: NotRequired[List[Dict[str, Any]]]
+    post_actions: NotRequired[List[Dict[str, Any]]]
 
 
 class FlowConfig(TypedDict):

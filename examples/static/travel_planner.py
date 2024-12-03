@@ -7,6 +7,8 @@
 import asyncio
 import os
 import sys
+from pathlib import Path
+from typing import List
 
 import aiohttp
 from dotenv import load_dotenv
@@ -19,9 +21,11 @@ from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
 
-from pipecat_flows import FlowManager
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
 
 load_dotenv(override=True)
 
@@ -73,7 +77,45 @@ logger.add(sys.stderr, level="DEBUG")
 #    - No functions available
 #    - Post-action: Ends conversation
 
-flow_config = {
+
+# Type definitions
+class DestinationResult(FlowResult):
+    destination: str
+
+
+class DatesResult(FlowResult):
+    check_in: str
+    check_out: str
+
+
+class ActivitiesResult(FlowResult):
+    activities: List[str]
+
+
+# Function handlers
+async def select_destination(args: FlowArgs) -> DestinationResult:
+    """Handler for destination selection."""
+    destination = args["destination"]
+    # In a real app, this would store the selection
+    return DestinationResult(destination=destination)
+
+
+async def record_dates(args: FlowArgs) -> DatesResult:
+    """Handler for travel date recording."""
+    check_in = args["check_in"]
+    check_out = args["check_out"]
+    # In a real app, this would validate and store the dates
+    return DatesResult(check_in=check_in, check_out=check_out)
+
+
+async def record_activities(args: FlowArgs) -> ActivitiesResult:
+    """Handler for activity selection."""
+    activities = args["activities"]
+    # In a real app, this would validate and store the activities
+    return ActivitiesResult(activities=activities)
+
+
+flow_config: FlowConfig = {
     "initial_node": "start",
     "nodes": {
         "start": {
@@ -120,6 +162,7 @@ flow_config = {
                     "type": "function",
                     "function": {
                         "name": "select_destination",
+                        "handler": select_destination,
                         "description": "Record the selected beach destination",
                         "parameters": {
                             "type": "object",
@@ -159,6 +202,7 @@ flow_config = {
                     "type": "function",
                     "function": {
                         "name": "select_destination",
+                        "handler": select_destination,
                         "description": "Record the selected mountain destination",
                         "parameters": {
                             "type": "object",
@@ -198,6 +242,7 @@ flow_config = {
                     "type": "function",
                     "function": {
                         "name": "record_dates",
+                        "handler": record_dates,
                         "description": "Record the selected travel dates",
                         "parameters": {
                             "type": "object",
@@ -239,6 +284,7 @@ flow_config = {
                     "type": "function",
                     "function": {
                         "name": "record_activities",
+                        "handler": record_activities,
                         "description": "Record selected activities",
                         "parameters": {
                             "type": "object",
@@ -326,33 +372,6 @@ flow_config = {
 }
 
 
-# Node function handlers
-async def select_destination_handler(
-    function_name, tool_call_id, args, llm, context, result_callback
-):
-    """Handler for destination selection."""
-    destination = args["destination"]
-    # In a real app, this would store the selection
-    await result_callback({"status": "success", "destination": destination})
-
-
-async def record_dates_handler(function_name, tool_call_id, args, llm, context, result_callback):
-    """Handler for travel date recording."""
-    check_in = args["check_in"]
-    check_out = args["check_out"]
-    # In a real app, this would validate and store the dates
-    await result_callback({"status": "success", "check_in": check_in, "check_out": check_out})
-
-
-async def record_activities_handler(
-    function_name, tool_call_id, args, llm, context, result_callback
-):
-    """Handler for activity selection."""
-    activities = args["activities"]
-    # In a real app, this would validate and store the activities
-    await result_callback({"status": "success", "activities": activities})
-
-
 async def main():
     """Main function to set up and run the travel planning bot."""
     async with aiohttp.ClientSession() as session:
@@ -373,11 +392,6 @@ async def main():
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
-
-        # Register node function handlers with LLM
-        llm.register_function("select_destination", select_destination_handler)
-        llm.register_function("record_dates", record_dates_handler)
-        llm.register_function("record_activities", record_activities_handler)
 
         # Get initial tools from the first node
         initial_tools = flow_config["nodes"]["start"]["functions"]
@@ -408,7 +422,7 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager with LLM
-        flow_manager = FlowManager(flow_config, task, llm, tts)
+        flow_manager = FlowManager(task, llm, tts, flow_config)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
