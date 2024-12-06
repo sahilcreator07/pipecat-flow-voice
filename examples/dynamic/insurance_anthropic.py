@@ -180,9 +180,6 @@ def create_initial_node() -> NodeConfig:
                 },
             }
         ],
-        "pre_actions": [
-            {"type": "tts_say", "text": "Welcome! Let's find the right insurance coverage for you."}
-        ],
     }
 
 
@@ -214,7 +211,6 @@ def create_marital_status_node() -> NodeConfig:
                 },
             }
         ],
-        "pre_actions": [{"type": "tts_say", "text": "Now, I'll need to know your marital status."}],
     }
 
 
@@ -319,9 +315,13 @@ def create_end_node() -> NodeConfig:
                 ],
             }
         ],
-        "functions": [],
-        "pre_actions": [
-            {"type": "tts_say", "text": "Thank you for getting a quote with us today!"}
+        "functions": [
+            # Add a dummy function to satisfy Anthropic's requirement
+            {
+                "name": "end_conversation",
+                "description": "End the conversation",
+                "input_schema": {"type": "object", "properties": {}},
+            }
         ],
         "post_actions": [{"type": "end_conversation"}],
     }

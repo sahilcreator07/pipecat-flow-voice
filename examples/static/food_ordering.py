@@ -100,6 +100,7 @@ flow_config: FlowConfig = {
                         "name": "choose_pizza",
                         "description": "User wants to order pizza",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_pizza",
                     },
                 },
                 {
@@ -108,6 +109,7 @@ flow_config: FlowConfig = {
                         "name": "choose_sushi",
                         "description": "User wants to order sushi",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_sushi",
                     },
                 },
             ],
@@ -116,7 +118,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling a pizza order. Use the available functions:\n - Use select_pizza_size when the user specifies a size (can be used multiple times if they change their mind or want to order multiple pizzas)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each size selection, confirm the selection and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual.",
+                    "content": "You are handling a pizza order. Use the available functions:\n - Use select_pizza_size when the user specifies a size (can be used multiple times if they change their mind or want to order multiple pizzas)\n - After the user confirms their order, it will automatically complete\n\nAfter each size selection, confirm the selection and ask if they want to change it or complete their order. Remember to be friendly and casual.",
                 }
             ],
             "functions": [
@@ -137,14 +139,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["size"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "end",
-                        "description": "Complete the order (use only after user confirms)",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
                 },
             ],
@@ -156,7 +151,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling a sushi order. Use the available functions:\n - Use select_roll_count when the user specifies how many rolls (can be used multiple times if they change their mind or if they want to order multiple sushi rolls)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each roll count selection, confirm the count and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual.",
+                    "content": "You are handling a sushi order. Use the available functions:\n - Use select_roll_count when the user specifies how many rolls (can be used multiple times if they change their mind or if they want to order multiple sushi rolls)\n - After the user confirms their order, it will automatically complete\n\nAfter each roll count selection, confirm the count and ask if they want to change it or complete their order. Remember to be friendly and casual.",
                 }
             ],
             "functions": [
@@ -178,14 +173,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["count"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "end",
-                        "description": "Complete the order (use only after user confirms)",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
                 },
             ],

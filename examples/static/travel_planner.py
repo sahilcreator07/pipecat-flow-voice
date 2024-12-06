@@ -132,6 +132,7 @@ flow_config: FlowConfig = {
                         "name": "choose_beach",
                         "description": "User wants to plan a beach vacation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_beach",
                     },
                 },
                 {
@@ -140,21 +141,16 @@ flow_config: FlowConfig = {
                         "name": "choose_mountain",
                         "description": "User wants to plan a mountain retreat",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_mountain",
                     },
                 },
-            ],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Welcome to Dream Vacations! I'll help you plan your perfect getaway.",
-                }
             ],
         },
         "choose_beach": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling beach vacation planning. Use the available functions:\n - Use select_destination when the user chooses their preferred beach location\n - Use get_dates once they've selected a destination\n\nAvailable beach destinations are: 'Maui', 'Cancun', or 'Maldives'. After they choose, confirm their selection and proceed to dates. Be enthusiastic and paint a picture of each destination.",
+                    "content": "You are handling beach vacation planning. Use the available functions:\n - Use select_destination when the user chooses their preferred beach location\n - After destination is selected, dates will be collected automatically\n\nAvailable beach destinations are: 'Maui', 'Cancun', or 'Maldives'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
                 }
             ],
             "functions": [
@@ -175,26 +171,16 @@ flow_config: FlowConfig = {
                             },
                             "required": ["destination"],
                         },
+                        "transition_to": "get_dates",
                     },
                 },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_dates",
-                        "description": "Proceed to date selection",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-            ],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Let's find your perfect beach paradise..."}
             ],
         },
         "choose_mountain": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling mountain retreat planning. Use the available functions:\n - Use select_destination when the user chooses their preferred mountain location\n - Use get_dates once they've selected a destination\n\nAvailable mountain destinations are: 'Swiss Alps', 'Rocky Mountains', or 'Himalayas'. After they choose, confirm their selection and proceed to dates. Be enthusiastic and paint a picture of each destination.",
+                    "content": "You are handling mountain retreat planning. Use the available functions:\n - Use select_destination when the user chooses their preferred mountain location\n - After destination is selected, dates will be collected automatically\n\nAvailable mountain destinations are: 'Swiss Alps', 'Rocky Mountains', or 'Himalayas'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
                 }
             ],
             "functions": [
@@ -215,26 +201,16 @@ flow_config: FlowConfig = {
                             },
                             "required": ["destination"],
                         },
+                        "transition_to": "get_dates",
                     },
                 },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_dates",
-                        "description": "Proceed to date selection",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-            ],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Let's find your perfect mountain getaway..."}
             ],
         },
         "get_dates": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Handle travel date selection. Use the available functions:\n - Use record_dates when the user specifies their travel dates (can be used multiple times if they change their mind)\n - Use get_activities once dates are confirmed\n\nAsk for their preferred travel dates within the next 6 months. After recording dates, confirm the selection and proceed to activities.",
+                    "content": "Handle travel date selection. Use the available functions:\n - Use record_dates when the user specifies their travel dates (can be used multiple times if they change their mind)\n - After dates are recorded, activities will be collected automatically\n\nAsk for their preferred travel dates within the next 6 months. After recording dates, confirm the selection.",
                 }
             ],
             "functions": [
@@ -260,14 +236,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["check_in", "check_out"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_activities",
-                        "description": "Proceed to activity selection",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_activities",
                     },
                 },
             ],
@@ -276,7 +245,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Handle activity preferences. Use the available functions:\n - Use record_activities to save their activity preferences\n - Use verify_itinerary once activities are selected\n\nFor beach destinations, suggest: snorkeling, surfing, sunset cruise\nFor mountain destinations, suggest: hiking, skiing, mountain biking\n\nAfter they choose, confirm their selections and proceed to verification.",
+                    "content": "Handle activity preferences. Use the available functions:\n - Use record_activities to save their activity preferences\n - After activities are recorded, verification will happen automatically\n\nFor beach destinations, suggest: snorkeling, surfing, sunset cruise\nFor mountain destinations, suggest: hiking, skiing, mountain biking\n\nAfter they choose, confirm their selections.",
                 }
             ],
             "functions": [
@@ -299,14 +268,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["activities"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "verify_itinerary",
-                        "description": "Proceed to itinerary verification",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "verify_itinerary",
                     },
                 },
             ],
@@ -315,16 +277,17 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Review the complete itinerary with the user. Summarize their destination, dates, and chosen activities. Use the available functions:\n - Use get_dates if they want to make changes\n - Use confirm_booking if they're happy with everything\n\nBe thorough in reviewing all details and ask for their confirmation.",
+                    "content": "Review the complete itinerary with the user. Summarize their destination, dates, and chosen activities. Use revise_plan to make changes or confirm_booking if they're happy. Be thorough in reviewing all details and ask for their confirmation.",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "get_dates",
+                        "name": "revise_plan",
                         "description": "Return to date selection to revise the plan",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_dates",
                     },
                 },
                 {
@@ -333,6 +296,7 @@ flow_config: FlowConfig = {
                         "name": "confirm_booking",
                         "description": "Confirm the booking and proceed to end",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm_booking",
                     },
                 },
             ],
@@ -351,6 +315,7 @@ flow_config: FlowConfig = {
                         "name": "end",
                         "description": "End the conversation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
                 }
             ],
@@ -400,7 +365,7 @@ async def main():
         messages = [
             {
                 "role": "system",
-                "content": "You are a travel planning assistant. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
+                "content": "You are a travel planning assistant with Summit & Sand Getaways. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
             }
         ]
 
