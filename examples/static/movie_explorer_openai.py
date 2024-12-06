@@ -300,7 +300,6 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
 
 
 # Flow configuration
-# Includes dummy properties information to satisfy the Gemini API
 flow_config: FlowConfig = {
     "initial_node": "greeting",
     "nodes": {
@@ -313,41 +312,25 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "function_declarations": [
-                        {
-                            "name": "get_current_movies",
-                            "handler": get_movies,
-                            "description": "Fetch movies currently playing in theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "region": {
-                                        "type": "string",
-                                        "description": "Region for movie listings (US by default)",
-                                        "enum": ["US", "UK", "CA"],
-                                    }
-                                },
-                            },
-                            "transition_to": "explore_movie",
-                        },
-                        {
-                            "name": "get_upcoming_movies",
-                            "handler": get_upcoming_movies,
-                            "description": "Fetch movies coming soon to theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "region": {
-                                        "type": "string",
-                                        "description": "Region for movie listings (US by default)",
-                                        "enum": ["US", "UK", "CA"],
-                                    }
-                                },
-                            },
-                            "transition_to": "explore_movie",
-                        },
-                    ]
-                }
+                    "type": "function",
+                    "function": {
+                        "name": "get_current_movies",
+                        "handler": get_movies,
+                        "description": "Fetch movies currently playing in theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Fetch movies coming soon to theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
+                    },
+                },
             ],
         },
         "explore_movie": {
@@ -366,77 +349,62 @@ After showing details or recommendations, ask if they'd like to explore another 
             ],
             "functions": [
                 {
-                    "function_declarations": [
-                        {
-                            "name": "get_movie_details",
-                            "handler": get_movie_details,
-                            "description": "Get details about a specific movie including cast",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "movie_id": {"type": "integer", "description": "TMDB movie ID"}
-                                },
-                                "required": ["movie_id"],
+                    "type": "function",
+                    "function": {
+                        "name": "get_movie_details",
+                        "handler": get_movie_details,
+                        "description": "Get details about a specific movie including cast",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "movie_id": {"type": "integer", "description": "TMDB movie ID"}
                             },
+                            "required": ["movie_id"],
                         },
-                        {
-                            "name": "get_similar_movies",
-                            "handler": get_similar_movies,
-                            "description": "Get similar movies as recommendations",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "movie_id": {"type": "integer", "description": "TMDB movie ID"}
-                                },
-                                "required": ["movie_id"],
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_similar_movies",
+                        "handler": get_similar_movies,
+                        "description": "Get similar movies as recommendations",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "movie_id": {"type": "integer", "description": "TMDB movie ID"}
                             },
+                            "required": ["movie_id"],
                         },
-                        {
-                            "name": "get_current_movies",
-                            "handler": get_movies,
-                            "description": "Show current movies in theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "sort_by": {
-                                        "type": "string",
-                                        "description": "How to sort the results",
-                                        "enum": ["popularity", "release_date", "rating"],
-                                    }
-                                },
-                            },
-                        },
-                        {
-                            "name": "get_upcoming_movies",
-                            "handler": get_upcoming_movies,
-                            "description": "Show movies coming soon",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "sort_by": {
-                                        "type": "string",
-                                        "description": "How to sort the results",
-                                        "enum": ["popularity", "release_date"],
-                                    }
-                                },
-                            },
-                        },
-                        {
-                            "name": "end_conversation",
-                            "description": "End the conversation",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "feedback": {
-                                        "type": "string",
-                                        "description": "Optional feedback about the conversation",
-                                    }
-                                },
-                            },
-                            "transition_to": "end",
-                        },
-                    ]
-                }
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_current_movies",
+                        "handler": get_movies,
+                        "description": "Show current movies in theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Show movies coming soon",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "end_conversation",
+                        "description": "End the conversation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                },
             ],
         },
         "end": {

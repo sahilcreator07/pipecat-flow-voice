@@ -307,7 +307,30 @@ export class SidePanel {
       (error) => {
         console.error("Invalid function JSON:", error);
       },
-      (json) => json.type === "function" && json.function, // Validator for functions
+      // Updated validator to allow transition_to
+      (json) => {
+        // Basic structure check
+        if (json.type !== "function" || !json.function) {
+          return false;
+        }
+
+        const func = json.function;
+
+        // Must have name and parameters
+        if (!func.name || !func.parameters) {
+          return false;
+        }
+
+        // transition_to is optional but must be a string if present
+        if (
+          func.transition_to !== undefined &&
+          typeof func.transition_to !== "string"
+        ) {
+          return false;
+        }
+
+        return true;
+      },
     );
 
     // Store editor instances for use in updatePanel

@@ -45,21 +45,49 @@ export function generateFlowConfig(graphInstance) {
         if (!targetNode) return;
 
         if (targetNode.constructor.name === "PipecatFunctionNode") {
-          functions.push({
+          // Create base function configuration
+          const funcConfig = {
             type: "function",
-            function: targetNode.properties.function,
-          });
+            function: { ...targetNode.properties.function },
+          };
+
+          // Find where this function connects to (if anywhere)
+          const functionTargets = targetNode.outputs[0].links || [];
+          if (functionTargets.length > 0) {
+            // Look through all connections to find the actual target node
+            // (skipping merge nodes)
+            for (const targetLinkId of functionTargets) {
+              const targetLink = graphInstance.links[targetLinkId];
+              if (!targetLink) continue;
+
+              const nextNode = nodes.find((n) => n.id === targetLink.target_id);
+              if (!nextNode) continue;
+
+              // If it connects to a merge node, follow through to final target
+              if (nextNode.constructor.name === "PipecatMergeNode") {
+                const mergeOutput = nextNode.outputs[0].links?.[0];
+                if (!mergeOutput) continue;
+
+                const mergeLink = graphInstance.links[mergeOutput];
+                if (!mergeLink) continue;
+
+                const finalNode = nodes.find(
+                  (n) => n.id === mergeLink.target_id,
+                );
+                if (finalNode) {
+                  funcConfig.function.transition_to = finalNode.title;
+                  break; // Use first valid target found
+                }
+              } else {
+                // Direct connection to target node
+                funcConfig.function.transition_to = nextNode.title;
+                break; // Use first valid target found
+              }
+            }
+          }
+
+          functions.push(funcConfig);
         } else if (targetNode.constructor.name === "PipecatMergeNode") {
-          // Find where this merge node connects to
-          const mergeOutput = targetNode.outputs[0].links?.[0];
-          if (!mergeOutput) return;
-
-          const mergeLink = graphInstance.links[mergeOutput];
-          if (!mergeLink) return;
-
-          const finalNode = nodes.find((n) => n.id === mergeLink.target_id);
-          if (!finalNode) return;
-
           // Find all functions that connect to this merge node
           const connectedFunctions = nodes.filter(
             (n) =>
@@ -70,11 +98,24 @@ export function generateFlowConfig(graphInstance) {
               }),
           );
 
-          // Add all functions with their correct target
+          // Find the final target of the merge node
+          const mergeOutput = targetNode.outputs[0].links?.[0];
+          if (!mergeOutput) return;
+
+          const mergeLink = graphInstance.links[mergeOutput];
+          if (!mergeLink) return;
+
+          const finalNode = nodes.find((n) => n.id === mergeLink.target_id);
+          if (!finalNode) return;
+
+          // Add all functions with their transition to the final target
           connectedFunctions.forEach((funcNode) => {
             functions.push({
               type: "function",
-              function: funcNode.properties.function,
+              function: {
+                ...funcNode.properties.function,
+                transition_to: finalNode.title,
+              },
             });
           });
         }

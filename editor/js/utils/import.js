@@ -83,29 +83,31 @@ export function createFlowFromConfig(graph, flowConfig) {
   Object.entries(flowConfig.nodes).forEach(([sourceNodeId, nodeConfig]) => {
     if (nodeConfig.functions) {
       nodeConfig.functions.forEach((funcConfig) => {
-        const targetName = funcConfig.function.name;
         const functionNode = new PipecatFunctionNode();
-        functionNode.properties.function = funcConfig.function;
-        functionNode.properties.isNodeFunction = !nodes[targetName];
+        functionNode.properties.function = { ...funcConfig.function };
 
         graph.add(functionNode);
 
         // Add function node to dagre graph
-        const funcNodeId = `func_${sourceNodeId}_${targetName}_${Math.random().toString(36).substr(2, 9)}`;
+        const funcNodeId = `func_${sourceNodeId}_${functionNode.properties.function.name}`;
         g.setNode(funcNodeId, {
           width: functionNode.size[0],
           height: functionNode.size[1],
           node: functionNode,
         });
 
-        // Connect source to function node in dagre
+        // Connect source to function node
         g.setEdge(sourceNodeId, funcNodeId);
 
-        // Store for later LiteGraph connection
+        // If has transition_to, connect to target node
+        if (funcConfig.function.transition_to) {
+          g.setEdge(funcNodeId, funcConfig.function.transition_to);
+        }
+
         functionNodes.set(functionNode, {
           source: nodes[sourceNodeId].node,
-          target: nodes[targetName]?.node,
-          targetName: targetName,
+          target: nodes[funcConfig.function.transition_to]?.node,
+          targetName: funcConfig.function.transition_to,
           funcNodeId: funcNodeId,
         });
       });
