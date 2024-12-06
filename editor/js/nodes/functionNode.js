@@ -201,6 +201,18 @@ export class PipecatFunctionNode extends LGraphNode {
       ctx.fillText("Has Parameters ⚙️", padding, y + 25);
     }
 
+    // Optional: Draw transition indicator
+    if (this.properties.function.transition_to) {
+      ctx.fillStyle = "#666";
+      ctx.font = "11px Arial";
+      ctx.fillText(
+        `→ ${this.properties.function.transition_to}`,
+        padding,
+        y + (hasParameters ? 45 : 25),
+      );
+      y += 20; // Increase y for the new line
+    }
+
     // Adjust node height
     const desiredHeight = y + (hasParameters ? 45 : 25);
     if (Math.abs(this.size[1] - desiredHeight) > 10) {

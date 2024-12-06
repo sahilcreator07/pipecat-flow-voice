@@ -18,7 +18,8 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
@@ -169,7 +170,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If the birthday is correct (1983-01-01), use get_prescriptions to proceed.",
+                    "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If verified (1983-01-01), proceed to prescriptions.",
                 }
             ],
             "functions": [
@@ -178,7 +179,7 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "verify_birthday",
                         "handler": verify_birthday,
-                        "description": "Verify the user has provided their correct birthday",
+                        "description": "Verify the user has provided their correct birthday. Once confirmed, the next step is to recording the user's prescriptions.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -189,14 +190,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["birthday"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_prescriptions",
-                        "description": "Proceed to collecting prescriptions and ask the user what medications they're taking",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_prescriptions",
                     },
                 },
             ],
@@ -205,7 +199,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "This step is for collecting a user's prescription. Ask them what presceriptions they're taking, including the dosage. Use the available functions:\n - Use record_prescriptions when the user lists their medications (must include both name and dosage)\n - Use get_allergies once all prescriptions are recorded\n\nAsk them what prescriptions they're currently taking, making sure to get both medication names and dosages. After they provide their prescriptions (or confirm they have none), acknowledge their response and proceed to allergies",
+                    "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
                 }
             ],
             "functions": [
@@ -214,7 +208,7 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "record_prescriptions",
                         "handler": record_prescriptions,
-                        "description": "Record the user's prescriptions",
+                        "description": "Record the user's prescriptions. Once confirmed, the next step is to collect allergy information.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -238,14 +232,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["prescriptions"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_allergies",
-                        "description": "Proceed to collecting allergies and ask the user if they have any allergies",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_allergies",
                     },
                 },
             ],
@@ -254,7 +241,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are collecting allergy information. Use the available functions:\n - Use record_allergies when the user lists their allergies (or confirms they have none)\n - Use get_conditions once allergies are recorded\n\nAsk them about any allergies they have. After they list their allergies (or confirm they have none), acknowledge their response and ask about any medical conditions they have.",
+                    "content": "Collect allergy information. Ask about any allergies they have. After recording allergies (or confirming none), proceed to medical conditions.",
                 }
             ],
             "functions": [
@@ -263,7 +250,7 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "record_allergies",
                         "handler": record_allergies,
-                        "description": "Record the user's allergies",
+                        "description": "Record the user's allergies. Once confirmed, then next step is to collect medical conditions.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -275,7 +262,7 @@ flow_config: FlowConfig = {
                                             "name": {
                                                 "type": "string",
                                                 "description": "What the user is allergic to",
-                                            }
+                                            },
                                         },
                                         "required": ["name"],
                                     },
@@ -283,14 +270,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["allergies"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_conditions",
-                        "description": "Proceed to collecting medical conditions and ask the user if they have any medical conditions",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_conditions",
                     },
                 },
             ],
@@ -299,7 +279,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are collecting medical condition information. Use the available functions:\n - Use record_conditions when the user lists their conditions (or confirms they have none)\n - Use get_visit_reasons once conditions are recorded\n\nAsk them about any medical conditions they have. After they list their conditions (or confirm they have none), acknowledge their response and ask about the reason for their visit today.",
+                    "content": "Collect medical condition information. Ask about any medical conditions they have. After recording conditions (or confirming none), proceed to visit reasons.",
                 }
             ],
             "functions": [
@@ -308,7 +288,7 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "record_conditions",
                         "handler": record_conditions,
-                        "description": "Record the user's medical conditions",
+                        "description": "Record the user's medical conditions. Once confirmed, the next step is to collect visit reasons.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -320,7 +300,7 @@ flow_config: FlowConfig = {
                                             "name": {
                                                 "type": "string",
                                                 "description": "The user's medical condition",
-                                            }
+                                            },
                                         },
                                         "required": ["name"],
                                     },
@@ -328,14 +308,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["conditions"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_visit_reasons",
-                        "description": "Proceed to collecting visit reasons and ask the user why they're visiting",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_visit_reasons",
                     },
                 },
             ],
@@ -344,7 +317,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are collecting information about the reason for their visit. Use the available functions:\n - Use record_visit_reasons when they explain their reasons\n - Use verify_information once reasons are recorded\n\nAsk them what brings them to the doctor today. After they explain their reasons, acknowledge their response and let them know you'll review all the information they've provided.",
+                    "content": "Collect information about the reason for their visit. Ask what brings them to the doctor today. After recording their reasons, proceed to verification.",
                 }
             ],
             "functions": [
@@ -353,7 +326,7 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "record_visit_reasons",
                         "handler": record_visit_reasons,
-                        "description": "Record the reasons for their visit",
+                        "description": "Record the reasons for their visit. Once confirmed, the next step is to verify all information.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -365,7 +338,7 @@ flow_config: FlowConfig = {
                                             "name": {
                                                 "type": "string",
                                                 "description": "The user's reason for visiting",
-                                            }
+                                            },
                                         },
                                         "required": ["name"],
                                     },
@@ -373,66 +346,61 @@ flow_config: FlowConfig = {
                             },
                             "required": ["visit_reasons"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "verify_information",
-                        "description": "Proceed to information verification, repeat the information back to the user, and have them verify",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "verify",
                     },
                 },
             ],
         },
-        "verify_information": {
+        "verify": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Review all collected information. Summarize their prescriptions, allergies, conditions, and visit reasons. Use the available functions:\n - Use get_prescriptions if they need to make any changes\n - Use confirm_intake if they confirm everything is correct\n\nBe thorough in reviewing all details and ask for their explicit confirmation.",
+                    "content": """Review all collected information with the patient. Follow these steps:
+1. Summarize their prescriptions, allergies, conditions, and visit reasons
+2. Ask if everything is correct
+3. Use the appropriate function based on their response
+
+Be thorough in reviewing all details and wait for explicit confirmation.""",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "get_prescriptions",
+                        "name": "revise_information",
                         "description": "Return to prescriptions to revise information",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_prescriptions",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "confirm_intake",
-                        "description": "Confirm the intake information and proceed",
+                        "name": "confirm_information",
+                        "description": "Proceed with confirmed information",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
                     },
                 },
             ],
         },
-        "confirm_intake": {
+        "confirm": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "The intake information is confirmed. Thank them for providing their information, let them know what to expect next, and use end to complete the conversation.",
+                    "content": "Once confirmed, thank them, then use the complete_intake function to end the conversation.",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "end",
-                        "description": "End the conversation",
+                        "name": "complete_intake",
+                        "description": "Complete the intake process",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
-                }
-            ],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Perfect! I've recorded all your information for your visit.",
-                }
+                },
             ],
         },
         "end": {
@@ -443,12 +411,6 @@ flow_config: FlowConfig = {
                 }
             ],
             "functions": [],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Thank you for providing your information! We'll see you soon for your visit.",
-                }
-            ],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
@@ -473,7 +435,10 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-asteria-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+        )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
         # Get initial tools from the first node

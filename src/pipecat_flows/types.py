@@ -34,14 +34,23 @@ Example:
 """
 
 
-class NodeConfig(TypedDict, total=False):
+class NodeConfigRequired(TypedDict):
+    """Required fields for node configuration."""
+
+    messages: List[dict]
+    functions: List[dict]
+
+
+class NodeConfig(NodeConfigRequired, total=False):
     """Configuration for a single node in the flow.
 
-    Attributes:
+    Required fields:
         messages: List of message dicts in provider-specific format
         functions: List of function definitions in provider-specific format
-        pre_actions: Optional list of actions to execute before LLM inference
-        post_actions: Optional list of actions to execute after LLM inference
+
+    Optional fields:
+        pre_actions: Actions to execute before LLM inference
+        post_actions: Actions to execute after LLM inference
 
     Example:
         {
@@ -77,8 +86,6 @@ class NodeConfig(TypedDict, total=False):
         }
     """
 
-    messages: List[dict]
-    functions: List[dict]
     pre_actions: List[Dict[str, Any]]
     post_actions: List[Dict[str, Any]]
 

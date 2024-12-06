@@ -31,9 +31,9 @@ If you're starting fresh:
 pip install pipecat-ai-flows
 
 # Install Pipecat with specific LLM provider options:
-pip install "pipecat-ai[daily,openai,deepgram]"     # For OpenAI
-pip install "pipecat-ai[daily,anthropic,deepgram]"  # For Anthropic
-pip install "pipecat-ai[daily,google,deepgram]"     # For Google
+pip install "pipecat-ai[daily,openai,deepgram,cartesia]"     # For OpenAI
+pip install "pipecat-ai[daily,anthropic,deepgram,cartesia]"  # For Anthropic
+pip install "pipecat-ai[daily,google,deepgram,cartesia]"     # For Google
 ```
 
 ## Quick Start
@@ -93,14 +93,15 @@ Functions come in two types:
     "type": "function",
     "function": {
         "name": "select_size",
-        "handler": select_size_handler,  # Required for node functions
+        "handler": select_size_handler,
         "description": "Select pizza size",
         "parameters": {
             "type": "object",
             "properties": {
                 "size": {"type": "string", "enum": ["small", "medium", "large"]}
             }
-        }
+        },
+        "transition_to": "next_node"  # Optional: Specify next node
     }
 }
 ```
@@ -111,12 +112,20 @@ Functions come in two types:
 {
     "type": "function",
     "function": {
-        "name": "next_node",  # Must match a node name
+        "name": "next_step",
         "description": "Move to next state",
-        "parameters": {"type": "object", "properties": {}}
+        "parameters": {"type": "object", "properties": {}},
+        "transition_to": "target_node"  # Required: Specify target node
     }
 }
 ```
+
+Functions can:
+
+- Have a handler (for data processing)
+- Have a transition_to (for state changes)
+- Have both (process data and transition)
+- Have neither (end node functions)
 
 #### Actions
 
@@ -183,7 +192,16 @@ flow_config = {
     "nodes": {
         "greeting": {
             "messages": [...],
-            "functions": [...]
+            "functions": [{
+                "type": "function",
+                "function": {
+                    "name": "collect_name",
+                    "description": "Record user's name",
+                    "parameters": {...},
+                    "handler": collect_name_handler,     # Specify handler
+                    "transition_to": "next_step"         # Specify transition
+                }
+            }]
         }
     }
 }
@@ -250,16 +268,16 @@ To run these examples:
    Install Pipecat with required options for examples:
 
    ```bash
-   pip install "pipecat-ai[daily,openai,deepgram,silero,examples]"
+   pip install "pipecat-ai[daily,openai,deepgram,cartesia,silero,examples]"
    ```
 
    If you're running Google or Anthropic examples, you will need to update the installed options. For example:
 
    ```bash
    # Install Google Gemini
-   pip install "pipecat-ai[daily,google,deepgram,silero,examples]"
+   pip install "pipecat-ai[daily,google,deepgram,cartesia,silero,examples]"
    # Install Anthropic
-   pip install "pipecat-ai[daily,anthropic,deepgram,silero,examples]"
+   pip install "pipecat-ai[daily,anthropic,deepgram,cartesia,silero,examples]"
    ```
 
 3. **Configuration**:
@@ -273,6 +291,7 @@ To run these examples:
    Add your API keys and configuration:
 
    - DEEPGRAM_API_KEY
+   - CARTESIA_API_KEY
    - OPENAI_API_KEY
    - ANTHROPIC_API_KEY
    - GOOGLE_API_KEY
@@ -409,7 +428,6 @@ Open the page in your browser: http://localhost:5173.
 The `editor/examples/` directory contains sample flow configurations:
 
 - `food_ordering.json`
-- `movie_booking.json`
 - `movie_explorer.py`
 - `patient_intake.json`
 - `restaurant_reservation.json`

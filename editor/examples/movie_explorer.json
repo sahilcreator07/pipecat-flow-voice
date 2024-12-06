@@ -5,37 +5,35 @@
       "messages": [
         {
           "role": "system",
-          "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know what movies are currently playing in theaters. Use get_movies to fetch the current movies when they're interested."
+          "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies."
         }
       ],
       "functions": [
         {
           "type": "function",
           "function": {
-            "name": "get_movies",
-            "description": "Fetch currently playing movies",
+            "name": "get_current_movies",
+            "handler": "get_movies",
+            "description": "Fetch movies currently playing in theaters",
             "parameters": {
               "type": "object",
               "properties": {}
-            }
+            },
+            "transition_to": "explore_movie"
           }
         },
         {
           "type": "function",
           "function": {
-            "name": "explore_movie",
-            "description": "Move to movie exploration",
+            "name": "get_upcoming_movies",
+            "handler": "get_upcoming_movies",
+            "description": "Fetch movies coming soon to theaters",
             "parameters": {
               "type": "object",
               "properties": {}
-            }
+            },
+            "transition_to": "explore_movie"
           }
-        }
-      ],
-      "pre_actions": [
-        {
-          "type": "tts_say",
-          "text": "Welcome! I can tell you about movies currently playing in theaters."
         }
       ]
     },
@@ -43,7 +41,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use explore_movie) or end the conversation."
+          "content": "Help the user learn more about movies. You can:\n\n- Use get_movie_details when they express interest in a specific movie\n\n- Use get_similar_movies to show recommendations\n\n- Use get_current_movies to see what's playing now\n\n- Use get_upcoming_movies to see what's coming soon\n\n- Use end_conversation when they're done exploring\n\nAfter showing details or recommendations, ask if they'd like to explore another movie or end the conversation."
         }
       ],
       "functions": [
@@ -51,6 +49,7 @@
           "type": "function",
           "function": {
             "name": "get_movie_details",
+            "handler": "get_movie_details",
             "description": "Get details about a specific movie including cast",
             "parameters": {
               "type": "object",
@@ -68,6 +67,7 @@
           "type": "function",
           "function": {
             "name": "get_similar_movies",
+            "handler": "get_similar_movies",
             "description": "Get similar movies as recommendations",
             "parameters": {
               "type": "object",
@@ -84,8 +84,9 @@
         {
           "type": "function",
           "function": {
-            "name": "explore_movie",
-            "description": "Return to current movies list",
+            "name": "get_current_movies",
+            "handler": "get_movies",
+            "description": "Show current movies in theaters",
             "parameters": {
               "type": "object",
               "properties": {}
@@ -95,12 +96,25 @@
         {
           "type": "function",
           "function": {
-            "name": "end",
-            "description": "End the conversation",
+            "name": "get_upcoming_movies",
+            "handler": "get_upcoming_movies",
+            "description": "Show movies coming soon",
             "parameters": {
               "type": "object",
               "properties": {}
             }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "end_conversation",
+            "description": "End the conversation",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            },
+            "transition_to": "end"
           }
         }
       ]
@@ -109,16 +123,10 @@
       "messages": [
         {
           "role": "system",
-          "content": "Thank the user and end the conversation."
+          "content": "Thank the user warmly and mention they can return anytime to discover more movies."
         }
       ],
       "functions": [],
-      "pre_actions": [
-        {
-          "type": "tts_say",
-          "text": "Thanks for exploring movies with me! Goodbye!"
-        }
-      ],
       "post_actions": [
         {
           "type": "end_conversation"

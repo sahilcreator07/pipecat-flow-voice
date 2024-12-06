@@ -12,7 +12,7 @@
 # - Edge functions for state transitions (explore_movie, greeting, end)
 #
 # The flow allows users to:
-# 1. See what movies are currently playing
+# 1. See what movies are currently playing or coming soon
 # 2. Get detailed information about specific movies (including cast)
 # 3. Find similar movies as recommendations
 #
@@ -37,8 +37,10 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.anthropic import AnthropicLLMService
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -101,6 +103,33 @@ class TMDBApi:
         Returns top 5 movies with basic information.
         """
         url = f"{self.base_url}/movie/now_playing"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_upcoming_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch upcoming movies from TMDB.
+
+        Returns top 5 upcoming movies with basic information.
+        """
+        url = f"{self.base_url}/movie/upcoming"
         params = {"api_key": self.api_key, "language": "en-US", "page": 1}
 
         async with session.get(url, params=params) as response:
@@ -227,6 +256,19 @@ async def get_movies() -> Union[MoviesResult, ErrorResult]:
             return ErrorResult(error="Failed to fetch movies")
 
 
+async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching upcoming movies."""
+    logger.debug("Calling TMDB API: get_upcoming_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_upcoming_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error="Failed to fetch upcoming movies")
+
+
 async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
     """Handler for fetching movie details including cast."""
     movie_id = args["movie_id"]
@@ -266,29 +308,26 @@ flow_config: FlowConfig = {
                     "content": [
                         {
                             "type": "text",
-                            "text": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know what movies are currently playing in theaters. Use get_movies to fetch the current movies when they're interested.",
+                            "text": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
                         }
                     ],
                 }
             ],
             "functions": [
                 {
-                    "name": "get_movies",
+                    "name": "get_current_movies",
                     "handler": get_movies,
-                    "description": "Fetch currently playing movies",
+                    "description": "Fetch movies currently playing in theaters",
                     "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "explore_movie",
                 },
                 {
-                    "name": "explore_movie",
-                    "description": "Move to movie exploration",
+                    "name": "get_upcoming_movies",
+                    "handler": get_upcoming_movies,
+                    "description": "Fetch movies coming soon to theaters",
                     "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "explore_movie",
                 },
-            ],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Welcome! I can tell you about movies currently playing in theaters.",
-                }
             ],
         },
         "explore_movie": {
@@ -298,7 +337,14 @@ flow_config: FlowConfig = {
                     "content": [
                         {
                             "type": "text",
-                            "text": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use explore_movie) or end the conversation.",
+                            "text": """Help the user learn more about movies. You can:
+- Use get_movie_details when they express interest in a specific movie
+- Use get_similar_movies to show recommendations
+- Use get_current_movies to see what's playing now
+- Use get_upcoming_movies to see what's coming soon
+- Use end_conversation when they're done exploring
+
+After showing details or recommendations, ask if they'd like to explore another movie or end the conversation.""",
                         }
                     ],
                 }
@@ -329,14 +375,22 @@ flow_config: FlowConfig = {
                     },
                 },
                 {
-                    "name": "explore_movie",
-                    "description": "Return to current movies list",
+                    "name": "get_current_movies",
+                    "handler": get_movies,
+                    "description": "Show current movies in theaters",
                     "input_schema": {"type": "object", "properties": {}},
                 },
                 {
-                    "name": "end",
+                    "name": "get_upcoming_movies",
+                    "handler": get_upcoming_movies,
+                    "description": "Show movies coming soon",
+                    "input_schema": {"type": "object", "properties": {}},
+                },
+                {
+                    "name": "end_conversation",
                     "description": "End the conversation",
                     "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "end",
                 },
             ],
         },
@@ -345,13 +399,20 @@ flow_config: FlowConfig = {
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Thank the user and end the conversation."}
+                        {
+                            "type": "text",
+                            "text": "Thank the user warmly and mention they can return anytime to discover more movies.",
+                        }
                     ],
                 }
             ],
-            "functions": [],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Thanks for exploring movies with me! Goodbye!"}
+            "functions": [
+                # Add a dummy function to satisfy Anthropic's requirement
+                {
+                    "name": "end_conversation",
+                    "description": "End the conversation",
+                    "input_schema": {"type": "object", "properties": {}},
+                }
             ],
             "post_actions": [{"type": "end_conversation"}],
         },
@@ -377,7 +438,11 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
+            text_filter=MarkdownTextFilter(),
+        )
         llm = AnthropicLLMService(
             api_key=os.getenv("ANTHROPIC_API_KEY"), model="claude-3-5-sonnet-latest"
         )

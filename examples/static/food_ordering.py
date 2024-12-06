@@ -17,14 +17,15 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
-
-from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
 
 load_dotenv(override=True)
 
@@ -33,54 +34,78 @@ logger.add(sys.stderr, level="DEBUG")
 
 # Flow Configuration - Food ordering
 #
-# This configuration defines a simple food ordering system with the following states:
+# This configuration defines a food ordering system with the following states:
 #
 # 1. start
 #    - Initial state where user chooses between pizza or sushi
-#    - Functions: choose_pizza, choose_sushi
-#    - Transitions to: choose_pizza or choose_sushi
+#    - Functions:
+#      * choose_pizza (transitions to choose_pizza)
+#      * choose_sushi (transitions to choose_sushi)
 #
 # 2. choose_pizza
-#    - Handles pizza size selection and order confirmation
+#    - Handles pizza order details
 #    - Functions:
-#      * select_pizza_size (node function, can be called multiple times)
-#      * end (transitions to end node after order confirmation)
-#    - Pre-action: Immediate TTS acknowledgment
+#      * select_pizza_order (node function with size and type)
+#      * confirm_order (transitions to confirm)
+#    - Pricing:
+#      * Small: $10
+#      * Medium: $15
+#      * Large: $20
 #
 # 3. choose_sushi
-#    - Handles sushi roll count selection and order confirmation
+#    - Handles sushi order details
 #    - Functions:
-#      * select_roll_count (node function, can be called multiple times)
-#      * end (transitions to end node after order confirmation)
-#    - Pre-action: Immediate TTS acknowledgment
+#      * select_sushi_order (node function with count and type)
+#      * confirm_order (transitions to confirm)
+#    - Pricing:
+#      * $8 per roll
 #
-# 4. end
+# 4. confirm
+#    - Reviews order details with the user
+#    - Functions:
+#      * complete_order (transitions to end)
+#
+# 5. end
 #    - Final state that closes the conversation
 #    - No functions available
-#    - Pre-action: Farewell message
 #    - Post-action: Ends conversation
 
 
 # Type definitions
-class PizzaSizeResult(FlowResult):
+class PizzaOrderResult(FlowResult):
     size: str
+    type: str
+    price: float
 
 
-class RollCountResult(FlowResult):
+class SushiOrderResult(FlowResult):
     count: int
+    type: str
+    price: float
 
 
 # Function handlers
-async def select_pizza_size(args: FlowArgs) -> PizzaSizeResult:
-    """Handle pizza size selection."""
+async def select_pizza_order(args: FlowArgs) -> PizzaOrderResult:
+    """Handle pizza size and type selection."""
     size = args["size"]
-    return {"size": size}
+    pizza_type = args["type"]
+
+    # Simple pricing
+    base_price = {"small": 10.00, "medium": 15.00, "large": 20.00}
+    price = base_price[size]
+
+    return {"size": size, "type": pizza_type, "price": price}
 
 
-async def select_roll_count(args: FlowArgs) -> RollCountResult:
-    """Handle sushi roll count selection."""
+async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
+    """Handle sushi roll count and type selection."""
     count = args["count"]
-    return {"count": count}
+    roll_type = args["type"]
+
+    # Simple pricing: $8 per roll
+    price = count * 8.00
+
+    return {"count": count, "type": roll_type, "price": price}
 
 
 flow_config: FlowConfig = {
@@ -98,16 +123,18 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "choose_pizza",
-                        "description": "User wants to order pizza",
+                        "description": "User wants to order pizza. Let's get that order started.",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_pizza",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
                         "name": "choose_sushi",
-                        "description": "User wants to order sushi",
+                        "description": "User wants to order sushi. Let's get that order started.",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_sushi",
                     },
                 },
             ],
@@ -116,16 +143,25 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling a pizza order. Use the available functions:\n - Use select_pizza_size when the user specifies a size (can be used multiple times if they change their mind or want to order multiple pizzas)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each size selection, confirm the selection and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual.",
+                    "content": """You are handling a pizza order. Use the available functions:
+- Use select_pizza_order when the user specifies both size AND type
+- Use confirm_order when the user confirms they are satisfied with their selection
+
+Pricing:
+- Small: $10
+- Medium: $15
+- Large: $20
+
+After selection, confirm both the size and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "select_pizza_size",
-                        "handler": select_pizza_size,
-                        "description": "Record the selected pizza size",
+                        "name": "select_pizza_order",
+                        "handler": select_pizza_order,
+                        "description": "Record the pizza order details",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -133,39 +169,49 @@ flow_config: FlowConfig = {
                                     "type": "string",
                                     "enum": ["small", "medium", "large"],
                                     "description": "Size of the pizza",
-                                }
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["pepperoni", "cheese", "supreme", "vegetarian"],
+                                    "description": "Type of pizza",
+                                },
                             },
-                            "required": ["size"],
+                            "required": ["size", "type"],
                         },
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "end",
-                        "description": "Complete the order (use only after user confirms)",
+                        "name": "confirm_order",
+                        "description": "Proceed to order confirmation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
                     },
                 },
-            ],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Ok, let me help you with your pizza order..."}
             ],
         },
         "choose_sushi": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are handling a sushi order. Use the available functions:\n - Use select_roll_count when the user specifies how many rolls (can be used multiple times if they change their mind or if they want to order multiple sushi rolls)\n - Use the end function ONLY when the user confirms they are done with their order\n\nAfter each roll count selection, confirm the count and ask if they want to change it or complete their order. Only use the end function after the user confirms they are satisfied with their order.\n\nStart off by acknowledging the user's choice. Once they've chosen a size, ask if they'd like anything else. Remember to be friendly and casual.",
+                    "content": """You are handling a sushi order. Use the available functions:
+- Use select_sushi_order when the user specifies both count AND type
+- Use confirm_order when the user confirms they are satisfied with their selection
+
+Pricing:
+- $8 per roll
+
+After selection, confirm both the count and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "select_roll_count",
-                        "handler": select_roll_count,
-                        "description": "Record the number of sushi rolls",
+                        "name": "select_sushi_order",
+                        "handler": select_sushi_order,
+                        "description": "Record the sushi order details",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -174,34 +220,59 @@ flow_config: FlowConfig = {
                                     "minimum": 1,
                                     "maximum": 10,
                                     "description": "Number of rolls to order",
-                                }
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["california", "spicy tuna", "rainbow", "dragon"],
+                                    "description": "Type of sushi roll",
+                                },
                             },
-                            "required": ["count"],
+                            "required": ["count", "type"],
                         },
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "end",
-                        "description": "Complete the order (use only after user confirms)",
+                        "name": "confirm_order",
+                        "description": "Proceed to order confirmation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
                     },
                 },
             ],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Ok, let me help you with your sushi order..."}
+        },
+        "confirm": {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": """Read back the complete order details to the user and ask for final confirmation. Use the available functions:
+- Use complete_order when the user confirms
+- Use revise_order if they want to change something
+
+Be friendly and clear when reading back the order details.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "complete_order",
+                        "description": "User confirms the order is correct",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                },
             ],
         },
         "end": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "The order is complete. Thank the user and end the conversation.",
+                    "content": "Concisely end the conversation—1-3 words is appropriate. Just say 'Bye' or something similarly short.",
                 }
             ],
             "functions": [],
-            "pre_actions": [{"type": "tts_say", "text": "Thank you for your order! Goodbye!"}],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
@@ -227,14 +298,17 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="820a3788-2b37-4d21-847a-b65d8a68c99a",  # Salesman
+        )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
         # Create initial context
         messages = [
             {
                 "role": "system",
-                "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
+                "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
             }
         ]
 

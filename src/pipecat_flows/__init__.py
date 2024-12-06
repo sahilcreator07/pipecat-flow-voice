@@ -30,7 +30,8 @@ The FlowManager can handle both static and dynamic conversation flows:
                             "name": "collect_name",
                             "handler": collect_name,
                             "description": "...",
-                            "parameters": {...}
+                            "parameters": {...},
+                            "transition_to": "next_step"
                         }
                     }]
                 }

@@ -17,7 +17,8 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
@@ -114,14 +115,7 @@ flow_config: FlowConfig = {
                             },
                             "required": ["size"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_time",
-                        "description": "Proceed to time selection",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_time",
                     },
                 },
             ],
@@ -130,7 +124,7 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM.",
+                    "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM. After they provide a time, confirm it's within operating hours before recording. Use 24-hour format for internal recording (e.g., 17:00 for 5 PM).",
                 }
             ],
             "functions": [
@@ -145,19 +139,13 @@ flow_config: FlowConfig = {
                             "properties": {
                                 "time": {
                                     "type": "string",
-                                    "pattern": "^([0-1][0-9]|2[0-3]):[0-5][0-9]$",
+                                    "pattern": "^(17|18|19|20|21|22):([0-5][0-9])$",
+                                    "description": "Reservation time in 24-hour format (17:00-22:00)",
                                 }
                             },
                             "required": ["time"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "confirm",
-                        "description": "Proceed to confirmation",
-                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
                     },
                 },
             ],
@@ -176,6 +164,7 @@ flow_config: FlowConfig = {
                         "name": "end",
                         "description": "End the conversation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
                 }
             ],
@@ -206,7 +195,10 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+        )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
         # Get initial tools from the first node

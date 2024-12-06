@@ -44,6 +44,7 @@ export class FlowValidator {
     this._validateInitialNode();
     this._validateNodeReferences();
     this._validateNodeContents();
+    this._validateTransitions();
 
     return this.errors;
   }
@@ -73,10 +74,8 @@ export class FlowValidator {
     for (const node of Object.values(this.flow.nodes)) {
       const func = node.functions?.find((f) => f.function.name === funcName);
       if (func) {
-        // Node functions are those that:
-        // 1. Have parameters with properties (collecting data)
-        // 2. Have required fields (must collect specific data)
-        // 3. Have constraints (enum, min/max, etc.)
+        // Node functions are those that have a handler (indicated by parameters)
+        // Edge functions are those that have transition_to
         const params = func.function.parameters;
         const hasProperties = Object.keys(params.properties || {}).length > 0;
         const hasRequired =
@@ -88,6 +87,8 @@ export class FlowValidator {
             prop.maximum !== undefined,
         );
 
+        // Function is a node function if it has parameters
+        // Edge functions should only have transition_to
         return hasProperties && (hasRequired || hasConstraints);
       }
     }
@@ -101,18 +102,48 @@ export class FlowValidator {
   _validateNodeReferences() {
     Object.entries(this.flow.nodes).forEach(([nodeId, node]) => {
       if (node.functions) {
-        const functionNames = node.functions
-          .map((func) => func.function?.name)
-          .filter(Boolean);
+        node.functions.forEach((func) => {
+          // Get the transition target from transition_to property
+          const transitionTo = func.function?.transition_to;
+          const hasHandler = func.function?.handler;
 
-        functionNames.forEach((funcName) => {
+          // If there's a transition_to, validate it points to a valid node
+          if (transitionTo && !this.flow.nodes[transitionTo]) {
+            this.errors.push(
+              `Node '${nodeId}' has function '${func.function.name}' with invalid transition_to: '${transitionTo}'`,
+            );
+          }
+
+          // Skip validation for functions that:
+          // - have parameters (node functions)
+          // - have a handler
+          // - have a transition_to
+          // - are end functions
+          const funcName = func.function?.name;
           if (
             !this.isNodeFunction(funcName) &&
+            !hasHandler &&
+            !transitionTo &&
             funcName !== "end" &&
             !this.flow.nodes[funcName]
           ) {
             this.errors.push(
               `Node '${nodeId}' has function '${funcName}' that doesn't reference a valid node`,
+            );
+          }
+        });
+      }
+    });
+  }
+
+  _validateTransitions() {
+    Object.entries(this.flow.nodes).forEach(([nodeId, node]) => {
+      if (node.functions) {
+        node.functions.forEach((func) => {
+          const transition_to = func.function.transition_to;
+          if (transition_to && !this.flow.nodes[transition_to]) {
+            this.errors.push(
+              `Node '${nodeId}' has function '${func.function.name}' with invalid transition_to: '${transition_to}'`,
             );
           }
         });

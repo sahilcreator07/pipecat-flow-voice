@@ -12,7 +12,7 @@
 # - Edge functions for state transitions (explore_movie, greeting, end)
 #
 # The flow allows users to:
-# 1. See what movies are currently playing
+# 1. See what movies are currently playing or coming soon
 # 2. Get detailed information about specific movies (including cast)
 # 3. Find similar movies as recommendations
 #
@@ -36,9 +36,11 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -101,6 +103,33 @@ class TMDBApi:
         Returns top 5 movies with basic information.
         """
         url = f"{self.base_url}/movie/now_playing"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_upcoming_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch upcoming movies from TMDB.
+
+        Returns top 5 upcoming movies with basic information.
+        """
+        url = f"{self.base_url}/movie/upcoming"
         params = {"api_key": self.api_key, "language": "en-US", "page": 1}
 
         async with session.get(url, params=params) as response:
@@ -222,7 +251,20 @@ async def get_movies() -> Union[MoviesResult, ErrorResult]:
             return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error="Failed to fetch movies")
+            return ErrorResult(status="error", error="Failed to fetch movies")
+
+
+async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching upcoming movies."""
+    logger.debug("Calling TMDB API: get_upcoming_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_upcoming_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(status="error", error="Failed to fetch upcoming movies")
 
 
 async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
@@ -236,7 +278,9 @@ async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorRe
             return MovieDetailsResult(**details)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch details for movie {movie_id}"
+            )
 
 
 async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
@@ -250,7 +294,9 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
             return SimilarMoviesResult(movies=similar)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch similar movies for {movie_id}"
+            )
 
 
 # Flow configuration
@@ -261,40 +307,44 @@ flow_config: FlowConfig = {
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know what movies are currently playing in theaters. Use get_movies to fetch the current movies when they're interested.",
+                    "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "get_movies",
+                        "name": "get_current_movies",
                         "handler": get_movies,
-                        "description": "Fetch currently playing movies",
+                        "description": "Fetch movies currently playing in theaters",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "explore_movie",
-                        "description": "Move to movie exploration",
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Fetch movies coming soon to theaters",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
                     },
                 },
-            ],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Welcome! I can tell you about movies currently playing in theaters.",
-                }
             ],
         },
         "explore_movie": {
             "messages": [
                 {
                     "role": "system",
-                    "content": "Help the user learn more about movies. Use get_movie_details when they express interest in a specific movie - this will show details including cast, runtime, and rating. After showing details, you can use get_similar_movies if they want recommendations. Ask if they'd like to explore another movie (use explore_movie) or end the conversation.",
+                    "content": """Help the user learn more about movies. You can:
+- Use get_movie_details when they express interest in a specific movie
+- Use get_similar_movies to show recommendations
+- Use get_current_movies to see what's playing now
+- Use get_upcoming_movies to see what's coming soon
+- Use end_conversation when they're done exploring
+
+After showing details or recommendations, ask if they'd like to explore another movie or end the conversation.""",
                 }
             ],
             "functions": [
@@ -331,27 +381,40 @@ flow_config: FlowConfig = {
                 {
                     "type": "function",
                     "function": {
-                        "name": "explore_movie",
-                        "description": "Return to current movies list",
+                        "name": "get_current_movies",
+                        "handler": get_movies,
+                        "description": "Show current movies in theaters",
                         "parameters": {"type": "object", "properties": {}},
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "end",
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Show movies coming soon",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "end_conversation",
                         "description": "End the conversation",
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
                     },
                 },
             ],
         },
         "end": {
-            "messages": [{"role": "system", "content": "Thank the user and end the conversation."}],
-            "functions": [],
-            "pre_actions": [
-                {"type": "tts_say", "text": "Thanks for exploring movies with me! Goodbye!"}
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Thank the user warmly and mention they can return anytime to discover more movies.",
+                }
             ],
+            "functions": [],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
@@ -376,7 +439,11 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
+            text_filter=MarkdownTextFilter(),
+        )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
         # Get initial tools from the first node

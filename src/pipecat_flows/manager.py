@@ -201,15 +201,32 @@ class FlowManager:
             return await handler(args)
         return await handler()
 
-    async def _create_transition_func(self, name: str, handler: Optional[Callable]) -> Callable:
+    async def _handle_static_transition(
+        self,
+        function_name: str,
+        args: Dict[str, Any],
+        flow_manager: "FlowManager",
+    ) -> None:
+        """Handle transitions for static flows."""
+        if function_name in self.nodes:
+            logger.debug(f"Static transition to node: {function_name}")
+            await self.set_node(function_name, self.nodes[function_name])
+
+    async def _create_transition_func(
+        self, name: str, handler: Optional[Callable], transition_to: Optional[str]
+    ) -> Callable:
         """Create a transition function for the given name and handler.
 
+        This method creates a function that will be called when the LLM invokes a tool.
+        It handles both data processing (via handlers) and state transitions.
+
         Args:
-            name: Function name
-            handler: Optional handler for node functions
+            name: Name of the function being registered
+            handler: Optional function to process data (for node functions)
+            transition_to: Optional node to transition to after processing
 
         Returns:
-            Callable: Transition function that handles both node and edge functions
+            Callable: Async function that handles the tool invocation
         """
 
         async def transition_func(
@@ -220,21 +237,35 @@ class FlowManager:
             context: Any,
             result_callback: Callable,
         ) -> None:
+            """Inner function that handles the actual tool invocation.
+
+            Args:
+                function_name: Name of the called function
+                tool_call_id: Unique identifier for this tool call
+                args: Arguments passed to the function
+                llm: LLM service instance
+                context: Current conversation context
+                result_callback: Function to call with results
+            """
             try:
                 if handler:
-                    # Node function with handler
+                    # Execute handler for node functions (e.g., data processing)
                     result = await self._call_handler(handler, args)
                     await result_callback(result)
                     logger.debug(f"Handler completed for {name}")
                 else:
-                    # Edge function without handler
+                    # Acknowledge edge functions without handlers
                     await result_callback({"status": "acknowledged"})
                     logger.debug(f"Edge function called: {name}")
 
-                # Execute transition callback if provided
-                if self.transition_callback:
-                    logger.debug(f"Executing transition for {name}")
+                # Handle transitions based on flow type
+                if transition_to and self.nodes:  # Static flow with transition_to
+                    logger.debug(f"Static transition via transition_to: {transition_to}")
+                    await self._handle_static_transition(transition_to, args, self)
+                elif self.transition_callback and not self.nodes:  # Dynamic flow
+                    logger.debug(f"Executing dynamic transition for {name}")
                     await self.transition_callback(function_name, args, self)
+
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 error_result = {"status": "error", "error": str(e)}
@@ -243,18 +274,18 @@ class FlowManager:
         return transition_func
 
     async def _register_function(
-        self, name: str, handler: Optional[Callable], new_functions: Set[str]
+        self,
+        name: str,
+        handler: Optional[Callable],
+        transition_to: Optional[str],
+        new_functions: Set[str],
     ) -> None:
-        """Register a function with the LLM if not already registered.
-
-        Args:
-            name: Function name
-            handler: Optional function handler
-            new_functions: Set to track newly registered functions
-        """
+        """Register a function with the LLM if not already registered."""
         if name not in self.current_functions:
             try:
-                self.llm.register_function(name, await self._create_transition_func(name, handler))
+                self.llm.register_function(
+                    name, await self._create_transition_func(name, handler, transition_to)
+                )
                 new_functions.add(name)
                 logger.debug(f"Registered function: {name}")
             except Exception as e:
@@ -276,50 +307,19 @@ class FlowManager:
                 if "handler" in decl:
                     del decl["handler"]
 
+    def _remove_transition_info(self, tool_config: Dict[str, Any]) -> None:
+        """Remove transition information from tool configuration."""
+        if "function" in tool_config and "transition_to" in tool_config["function"]:
+            del tool_config["function"]["transition_to"]
+        elif "transition_to" in tool_config:
+            del tool_config["transition_to"]
+        elif "function_declarations" in tool_config:
+            for decl in tool_config["function_declarations"]:
+                if "transition_to" in decl:
+                    del decl["transition_to"]
+
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
-        """Set up a new conversation node and transition to it.
-
-        This method handles the complete node transition process:
-        1. Validates the node configuration
-        2. Executes pre-transition actions
-        3. Registers node functions with the LLM
-        4. Updates the LLM context with new messages
-        5. Executes post-transition actions
-        6. Updates internal state tracking
-
-        Args:
-            node_id: Unique identifier for the new node
-            node_config: Complete node configuration including:
-                messages (List[dict]): LLM context messages
-                functions (List[dict]): Available functions for this node
-                pre_actions (Optional[List[dict]]): Actions to execute before transition
-                post_actions (Optional[List[dict]]): Actions to execute after transition
-
-        Example:
-            node_config = {
-                "messages": [
-                    {"role": "system", "content": "You are collecting user info"}
-                ],
-                "functions": [{
-                    "type": "function",
-                    "function": {
-                        "name": "save_info",
-                        "handler": save_handler,
-                        "description": "Save user information",
-                        "parameters": {...}
-                    }
-                }],
-                "pre_actions": [
-                    {"type": "tts_say", "text": "Processing..."}
-                ]
-            }
-            await flow_manager.set_node("collect_info", node_config)
-
-        Raises:
-            FlowError: If node setup or transition fails
-            FlowTransitionError: If manager isn't initialized
-            ValueError: If node configuration is invalid
-        """
+        """Set up a new conversation node and transition to it."""
         if not self.initialized:
             raise FlowTransitionError(f"{self.__class__.__name__} must be initialized first")
 
@@ -339,23 +339,27 @@ class FlowManager:
                     for declaration in func_config["function_declarations"]:
                         name = declaration["name"]
                         handler = declaration.get("handler")
+                        transition_to = declaration.get("transition_to")
                         logger.debug(f"Processing function: {name}")
-                        await self._register_function(name, handler, new_functions)
+                        await self._register_function(name, handler, transition_to, new_functions)
                 else:
                     name = self.adapter.get_function_name(func_config)
                     logger.debug(f"Processing function: {name}")
 
-                    handler = None
+                    # Extract handler and transition info based on format
                     if "function" in func_config:
                         handler = func_config["function"].get("handler")
-                    elif "handler" in func_config:
+                        transition_to = func_config["function"].get("transition_to")
+                    else:
                         handler = func_config.get("handler")
+                        transition_to = func_config.get("transition_to")
 
-                    await self._register_function(name, handler, new_functions)
+                    await self._register_function(name, handler, transition_to, new_functions)
 
-                # Create tool config
+                # Create tool config (after removing handler and transition_to)
                 tool_config = copy.deepcopy(func_config)
                 self._remove_handlers(tool_config)
+                self._remove_transition_info(tool_config)
                 tools.append(tool_config)
 
             # Let adapter format tools for provider
@@ -378,26 +382,6 @@ class FlowManager:
         except Exception as e:
             logger.error(f"Error setting node {node_id}: {str(e)}")
             raise FlowError(f"Failed to set node {node_id}: {str(e)}") from e
-
-    async def _handle_static_transition(
-        self,
-        function_name: str,
-        args: Dict[str, Any],
-        flow_manager: "FlowManager",
-    ) -> None:
-        """Handle transitions for static flows.
-
-        In static flows, transitions occur when a function name matches
-        a node name in the configuration.
-
-        Args:
-            function_name: Name of the called function
-            args: Arguments passed to the function
-            flow_manager: Reference to this instance
-        """
-        if function_name in self.nodes:
-            logger.debug(f"Static transition to node: {function_name}")
-            await self.set_node(function_name, self.nodes[function_name])
 
     async def _update_llm_context(self, messages: List[dict], functions: List[dict]) -> None:
         """Update LLM context with new messages and functions.
@@ -429,7 +413,23 @@ class FlowManager:
             await self.action_manager.execute_actions(post_actions)
 
     def _validate_node_config(self, node_id: str, config: NodeConfig) -> None:
-        """Validate node configuration structure."""
+        """Validate the configuration of a conversation node.
+
+        This method ensures that:
+        1. Required fields (messages, functions) are present
+        2. Functions have valid configurations based on their type:
+        - Node functions must have either a handler or transition_to
+        - Edge functions (matching node names) are allowed without handlers
+        3. Function configurations match the LLM provider's format
+
+        Args:
+            node_id: Identifier for the node being validated
+            config: Complete node configuration to validate
+
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        # Check required fields
         if "messages" not in config:
             raise ValueError(f"Node '{node_id}' missing required 'messages' field")
         if "functions" not in config:
@@ -437,23 +437,40 @@ class FlowManager:
 
         # Validate each function configuration
         for func in config["functions"]:
-            # Get function name based on provider format
             try:
                 name = self.adapter.get_function_name(func)
             except KeyError:
                 raise ValueError(f"Function in node '{node_id}' missing name field")
 
-            # Node functions (not matching node names) require handlers
-            if name not in self.nodes:
-                # Check for handler in all formats
-                has_handler = (
-                    ("function" in func and "handler" in func["function"])  # OpenAI format
-                    or "handler" in func  # Anthropic format
-                    or (  # Gemini format
-                        "function_declarations" in func
-                        and func["function_declarations"]
-                        and "handler" in func["function_declarations"][0]
-                    )
+            # Skip validation for edge functions (matching node names)
+            if name in self.nodes:
+                continue
+
+            # Check for handler in provider-specific formats
+            has_handler = (
+                ("function" in func and "handler" in func["function"])  # OpenAI format
+                or "handler" in func  # Anthropic format
+                or (  # Gemini format
+                    "function_declarations" in func
+                    and func["function_declarations"]
+                    and "handler" in func["function_declarations"][0]
                 )
-                if not has_handler:
-                    raise ValueError(f"Node function '{name}' in node '{node_id}' missing handler")
+            )
+
+            # Check for transition_to in provider-specific formats
+            has_transition = (
+                ("function" in func and "transition_to" in func["function"])
+                or "transition_to" in func
+                or (
+                    "function_declarations" in func
+                    and func["function_declarations"]
+                    and "transition_to" in func["function_declarations"][0]
+                )
+            )
+
+            # Warn if function has neither handler nor transition_to
+            # End nodes may have neither, so just warn rather than error
+            if not has_handler and not has_transition:
+                logger.warning(
+                    f"Function '{name}' in node '{node_id}' has neither handler nor transition_to"
+                )
