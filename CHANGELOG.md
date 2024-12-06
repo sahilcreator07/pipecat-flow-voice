@@ -5,6 +5,25 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2024-12-06
+
+### Added
+
+- New `transition_to` field for static flows
+  - Combines function handlers with state transitions
+  - Supports all LLM providers (OpenAI, Anthropic, Gemini)
+  - Static examples updated to use this new transition
+
+### Changed
+
+- Static flow transitions now use `transition_to` instead of matching function names
+  - Before: Function name had to match target node name
+  - After: Function explicitly declares target via `transition_to`
+
+### Fixed
+
+- Duplicate LLM responses during transitions
+
 ## [0.0.6] - 2024-12-02
 
 ### Added
