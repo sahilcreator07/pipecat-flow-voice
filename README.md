@@ -93,14 +93,15 @@ Functions come in two types:
     "type": "function",
     "function": {
         "name": "select_size",
-        "handler": select_size_handler,  # Required for node functions
+        "handler": select_size_handler,
         "description": "Select pizza size",
         "parameters": {
             "type": "object",
             "properties": {
                 "size": {"type": "string", "enum": ["small", "medium", "large"]}
             }
-        }
+        },
+        "transition_to": "next_node"  # Optional: Specify next node
     }
 }
 ```
@@ -111,12 +112,20 @@ Functions come in two types:
 {
     "type": "function",
     "function": {
-        "name": "next_node",  # Must match a node name
+        "name": "next_step",
         "description": "Move to next state",
-        "parameters": {"type": "object", "properties": {}}
+        "parameters": {"type": "object", "properties": {}},
+        "transition_to": "target_node"  # Required: Specify target node
     }
 }
 ```
+
+Functions can:
+
+- Have a handler (for data processing)
+- Have a transition_to (for state changes)
+- Have both (process data and transition)
+- Have neither (end node functions)
 
 #### Actions
 
@@ -183,7 +192,16 @@ flow_config = {
     "nodes": {
         "greeting": {
             "messages": [...],
-            "functions": [...]
+            "functions": [{
+                "type": "function",
+                "function": {
+                    "name": "collect_name",
+                    "description": "Record user's name",
+                    "parameters": {...},
+                    "handler": collect_name_handler,     # Specify handler
+                    "transition_to": "next_step"         # Specify transition
+                }
+            }]
         }
     }
 }
@@ -410,7 +428,6 @@ Open the page in your browser: http://localhost:5173.
 The `editor/examples/` directory contains sample flow configurations:
 
 - `food_ordering.json`
-- `movie_booking.json`
 - `movie_explorer.py`
 - `patient_intake.json`
 - `restaurant_reservation.json`
