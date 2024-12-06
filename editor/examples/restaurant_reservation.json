@@ -13,6 +13,7 @@
           "type": "function",
           "function": {
             "name": "record_party_size",
+            "handler": "record_party_size",
             "description": "Record the number of people in the party",
             "parameters": {
               "type": "object",
@@ -24,18 +25,8 @@
                 }
               },
               "required": ["size"]
-            }
-          }
-        },
-        {
-          "type": "function",
-          "function": {
-            "name": "get_time",
-            "description": "Proceed to time selection",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            },
+            "transition_to": "get_time"
           }
         }
       ]
@@ -44,7 +35,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM."
+          "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM. After they provide a time, confirm it's within operating hours before recording. Use 24-hour format for internal recording (e.g., 17:00 for 5 PM)."
         }
       ],
       "functions": [
@@ -52,28 +43,20 @@
           "type": "function",
           "function": {
             "name": "record_time",
+            "handler": "record_time",
             "description": "Record the requested time",
             "parameters": {
               "type": "object",
               "properties": {
                 "time": {
                   "type": "string",
-                  "pattern": "^([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+                  "pattern": "^(17|18|19|20|21|22):([0-5][0-9])$",
+                  "description": "Reservation time in 24-hour format (17:00-22:00)"
                 }
               },
               "required": ["time"]
-            }
-          }
-        },
-        {
-          "type": "function",
-          "function": {
-            "name": "confirm",
-            "description": "Proceed to confirmation",
-            "parameters": {
-              "type": "object",
-              "properties": {}
-            }
+            },
+            "transition_to": "confirm"
           }
         }
       ]
@@ -94,7 +77,8 @@
             "parameters": {
               "type": "object",
               "properties": {}
-            }
+            },
+            "transition_to": "end"
           }
         }
       ]
