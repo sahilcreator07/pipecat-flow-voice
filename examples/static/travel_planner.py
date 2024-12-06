@@ -18,9 +18,11 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -355,7 +357,11 @@ async def main():
         )
 
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+            text_filter=MarkdownTextFilter(),
+        )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
         # Get initial tools from the first node
