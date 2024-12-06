@@ -282,11 +282,12 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         flow_manager = FlowManager(self.mock_task, self.mock_llm)
         await flow_manager.initialize([])
 
-        # Test handler that raises an error
         async def error_handler(args):
             raise ValueError("Test error")
 
-        transition_func = await flow_manager._create_transition_func("test", error_handler)
+        transition_func = await flow_manager._create_transition_func(
+            "test", error_handler, transition_to=None
+        )
 
         # Mock result callback
         callback_called = False
@@ -316,23 +317,35 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             await flow_manager.set_node("test", invalid_config)
         self.assertIn("missing name field", str(context.exception))
 
-        # Test node function without handler
+        # Test node function without handler or transition_to
         invalid_config = {
             "messages": [],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "test_func",  # Not a node name, should require handler
+                        "name": "test_func",
                         "description": "Test",
                         "parameters": {},
                     },
                 }
             ],
         }
-        with self.assertRaises(FlowError) as context:
+
+        # Mock loguru.logger.warning to capture the warning
+        warning_message = None
+
+        def capture_warning(msg, *args, **kwargs):
+            nonlocal warning_message
+            warning_message = msg
+
+        with patch("loguru.logger.warning", side_effect=capture_warning):
             await flow_manager.set_node("test", invalid_config)
-        self.assertIn("missing handler", str(context.exception))
+            self.assertIsNotNone(warning_message)
+            self.assertIn(
+                "Function 'test_func' in node 'test' has neither handler nor transition_to",
+                warning_message,
+            )
 
     async def test_pre_post_actions(self):
         """Test pre and post actions in set_node."""
@@ -364,13 +377,13 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         )
         await flow_manager.initialize([])
 
-        # Create and execute transition function
-        transition_func = await flow_manager._create_transition_func("test", None)
+        transition_func = await flow_manager._create_transition_func(
+            "test", None, transition_to=None
+        )
 
         async def result_callback(result):
             pass
 
-        # Should not raise error even if transition callback fails
         await transition_func("test", "id", {}, None, None, result_callback)
 
     async def test_register_function_error_handling(self):
@@ -381,8 +394,9 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         # Mock LLM to raise error on register_function
         flow_manager.llm.register_function.side_effect = Exception("Registration error")
 
+        new_functions = set()
         with self.assertRaises(FlowError):
-            await flow_manager._register_function("test", None, set())
+            await flow_manager._register_function("test", None, None, new_functions)
 
     async def test_action_execution_error_handling(self):
         """Test error handling in action execution."""
@@ -426,7 +440,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         flow_manager = FlowManager(self.mock_task, self.mock_llm)
         await flow_manager.initialize([])
 
-        # Create a handler that returns a result
         async def test_handler(args):
             return {"status": "success", "data": "test"}
 
@@ -437,8 +450,9 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             callback_called = True
             self.assertEqual(result["status"], "success")
 
-        # Create and execute transition function
-        transition_func = await flow_manager._create_transition_func("test", test_handler)
+        transition_func = await flow_manager._create_transition_func(
+            "test", test_handler, transition_to=None
+        )
         await transition_func("test", "id", {}, None, None, result_callback)
         self.assertTrue(callback_called)
 
