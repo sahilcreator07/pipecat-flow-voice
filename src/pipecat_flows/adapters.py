@@ -158,4 +158,10 @@ def create_adapter(llm) -> LLMAdapter:
         return AnthropicAdapter()
     elif isinstance(llm, GoogleLLMService):
         return GeminiAdapter()
-    raise ValueError(f"Unsupported LLM type: {type(llm)}")
+    raise ValueError(
+        f"Unsupported LLM type: {type(llm)}\n"
+        "Must provide one of:\n"
+        "- OpenAILLMService\n"
+        "- AnthropicLLMService\n"
+        "- GoogleLLMService"
+    )

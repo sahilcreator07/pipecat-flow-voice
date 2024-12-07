@@ -95,6 +95,7 @@ class FlowManager:
 
     def __init__(
         self,
+        *,
         task: PipelineTask,
         llm: Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService],
         tts: Optional[Any] = None,
@@ -114,6 +115,14 @@ class FlowManager:
             transition_callback: Optional callback for handling transitions.
                                Required for dynamic flows, ignored for static flows
                                in favor of static transitions
+
+        Example:
+            flow_manager = FlowManager(
+                task=pipeline_task,
+                llm=openai_service,
+                tts=tts_service,
+                flow_config=config
+            )
         """
         self.task = task
         self.llm = llm
