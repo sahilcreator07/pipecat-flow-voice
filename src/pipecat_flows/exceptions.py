@@ -4,6 +4,19 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
+"""Custom exceptions for the conversation flow system.
+
+This module defines the exception hierarchy used throughout the flow system:
+- FlowError: Base exception for all flow-related errors
+- FlowInitializationError: Initialization failures
+- FlowTransitionError: State transition issues
+- InvalidFunctionError: Function registration/calling problems
+- ActionError: Action execution failures
+
+These exceptions provide specific error types for better error handling
+and debugging.
+"""
+
 
 class FlowError(Exception):
     """Base exception for all flow-related errors."""

@@ -1,3 +1,33 @@
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+"""Test suite for LLM adapter implementations.
+
+This module tests the adapter system that normalizes interactions between
+different LLM providers (OpenAI, Anthropic, Gemini). Tests cover:
+- Abstract adapter interface enforcement
+- Provider-specific format handling
+- Function name and argument extraction
+- Message content processing
+- Schema validation
+- Error cases and edge conditions
+
+Each adapter is tested with its respective provider's format:
+- OpenAI: Function calling format
+- Anthropic: Native function format
+- Gemini: Function declarations format
+
+The tests use unittest and include comprehensive validation of:
+- Format conversions
+- Null/empty value handling
+- Special character processing
+- Schema validation
+- Factory pattern implementation
+"""
+
 import unittest
 from unittest.mock import MagicMock
 
@@ -15,10 +45,10 @@ from pipecat_flows.adapters import (
 
 
 class TestLLMAdapter(unittest.TestCase):
-    """Test the abstract base LLMAdapter class"""
+    """Test the abstract base LLMAdapter class."""
 
     def test_abstract_methods(self):
-        """Verify that LLMAdapter cannot be instantiated without implementing all methods"""
+        """Verify that LLMAdapter cannot be instantiated without implementing all methods."""
 
         class IncompleteAdapter(LLMAdapter):
             # Missing implementation of abstract methods
@@ -38,8 +68,28 @@ class TestLLMAdapter(unittest.TestCase):
 
 
 class TestLLMAdapters(unittest.TestCase):
+    """Test suite for concrete LLM adapter implementations.
+
+    Tests adapter functionality for each LLM provider:
+    - OpenAI: Function calling format
+    - Anthropic: Native function format
+    - Gemini: Function declarations format
+
+    Each adapter is tested for:
+    - Function name extraction
+    - Argument parsing
+    - Message content handling
+    - Format conversion
+    - Special character handling
+    - Null/empty value processing
+    - Schema validation
+
+    The setUp method provides standardized test fixtures for each provider's format,
+    allowing consistent testing across all adapters.
+    """
+
     def setUp(self):
-        """Set up test cases with sample function definitions for each provider"""
+        """Set up test cases with sample function definitions for each provider."""
         # OpenAI format
         self.openai_function = {
             "type": "function",
@@ -87,7 +137,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.gemini_message = {"role": "user", "content": "Test message"}
 
     def test_openai_adapter(self):
-        """Test OpenAI format handling"""
+        """Test OpenAI format handling."""
         adapter = OpenAIAdapter()
 
         # Test function name extraction
@@ -109,7 +159,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertEqual(formatted, [self.openai_function])
 
     def test_anthropic_adapter(self):
-        """Test Anthropic format handling"""
+        """Test Anthropic format handling."""
         adapter = AnthropicAdapter()
 
         # Test function name extraction
@@ -129,7 +179,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertEqual(formatted[0]["name"], "test_function")
 
     def test_gemini_adapter(self):
-        """Test Gemini format handling"""
+        """Test Gemini format handling."""
         adapter = GeminiAdapter()
 
         # Test function name extraction from function declarations
@@ -149,7 +199,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertTrue("function_declarations" in formatted[0])
 
     def test_adapter_factory(self):
-        """Test adapter creation based on LLM service type"""
+        """Test adapter creation based on LLM service type."""
         # Test with valid LLM services
         openai_llm = MagicMock(spec=OpenAILLMService)
         self.assertIsInstance(create_adapter(openai_llm), OpenAIAdapter)
@@ -161,7 +211,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertIsInstance(create_adapter(gemini_llm), GeminiAdapter)
 
     def test_adapter_factory_error_cases(self):
-        """Test error cases in adapter creation"""
+        """Test error cases in adapter creation."""
         # Test with None
         with self.assertRaises(ValueError) as context:
             create_adapter(None)
@@ -174,7 +224,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertIn("Unsupported LLM type", str(context.exception))
 
     def test_null_and_empty_values(self):
-        """Test handling of null and empty values"""
+        """Test handling of null and empty values."""
         adapters = [OpenAIAdapter(), AnthropicAdapter(), GeminiAdapter()]
 
         for adapter in adapters:
@@ -187,7 +237,7 @@ class TestLLMAdapters(unittest.TestCase):
             self.assertEqual(adapter.get_message_content(empty_message), "")
 
     def test_special_characters_handling(self):
-        """Test handling of special characters in messages and function calls"""
+        """Test handling of special characters in messages and function calls."""
         special_chars = "!@#$%^&*()_+-=[]{}|;:'\",.<>?/~`"
 
         # Test in message content
@@ -223,7 +273,7 @@ class TestLLMAdapters(unittest.TestCase):
         self.assertEqual(args["param1"], special_chars)
 
     def test_function_schema_validation(self):
-        """Test validation of function schemas during conversion"""
+        """Test validation of function schemas during conversion."""
         adapters = [OpenAIAdapter(), AnthropicAdapter(), GeminiAdapter()]
 
         # Test with minimal valid schema

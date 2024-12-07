@@ -38,6 +38,7 @@ line-length = 100
 select = [
     "D", # Docstring rules
 ]
+ignore = ["D212"]
 
 [tool.ruff.pydocstyle]
 convention = "google"

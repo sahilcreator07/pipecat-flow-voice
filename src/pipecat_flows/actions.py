@@ -4,6 +4,23 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
+"""Action management system for conversation flows.
+
+This module provides the ActionManager class which handles execution of actions
+during conversation state transitions. It supports:
+- Built-in actions (TTS, conversation ending)
+- Custom action registration
+- Synchronous and asynchronous handlers
+- Pre and post-transition actions
+- Error handling and validation
+
+Actions are used to perform side effects during conversations, such as:
+- Text-to-speech output
+- Database updates
+- External API calls
+- Custom integrations
+"""
+
 import asyncio
 from typing import Any, Callable, Dict, List, Optional
 

@@ -4,6 +4,25 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
+"""Core conversation flow management system.
+
+This module provides the FlowManager class which orchestrates conversations
+across different LLM providers. It supports:
+- Static flows with predefined paths
+- Dynamic flows with runtime-determined transitions
+- State management and transitions
+- Function registration and execution
+- Action handling
+- Cross-provider compatibility
+
+The flow manager coordinates all aspects of a conversation, including:
+- LLM context management
+- Function registration
+- State transitions
+- Action execution
+- Error handling
+"""
+
 import copy
 import inspect
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Union

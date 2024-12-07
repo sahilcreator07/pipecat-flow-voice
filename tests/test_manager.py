@@ -1,3 +1,23 @@
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+"""Test suite for FlowManager functionality.
+
+This module contains tests for the FlowManager class, which handles conversation
+flow management across different LLM providers. Tests cover:
+- Static and dynamic flow initialization
+- State transitions and validation
+- Function registration and execution
+- Action handling
+- Error cases
+
+The tests use unittest.IsolatedAsyncioTestCase for async support and
+include mocked dependencies for PipelineTask, LLM services, and TTS.
+"""
+
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,8 +29,26 @@ from pipecat_flows.manager import FlowManager
 
 
 class TestFlowManager(unittest.IsolatedAsyncioTestCase):
+    """Test suite for FlowManager class.
+
+    Tests functionality of FlowManager including:
+    - Static and dynamic flow initialization
+    - State transitions
+    - Function registration
+    - Action execution
+    - Error handling
+    - Node validation
+    """
+
     async def asyncSetUp(self):
-        """Set up test fixtures."""
+        """Set up test fixtures before each test.
+
+        Creates:
+        - Mock PipelineTask for frame queueing
+        - Mock LLM service (OpenAI)
+        - Mock TTS service
+        - Sample node and flow configurations
+        """
         self.mock_task = AsyncMock()
         self.mock_llm = MagicMock(spec=OpenAILLMService)
         self.mock_tts = AsyncMock()
@@ -41,7 +79,13 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
 
     async def test_static_flow_initialization(self):
-        """Test initialization of static flow."""
+        """Test initialization of a static flow configuration.
+
+        Verifies:
+        - Correct setup of static mode attributes
+        - Proper initialization of flow
+        - Message queueing to task
+        """
         flow_manager = FlowManager(
             self.mock_task, self.mock_llm, self.mock_tts, flow_config=self.static_flow_config
         )

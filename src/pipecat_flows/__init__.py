@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 """
-Pipecat Flows
+Pipecat Flows.
 
 This package provides a framework for building structured conversations in Pipecat.
 The FlowManager can handle both static and dynamic conversation flows:
