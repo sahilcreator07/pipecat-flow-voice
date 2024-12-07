@@ -39,6 +39,9 @@ select = [
     "D", # Docstring rules
 ]
 ignore = ["D212"]
+exclude = [
+    "examples"
+]
 
 [tool.ruff.pydocstyle]
 convention = "google"
