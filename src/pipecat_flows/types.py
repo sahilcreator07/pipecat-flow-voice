@@ -4,6 +4,18 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
+"""Type definitions for the conversation flow system.
+
+This module defines the core types used throughout the flow system:
+- FlowResult: Function return type
+- FlowArgs: Function argument type
+- NodeConfig: Node configuration type
+- FlowConfig: Complete flow configuration type
+
+These types provide structure and validation for flow configurations
+and function interactions.
+"""
+
 from typing import Any, Dict, List, TypedDict
 
 

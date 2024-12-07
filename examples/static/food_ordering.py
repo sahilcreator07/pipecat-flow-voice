@@ -331,7 +331,7 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager in static mode
-        flow_manager = FlowManager(task, llm, tts, flow_config=flow_config)
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
