@@ -5,6 +5,15 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2024-12-08
+
+### Changed
+
+- Fixed function handler registration in FlowManager to handle `__function__:` tokens
+  - Previously, the handler string was used directly, causing "not callable" errors
+  - Now correctly looks up and uses the actual function object from the main module
+  - Supports both direct function references and function names exported from the Flows editor
+
 ## [0.0.8] - 2024-12-07
 
 ### Changed
