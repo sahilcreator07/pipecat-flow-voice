@@ -140,18 +140,9 @@ export class Toolbar {
         .slice(0, -5);
 
       // Create a clean JSON string
-      const cleanJson = JSON.stringify(flowConfig, null, 2)
-        .replace(/\\n/g, "\n")
-        .replace(/\\"/g, '"')
-        .replace(/"\[\s*\{/g, "[{")
-        .replace(/\}\s*\]"/g, "}]")
-        .replace(/,(\s*}])/g, "$1")
-        .replace(/\n\s*,\s*}/g, "\n}")
-        .replace(/}]\s*,\s*}/g, "}]}")
-        .replace(/\n\s{20,}/g, "\n    ")
-        .trim();
+      const jsonString = JSON.stringify(flowConfig, null, 2);
 
-      const blob = new Blob([cleanJson], { type: "application/json" });
+      const blob = new Blob([jsonString], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
