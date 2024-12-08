@@ -13,7 +13,7 @@
           "type": "function",
           "function": {
             "name": "record_party_size",
-            "handler": "record_party_size",
+            "handler": "__function__:record_party_size",
             "description": "Record the number of people in the party",
             "parameters": {
               "type": "object",
@@ -43,7 +43,7 @@
           "type": "function",
           "function": {
             "name": "record_time",
-            "handler": "record_time",
+            "handler": "__function__:record_time",
             "description": "Record the requested time",
             "parameters": {
               "type": "object",

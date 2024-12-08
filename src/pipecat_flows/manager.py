@@ -25,6 +25,7 @@ The flow manager coordinates all aspects of a conversation, including:
 
 import copy
 import inspect
+import sys
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Union
 
 from loguru import logger
@@ -308,9 +309,42 @@ class FlowManager:
         transition_to: Optional[str],
         new_functions: Set[str],
     ) -> None:
-        """Register a function with the LLM if not already registered."""
+        """Register a function with the LLM if not already registered.
+
+        Args:
+            name: Name of the function to register with the LLM
+            handler: Either a callable function or a string. If string starts with
+                    '__function__:', extracts the function name after the prefix
+            transition_to: Optional node name to transition to after function execution
+            new_functions: Set to track newly registered functions for this node
+
+        Raises:
+            FlowError: If function registration fails
+
+        Example:
+            # With direct function reference
+            await _register_function('look_up_price', look_up_price, 'next_node', new_funcs)
+
+            # With function name from Flows editor
+            await _register_function('look_up_price', '__function__:look_up_price', 'next_node', new_funcs)
+        """
         if name not in self.current_functions:
             try:
+                # Handle special token format (e.g. "__function__:function_name")
+                if isinstance(handler, str) and handler.startswith("__function__:"):
+                    func_name = handler.split(":")[1]
+
+                    # Try main module first (where the script is running)
+                    handler = getattr(sys.modules["__main__"], func_name, None)
+                    if handler is None:
+                        # Try current module
+                        handler = getattr(sys.modules[__name__], func_name, None)
+                    if handler is None:
+                        raise FlowError(
+                            f"Function '{func_name}' not found. Ensure the function is "
+                            "defined in your main script or the flows module."
+                        )
+
                 self.llm.register_function(
                     name, await self._create_transition_func(name, handler, transition_to)
                 )

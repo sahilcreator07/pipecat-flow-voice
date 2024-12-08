@@ -13,7 +13,7 @@
           "type": "function",
           "function": {
             "name": "get_current_movies",
-            "handler": "get_movies",
+            "handler": "__function__:get_movies",
             "description": "Fetch movies currently playing in theaters",
             "parameters": {
               "type": "object",
@@ -26,7 +26,7 @@
           "type": "function",
           "function": {
             "name": "get_upcoming_movies",
-            "handler": "get_upcoming_movies",
+            "handler": "__function__:get_upcoming_movies",
             "description": "Fetch movies coming soon to theaters",
             "parameters": {
               "type": "object",
@@ -49,7 +49,7 @@
           "type": "function",
           "function": {
             "name": "get_movie_details",
-            "handler": "get_movie_details",
+            "handler": "__function__:get_movie_details",
             "description": "Get details about a specific movie including cast",
             "parameters": {
               "type": "object",
@@ -67,7 +67,7 @@
           "type": "function",
           "function": {
             "name": "get_similar_movies",
-            "handler": "get_similar_movies",
+            "handler": "__function__:get_similar_movies",
             "description": "Get similar movies as recommendations",
             "parameters": {
               "type": "object",
@@ -85,7 +85,7 @@
           "type": "function",
           "function": {
             "name": "get_current_movies",
-            "handler": "get_movies",
+            "handler": "__function__:get_movies",
             "description": "Show current movies in theaters",
             "parameters": {
               "type": "object",
@@ -97,7 +97,7 @@
           "type": "function",
           "function": {
             "name": "get_upcoming_movies",
-            "handler": "get_upcoming_movies",
+            "handler": "__function__:get_upcoming_movies",
             "description": "Show movies coming soon",
             "parameters": {
               "type": "object",

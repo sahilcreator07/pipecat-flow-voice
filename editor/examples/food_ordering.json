@@ -47,7 +47,7 @@
           "type": "function",
           "function": {
             "name": "select_pizza_order",
-            "handler": "select_pizza_order",
+            "handler": "__function__:select_pizza_order",
             "description": "Record the pizza order details",
             "parameters": {
               "type": "object",
@@ -93,7 +93,7 @@
           "type": "function",
           "function": {
             "name": "select_sushi_order",
-            "handler": "select_sushi_order",
+            "handler": "__function__:select_sushi_order",
             "description": "Record the sushi order details",
             "parameters": {
               "type": "object",
