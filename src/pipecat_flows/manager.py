@@ -302,6 +302,33 @@ class FlowManager:
 
         return transition_func
 
+    def _lookup_function(self, func_name: str) -> Callable:
+        """Look up a function by name in the main module.
+
+        Args:
+            func_name: Name of the function to look up
+
+        Returns:
+            Callable: The found function
+
+        Raises:
+            FlowError: If function is not found
+        """
+        main_module = sys.modules["__main__"]
+        handler = getattr(main_module, func_name, None)
+
+        if handler is not None:
+            logger.debug(f"Found function '{func_name}' in main module")
+            return handler
+
+        error_message = (
+            f"Function '{func_name}' not found in main module.\n"
+            "Ensure the function is defined in your main script "
+            "or imported into it."
+        )
+
+        raise FlowError(error_message)
+
     async def _register_function(
         self,
         name: str,
@@ -333,17 +360,7 @@ class FlowManager:
                 # Handle special token format (e.g. "__function__:function_name")
                 if isinstance(handler, str) and handler.startswith("__function__:"):
                     func_name = handler.split(":")[1]
-
-                    # Try main module first (where the script is running)
-                    handler = getattr(sys.modules["__main__"], func_name, None)
-                    if handler is None:
-                        # Try current module
-                        handler = getattr(sys.modules[__name__], func_name, None)
-                    if handler is None:
-                        raise FlowError(
-                            f"Function '{func_name}' not found. Ensure the function is "
-                            "defined in your main script or the flows module."
-                        )
+                    handler = self._lookup_function(func_name)
 
                 self.llm.register_function(
                     name, await self._create_transition_func(name, handler, transition_to)

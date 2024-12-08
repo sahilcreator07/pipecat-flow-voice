@@ -607,3 +607,113 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
 
         # Verify function was registered
         self.assertIn("test", flow_manager.current_functions)
+
+    async def test_function_token_handling_main_module(self):
+        """Test handling of __function__: tokens when function is in main module."""
+        flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
+        await flow_manager.initialize([])
+
+        # Define test handler in main module
+        async def test_handler_main(args):
+            return {"status": "success"}
+
+        # Add handler to main module
+        import sys
+
+        sys.modules["__main__"].test_handler_main = test_handler_main
+
+        try:
+            node_config = {
+                "messages": [{"role": "system", "content": "Test"}],
+                "functions": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "test_function",
+                            "handler": "__function__:test_handler_main",
+                            "description": "Test function",
+                            "parameters": {"type": "object", "properties": {}},
+                        },
+                    }
+                ],
+            }
+
+            await flow_manager.set_node("test", node_config)
+            self.assertIn("test_function", flow_manager.current_functions)
+
+        finally:
+            # Clean up
+            delattr(sys.modules["__main__"], "test_handler_main")
+
+    async def test_function_token_handling_not_found(self):
+        """Test error handling when function is not found in any module."""
+        flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
+        await flow_manager.initialize([])
+
+        node_config = {
+            "messages": [{"role": "system", "content": "Test"}],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "test_function",
+                        "handler": "__function__:nonexistent_handler",
+                        "description": "Test function",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                }
+            ],
+        }
+
+        with self.assertRaises(FlowError) as context:
+            await flow_manager.set_node("test", node_config)
+
+        self.assertIn("Function 'nonexistent_handler' not found", str(context.exception))
+
+    async def test_function_token_execution(self):
+        """Test that functions registered with __function__: token work when called."""
+        flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
+        await flow_manager.initialize([])
+
+        # Define and register test handler
+        test_called = False
+
+        async def test_handler(args):
+            nonlocal test_called
+            test_called = True
+            return {"status": "success", "args": args}
+
+        import sys
+
+        sys.modules["__main__"].test_handler = test_handler
+
+        try:
+            node_config = {
+                "messages": [{"role": "system", "content": "Test"}],
+                "functions": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "test_function",
+                            "handler": "__function__:test_handler",
+                            "description": "Test function",
+                            "parameters": {"type": "object", "properties": {}},
+                        },
+                    }
+                ],
+            }
+
+            await flow_manager.set_node("test", node_config)
+
+            # Get the registered function and test it
+            name, func = self.mock_llm.register_function.call_args[0]
+
+            async def callback(result):
+                self.assertEqual(result["status"], "success")
+                self.assertEqual(result["args"], {"test": "value"})
+
+            await func("test_function", "id", {"test": "value"}, None, None, callback)
+            self.assertTrue(test_called)
+
+        finally:
+            delattr(sys.modules["__main__"], "test_handler")
