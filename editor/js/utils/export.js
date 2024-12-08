@@ -29,6 +29,20 @@ export function generateFlowConfig(graphInstance) {
   }
 
   /**
+   * Adds handler token if needed
+   * @param {Object} functionConfig - Function configuration to process
+   * @param {Object} sourceNode - Node containing the function
+   */
+  function processHandler(functionConfig, sourceNode) {
+    if (sourceNode.properties.function.handler) {
+      const handlerName = sourceNode.properties.function.handler;
+      if (!handlerName.startsWith("__function__:")) {
+        functionConfig.function.handler = `__function__:${handlerName}`;
+      }
+    }
+  }
+
+  /**
    * Finds all functions connected to a node
    * @param {LGraphNode} node - The node to find functions for
    * @returns {Array<Object>} Array of function configurations
@@ -50,6 +64,8 @@ export function generateFlowConfig(graphInstance) {
             type: "function",
             function: { ...targetNode.properties.function },
           };
+
+          processHandler(funcConfig, targetNode);
 
           // Find where this function connects to (if anywhere)
           const functionTargets = targetNode.outputs[0].links || [];
@@ -110,13 +126,16 @@ export function generateFlowConfig(graphInstance) {
 
           // Add all functions with their transition to the final target
           connectedFunctions.forEach((funcNode) => {
-            functions.push({
+            const funcConfig = {
               type: "function",
               function: {
                 ...funcNode.properties.function,
                 transition_to: finalNode.title,
               },
-            });
+            };
+
+            processHandler(funcConfig, funcNode);
+            functions.push(funcConfig);
           });
         }
       });

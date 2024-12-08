@@ -47,7 +47,7 @@
           "type": "function",
           "function": {
             "name": "select_destination",
-            "handler": "select_destination",
+            "handler": "__function__:select_destination",
             "description": "Record the selected beach destination",
             "parameters": {
               "type": "object",
@@ -77,7 +77,7 @@
           "type": "function",
           "function": {
             "name": "select_destination",
-            "handler": "select_destination",
+            "handler": "__function__:select_destination",
             "description": "Record the selected mountain destination",
             "parameters": {
               "type": "object",
@@ -107,7 +107,7 @@
           "type": "function",
           "function": {
             "name": "record_dates",
-            "handler": "record_dates",
+            "handler": "__function__:record_dates",
             "description": "Record the selected travel dates",
             "parameters": {
               "type": "object",
@@ -142,7 +142,7 @@
           "type": "function",
           "function": {
             "name": "record_activities",
-            "handler": "record_activities",
+            "handler": "__function__:record_activities",
             "description": "Record selected activities",
             "parameters": {
               "type": "object",
