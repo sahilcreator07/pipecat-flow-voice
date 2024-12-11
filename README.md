@@ -61,7 +61,7 @@ async def on_first_participant_joined(transport, participant):
     await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
-For more detailed examples and guides, visit our [documentation](https://docs.pipecat.ai/guides/pipecat-flows).
+For more detailed examples and guides, visit our [documentation](https://docs.pipecat.ai/guides/features/pipecat-flows).
 
 ## Core Concepts
 
