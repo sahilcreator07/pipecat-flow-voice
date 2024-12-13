@@ -2,7 +2,7 @@
 
 We welcome contributions of all kinds! Your help is appreciated. Follow these steps to get involved:
 
-1. **Fork this repository**: Start by forking the Pipecat Documentation repository to your GitHub account.
+1. **Fork this repository**: Start by forking the Pipecat Flows repository to your GitHub account.
 
 2. **Clone the repository**: Clone your forked repository to your local machine.
    ```bash
