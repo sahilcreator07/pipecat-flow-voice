@@ -313,20 +313,14 @@ flow_config: FlowConfig = {
                             "name": "get_current_movies",
                             "handler": get_movies,
                             "description": "Fetch movies currently playing in theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                            },
+                            "parameters": None, # Specify None for no parameters
                             "transition_to": "explore_movie",
                         },
                         {
                             "name": "get_upcoming_movies",
                             "handler": get_upcoming_movies,
                             "description": "Fetch movies coming soon to theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                            },
+                            "parameters": None, # Specify None for no parameters
                             "transition_to": "explore_movie",
                         },
                     ]
@@ -378,27 +372,18 @@ After showing details or recommendations, ask if they'd like to explore another 
                             "name": "get_current_movies",
                             "handler": get_movies,
                             "description": "Show current movies in theaters",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                            },
+                            "parameters": None, # Specify None for no parameters
                         },
                         {
                             "name": "get_upcoming_movies",
                             "handler": get_upcoming_movies,
                             "description": "Show movies coming soon",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                            },
+                            "parameters": None, # Specify None for no parameters,
                         },
                         {
                             "name": "end_conversation",
                             "description": "End the conversation",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                            },
+                            "parameters": None, # Specify None for no parameters,
                             "transition_to": "end",
                         },
                     ]
@@ -442,7 +427,7 @@ async def main():
             voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
             text_filter=MarkdownTextFilter(),
         )
-        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-1.5-flash-latest")
+        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-2.0-flash-exp")
 
         # Get initial tools
         initial_tools = [
