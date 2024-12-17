@@ -300,6 +300,12 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
 # Flow configuration
 flow_config: FlowConfig = {
     "initial_node": "greeting",
+    "initial_system_message": [
+        {
+            "role": "system",
+            "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
+        }
+    ],
     "nodes": {
         "greeting": {
             "messages": [
@@ -308,7 +314,7 @@ flow_config: FlowConfig = {
                     "content": [
                         {
                             "type": "text",
-                            "text": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
+                            "text": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
                         }
                     ],
                 }
@@ -447,23 +453,7 @@ async def main():
             api_key=os.getenv("ANTHROPIC_API_KEY"), model="claude-3-5-sonnet-latest"
         )
 
-        # Get initial tools from the first node
-        initial_tools = flow_config["nodes"]["greeting"]["functions"]
-
-        # Create initial context
-        messages = [
-            {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
-                    }
-                ],
-            }
-        ]
-
-        context = OpenAILLMContext(messages, initial_tools)
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         pipeline = Pipeline(
@@ -486,7 +476,7 @@ async def main():
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         runner = PipelineRunner()

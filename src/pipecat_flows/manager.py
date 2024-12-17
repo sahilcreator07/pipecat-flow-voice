@@ -48,21 +48,32 @@ from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig
 class FlowManager:
     """Manages conversation flows, supporting both static and dynamic configurations.
 
-    The FlowManager orchestrates:
-    - Conversation state transitions
-    - Function registration and execution
-    - Action execution during transitions
-    - LLM context management
-    - Message handling across providers
+    The FlowManager orchestrates conversation flows by managing state transitions,
+    function registration, and message handling across different LLM providers.
+
+    Attributes:
+        task (PipelineTask): Pipeline task for frame queueing
+        llm (Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]):
+            LLM service instance
+        tts (Optional[Any]): Text-to-speech service for voice actions
+        state (Dict[str, Any]): Shared state dictionary across nodes
+        current_node (Optional[str]): Currently active node identifier
+        initialized (bool): Whether the manager has been initialized
+        nodes (Dict[str, Dict]): Node configurations for static flows
+        current_functions (Set[str]): Currently registered function names
 
     Static Flow Example:
         # Define a static flow configuration
         flow_config = {
             "initial_node": "greeting",
+            "initial_system_message": [{
+                "role": "system",
+                "content": "You are a helpful assistant"
+            }],
             "nodes": {
                 "greeting": {
                     "messages": [
-                        {"role": "system", "content": "You are a helpful assistant"}
+                        {"role": "system", "content": "Start by greeting the user"}
                     ],
                     "functions": [{
                         "type": "function",
@@ -84,7 +95,7 @@ class FlowManager:
 
         # Initialize with static configuration
         flow_manager = FlowManager(task, llm, flow_config=flow_config)
-        await flow_manager.initialize(initial_messages)
+        await flow_manager.initialize()
 
     Dynamic Flow Example:
         # Define transition handler
@@ -100,17 +111,6 @@ class FlowManager:
         flow_manager = FlowManager(task, llm, transition_callback=handle_transitions)
         await flow_manager.initialize(initial_messages)
         await flow_manager.set_node("start", create_initial_node())
-
-    Attributes:
-        task (PipelineTask): Pipeline task for frame queueing
-        llm (Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]):
-            LLM service instance
-        tts (Optional[Any]): Text-to-speech service for voice actions
-        state (Dict[str, Any]): Shared state dictionary across nodes
-        current_node (Optional[str]): Currently active node identifier
-        initialized (bool): Whether the manager has been initialized
-        nodes (Dict[str, Dict]): Node configurations for static flows
-        current_functions (Set[str]): Currently registered function names
     """
 
     def __init__(
@@ -155,6 +155,7 @@ class FlowManager:
         if flow_config:
             self.nodes = flow_config["nodes"]
             self.initial_node = flow_config["initial_node"]
+            self.initial_system_message = flow_config.get("initial_system_message", [])
             self.transition_callback = self._handle_static_transition
             logger.debug("Initialized in static mode")
         else:
@@ -167,25 +168,41 @@ class FlowManager:
         self.current_functions: Set[str] = set()  # Track registered functions
         self.current_node: Optional[str] = None
 
-    async def initialize(self, initial_messages: List[dict]) -> None:
-        """Initialize the flow with starting messages.
+    async def initialize(self, initial_messages: Optional[List[dict]] = None) -> None:
+        """Initialize the flow.
 
-        For static flows, also sets the initial node from config.
+        For static flows, sets the initial system message from config.
+        For dynamic flows, uses provided initial_messages.
 
         Args:
-            initial_messages: Initial system messages for the LLM
+            initial_messages: Optional initial system messages for dynamic flows.
+                            Ignored for static flows.
 
         Raises:
-            FlowInitializationError: If initialization fails
+            FlowInitializationError: If initialization fails or if initial_messages
+                                   is missing for dynamic flows.
         """
         if self.initialized:
             logger.warning(f"{self.__class__.__name__} already initialized")
             return
 
         try:
-            # Set initial context with no tools
-            await self.task.queue_frame(LLMMessagesUpdateFrame(messages=initial_messages))
-            await self.task.queue_frame(LLMSetToolsFrame(tools=[]))
+            if self.nodes:  # Static flow
+                if initial_messages:
+                    logger.warning("Initial messages ignored for static flow configuration")
+
+                # Set initial system message if present
+                if hasattr(self, "initial_system_message"):
+                    await self.task.queue_frame(
+                        LLMMessagesUpdateFrame(messages=self.initial_system_message)
+                    )
+
+            else:  # Dynamic flow
+                if not initial_messages:
+                    raise FlowInitializationError("Initial messages required for dynamic flow")
+
+                # Initialize context with provided messages
+                await self.task.queue_frame(LLMMessagesUpdateFrame(messages=initial_messages))
 
             self.initialized = True
             logger.debug(f"Initialized {self.__class__.__name__}")
@@ -398,7 +415,23 @@ class FlowManager:
                     del decl["transition_to"]
 
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
-        """Set up a new conversation node and transition to it."""
+        """Set up a new conversation node and transition to it.
+
+        Handles the complete node transition process including:
+        - Executing pre-actions
+        - Registering node functions
+        - Updating LLM context
+        - Executing post-actions
+        - Updating state
+
+        Args:
+            node_id: Identifier for the new node
+            node_config: Complete configuration for the node
+
+        Raises:
+            FlowTransitionError: If manager not initialized
+            FlowError: If node setup fails
+        """
         if not self.initialized:
             raise FlowTransitionError(f"{self.__class__.__name__} must be initialized first")
 

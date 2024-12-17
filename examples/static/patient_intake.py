@@ -165,6 +165,12 @@ async def record_visit_reasons(args: FlowArgs) -> VisitReasonRecordResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
+    "initial_system_message": [
+        {
+            "role": "system",
+            "content": "You are Jessica, an agent for Tri-County Health Services. You must ALWAYS use one of the available functions to progress the conversation. Be professional but friendly.",
+        }
+    ],
     "nodes": {
         "start": {
             "messages": [
@@ -441,18 +447,7 @@ async def main():
         )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
-        # Get initial tools from the first node
-        initial_tools = flow_config["nodes"]["start"]["functions"]
-
-        # Create initial context
-        messages = [
-            {
-                "role": "system",
-                "content": "You are Jessica, an agent for Tri-County Health Services. You must ALWAYS use one of the available functions to progress the conversation. Be professional but friendly.",
-            }
-        ]
-
-        context = OpenAILLMContext(messages, initial_tools)
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         pipeline = Pipeline(
@@ -476,7 +471,7 @@ async def main():
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             # Initialize the flow processor
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             # Kick off the conversation using the context aggregator
             await task.queue_frames([context_aggregator.user().get_context_frame()])
 

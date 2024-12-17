@@ -160,7 +160,7 @@ def create_initial_node() -> NodeConfig:
                     {
                         "type": "text",
                         "text": (
-                            "You are an insurance agent. Ask the customer for their age. "
+                            "Ask the customer for their age. "
                             "Wait for their response before calling collect_age. "
                             "Only call collect_age after the customer provides their age."
                         ),
