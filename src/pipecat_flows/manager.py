@@ -61,56 +61,6 @@ class FlowManager:
         initialized (bool): Whether the manager has been initialized
         nodes (Dict[str, Dict]): Node configurations for static flows
         current_functions (Set[str]): Currently registered function names
-
-    Static Flow Example:
-        # Define a static flow configuration
-        flow_config = {
-            "initial_node": "greeting",
-            "initial_system_message": [{
-                "role": "system",
-                "content": "You are a helpful assistant"
-            }],
-            "nodes": {
-                "greeting": {
-                    "messages": [
-                        {"role": "system", "content": "Start by greeting the user"}
-                    ],
-                    "functions": [{
-                        "type": "function",
-                        "function": {
-                            "name": "collect_name",
-                            "handler": collect_name_handler,
-                            "description": "Record user's name",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"}
-                                }
-                            }
-                        }
-                    }]
-                }
-            }
-        }
-
-        # Initialize with static configuration
-        flow_manager = FlowManager(task, llm, flow_config=flow_config)
-        await flow_manager.initialize()
-
-    Dynamic Flow Example:
-        # Define transition handler
-        async def handle_transitions(function_name: str, args: Dict, flow_manager):
-            if function_name == "collect_age":
-                # Store data in shared state
-                flow_manager.state["age"] = args["age"]
-                # Create and transition to next node
-                next_node = create_next_node(flow_manager.state)
-                await flow_manager.set_node("next_step", next_node)
-
-        # Initialize with dynamic handling
-        flow_manager = FlowManager(task, llm, transition_callback=handle_transitions)
-        await flow_manager.initialize(initial_messages)
-        await flow_manager.set_node("start", create_initial_node())
     """
 
     def __init__(
@@ -135,14 +85,6 @@ class FlowManager:
             transition_callback: Optional callback for handling transitions.
                                Required for dynamic flows, ignored for static flows
                                in favor of static transitions
-
-        Example:
-            flow_manager = FlowManager(
-                task=pipeline_task,
-                llm=openai_service,
-                tts=tts_service,
-                flow_config=config
-            )
         """
         self.task = task
         self.llm = llm
@@ -364,13 +306,6 @@ class FlowManager:
 
         Raises:
             FlowError: If function registration fails
-
-        Example:
-            # With direct function reference
-            await _register_function('look_up_price', look_up_price, 'next_node', new_funcs)
-
-            # With function name from Flows editor
-            await _register_function('look_up_price', '__function__:look_up_price', 'next_node', new_funcs)
         """
         if name not in self.current_functions:
             try:

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Simplified FlowManager initialization by removing the need for manual context
   setup in static flows.
+- Updated static examples to use the updated API.
 
 ## [0.0.9] - 2024-12-08
 
