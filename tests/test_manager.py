@@ -41,17 +41,13 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     """
 
     async def asyncSetUp(self):
-        """Set up test fixtures before each test.
-
-        Creates:
-        - Mock PipelineTask for frame queueing
-        - Mock LLM service (OpenAI)
-        - Mock TTS service
-        - Sample node and flow configurations
-        """
+        """Set up test fixtures before each test."""
         self.mock_task = AsyncMock()
         self.mock_llm = MagicMock(spec=OpenAILLMService)
         self.mock_tts = AsyncMock()
+
+        # Sample messages for dynamic flows
+        self.initial_messages = [{"role": "system", "content": "Initial message"}]
 
         # Sample node configurations
         self.sample_node_config = {
@@ -72,6 +68,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         # Sample static flow configuration
         self.static_flow_config = {
             "initial_node": "start",
+            "initial_system_message": [{"role": "system", "content": "Global system message"}],
             "nodes": {
                 "start": self.sample_node_config,
                 "next_node": self.sample_node_config,
@@ -79,13 +76,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
 
     async def test_static_flow_initialization(self):
-        """Test initialization of a static flow configuration.
-
-        Verifies:
-        - Correct setup of static mode attributes
-        - Proper initialization of flow
-        - Message queueing to task
-        """
+        """Test initialization of a static flow configuration."""
         flow_manager = FlowManager(
             task=self.mock_task,
             llm=self.mock_llm,
@@ -98,19 +89,23 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(flow_manager.nodes, self.static_flow_config["nodes"])
         self.assertEqual(flow_manager.transition_callback.__name__, "_handle_static_transition")
 
-        # Initialize flow
-        initial_messages = [{"role": "system", "content": "Initial message"}]
-        await flow_manager.initialize(initial_messages)
+        # Initialize flow (no messages needed for static flow)
+        await flow_manager.initialize()
 
         # Verify initialization
         self.assertTrue(flow_manager.initialized)
 
-        # Verify the messages were queued (checking content rather than exact frame)
+        # Verify the initial system message was queued
         calls = self.mock_task.queue_frame.call_args_list
         update_frame_calls = [
             call for call in calls if isinstance(call[0][0], LLMMessagesUpdateFrame)
         ]
-        self.assertTrue(any(call[0][0].messages == initial_messages for call in update_frame_calls))
+        self.assertTrue(
+            any(
+                call[0][0].messages == self.static_flow_config["initial_system_message"]
+                for call in update_frame_calls
+            )
+        )
 
     async def test_dynamic_flow_initialization(self):
         """Test initialization of dynamic flow."""
@@ -130,19 +125,20 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(flow_manager.nodes, {})
         self.assertEqual(flow_manager.transition_callback, transition_callback)
 
-        # Initialize flow
-        initial_messages = [{"role": "system", "content": "Initial message"}]
-        await flow_manager.initialize(initial_messages)
+        # Initialize flow with required messages
+        await flow_manager.initialize(self.initial_messages)
 
         # Verify initialization
         self.assertTrue(flow_manager.initialized)
 
-        # Verify the messages were queued (checking content rather than exact frame)
+        # Verify the messages were queued
         calls = self.mock_task.queue_frame.call_args_list
         update_frame_calls = [
             call for call in calls if isinstance(call[0][0], LLMMessagesUpdateFrame)
         ]
-        self.assertTrue(any(call[0][0].messages == initial_messages for call in update_frame_calls))
+        self.assertTrue(
+            any(call[0][0].messages == self.initial_messages for call in update_frame_calls)
+        )
 
     async def test_static_flow_transitions(self):
         """Test transitions in static flow."""
@@ -173,7 +169,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             tts=self.mock_tts,
             transition_callback=transition_callback,
         )
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Set initial node
         await flow_manager.set_node("start", self.sample_node_config)
@@ -187,7 +183,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_node_validation(self):
         """Test node configuration validation."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])  # Initialize first
+        await flow_manager.initialize(self.initial_messages)  # Initialize first
 
         # Test missing messages
         invalid_config = {"functions": []}
@@ -204,7 +200,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_function_registration(self):
         """Test function registration with LLM."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Set node with function
         await flow_manager.set_node("test", self.sample_node_config)
@@ -218,7 +214,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_action_execution(self):
         """Test execution of pre and post actions."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm, tts=self.mock_tts)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Add actions to node config
         node_config = self.sample_node_config.copy()
@@ -252,7 +248,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_state_management(self):
         """Test state management across nodes."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Set state data
         flow_manager.state["test_data"] = "value"
@@ -264,7 +260,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_multiple_function_registration(self):
         """Test registration of multiple functions."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Create node config with multiple functions
         node_config = {
@@ -291,7 +287,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_initialize_already_initialized(self):
         """Test initializing an already initialized flow manager."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Try to initialize again
         with patch("loguru.logger.warning") as mock_logger:
@@ -311,7 +307,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_call_handler_variations(self):
         """Test different handler signature variations."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Test handler with args
         async def handler_with_args(args):
@@ -330,7 +326,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_transition_func_error_handling(self):
         """Test error handling in transition functions."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         async def error_handler(args):
             raise ValueError("Test error")
@@ -356,7 +352,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_node_validation_edge_cases(self):
         """Test edge cases in node validation."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Test function with missing name
         invalid_config = {
@@ -400,7 +396,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_pre_post_actions(self):
         """Test pre and post actions in set_node."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Create node config with pre and post actions
         node_config = {
@@ -425,7 +421,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         flow_manager = FlowManager(
             task=self.mock_task, llm=self.mock_llm, transition_callback=failing_transition
         )
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         transition_func = await flow_manager._create_transition_func(
             "test", None, transition_to=None
@@ -439,7 +435,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_register_function_error_handling(self):
         """Test error handling in function registration."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Mock LLM to raise error on register_function
         flow_manager.llm.register_function.side_effect = Exception("Registration error")
@@ -451,7 +447,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_action_execution_error_handling(self):
         """Test error handling in action execution."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Create node config with actions that will fail
         node_config = {
@@ -475,7 +471,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_update_llm_context_error_handling(self):
         """Test error handling in LLM context updates."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Mock task to raise error on queue_frames
         flow_manager.task.queue_frames.side_effect = Exception("Queue error")
@@ -488,7 +484,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_handler_callback_completion(self):
         """Test handler completion callback and logging."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         async def test_handler(args):
             return {"status": "success", "data": "test"}
@@ -509,7 +505,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_handler_removal_all_formats(self):
         """Test handler removal from different function configurations."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         async def dummy_handler(args):
             return {"status": "success"}
@@ -541,7 +537,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_function_declarations_processing(self):
         """Test processing of function declarations format."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         async def test_handler(args):
             return {"status": "success"}
@@ -581,7 +577,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_direct_handler_format(self):
         """Test processing of direct handler format."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         async def test_handler(args):
             return {"status": "success"}
@@ -611,7 +607,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_function_token_handling_main_module(self):
         """Test handling of __function__: tokens when function is in main module."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Define test handler in main module
         async def test_handler_main(args):
@@ -648,7 +644,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_function_token_handling_not_found(self):
         """Test error handling when function is not found in any module."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         node_config = {
             "messages": [{"role": "system", "content": "Test"}],
@@ -673,7 +669,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_function_token_execution(self):
         """Test that functions registered with __function__: token work when called."""
         flow_manager = FlowManager(task=self.mock_task, llm=self.mock_llm)
-        await flow_manager.initialize([])
+        await flow_manager.initialize(self.initial_messages)
 
         # Define and register test handler
         test_called = False
@@ -717,3 +713,59 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
 
         finally:
             delattr(sys.modules["__main__"], "test_handler")
+
+    async def test_static_flow_without_initial_system_message(self):
+        """Test static flow initialization without initial_system_message."""
+        # Create config without initial_system_message
+        config = {
+            "initial_node": "start",
+            "nodes": {
+                "start": self.sample_node_config,
+            },
+        }
+
+        flow_manager = FlowManager(
+            task=self.mock_task,
+            llm=self.mock_llm,
+            tts=self.mock_tts,
+            flow_config=config,
+        )
+
+        await flow_manager.initialize()
+        self.assertTrue(flow_manager.initialized)
+
+        # Verify initialization succeeded without errors
+        # No need to check message content since there's no initial system message
+        calls = self.mock_task.queue_frame.call_args_list
+        update_frame_calls = [
+            call for call in calls if isinstance(call[0][0], LLMMessagesUpdateFrame)
+        ]
+
+        # There should be at least one update frame (from the initial node)
+        self.assertGreater(len(update_frame_calls), 0)
+
+    async def test_static_flow_ignores_initial_messages(self):
+        """Test that static flows ignore passed initial messages."""
+        flow_manager = FlowManager(
+            task=self.mock_task,
+            llm=self.mock_llm,
+            tts=self.mock_tts,
+            flow_config=self.static_flow_config,
+        )
+
+        # Initialize with messages that should be ignored
+        with patch("loguru.logger.warning") as mock_logger:
+            await flow_manager.initialize([{"role": "system", "content": "Ignored message"}])
+            mock_logger.assert_called_once()
+
+        # Verify only initial_system_message was used
+        calls = self.mock_task.queue_frame.call_args_list
+        update_frame_calls = [
+            call for call in calls if isinstance(call[0][0], LLMMessagesUpdateFrame)
+        ]
+        self.assertTrue(
+            any(
+                call[0][0].messages == self.static_flow_config["initial_system_message"]
+                for call in update_frame_calls
+            )
+        )
