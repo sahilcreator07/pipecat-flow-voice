@@ -189,9 +189,20 @@ The FlowManager handles both static and dynamic flows through a unified interfac
 # Define flow configuration upfront
 flow_config = {
     "initial_node": "greeting",
+    "initial_system_message": [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant. Your responses will be converted to audio."
+        }
+    ],
     "nodes": {
         "greeting": {
-            "messages": [...],
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Start by greeting the user and asking for their name."
+                }
+            ],
             "functions": [{
                 "type": "function",
                 "function": {
@@ -206,8 +217,9 @@ flow_config = {
     }
 }
 
-# Initialize with static configuration
+# Create and initialize the FlowManager
 flow_manager = FlowManager(task, llm, tts, flow_config=flow_config)
+await flow_manager.initialize()
 ```
 
 #### Dynamic Flows
