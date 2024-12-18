@@ -5,6 +5,19 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- New `initial_system_message` field in `FlowConfig`, which allows setting a
+  global system message for static flows.
+
+### Changed
+
+- Simplified FlowManager initialization by removing the need for manual context
+  setup in static flows.
+- Updated static examples to use the updated API.
+
 ## [0.0.9] - 2024-12-08
 
 ### Changed

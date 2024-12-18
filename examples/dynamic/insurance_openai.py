@@ -156,7 +156,7 @@ def create_initial_node() -> NodeConfig:
         "messages": [
             {
                 "role": "system",
-                "content": "You are an insurance agent. Start by asking for the customer's age.",
+                "content": "Start by asking for the customer's age.",
             }
         ],
         "functions": [
@@ -173,9 +173,6 @@ def create_initial_node() -> NodeConfig:
                     },
                 },
             }
-        ],
-        "pre_actions": [
-            {"type": "tts_say", "text": "Welcome! Let's find the right insurance coverage for you."}
         ],
     }
 

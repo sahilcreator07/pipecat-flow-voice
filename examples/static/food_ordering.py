@@ -110,6 +110,12 @@ async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
+    "initial_system_message": [
+        {
+            "role": "system",
+            "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
+        }
+    ],
     "nodes": {
         "start": {
             "messages": [
@@ -304,15 +310,8 @@ async def main():
         )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
-        # Create initial context
-        messages = [
-            {
-                "role": "system",
-                "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
-            }
-        ]
 
-        context = OpenAILLMContext(messages, flow_config["nodes"]["start"]["functions"])
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         # Create pipeline
@@ -337,7 +336,7 @@ async def main():
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             logger.debug("Initializing flow")
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             logger.debug("Starting conversation")
             await task.queue_frames([context_aggregator.user().get_context_frame()])
 
