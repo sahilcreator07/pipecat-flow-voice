@@ -230,8 +230,11 @@ async def handle_transitions(function_name: str, args: Dict, flow_manager):
     if function_name == "collect_age":
         await flow_manager.set_node("next_step", create_next_node())
 
+system_message = "You are an assistant."
+
 # Initialize with transition callback
 flow_manager = FlowManager(task, llm, tts, transition_callback=handle_transitions)
+await flow_manager.initialize(system_message)
 ```
 
 ## Examples
