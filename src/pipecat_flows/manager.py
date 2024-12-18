@@ -103,6 +103,7 @@ class FlowManager:
         else:
             self.nodes = {}
             self.initial_node = None
+            self.initial_system_message = None
             self.transition_callback = transition_callback
             logger.debug("Initialized in dynamic mode")
 
@@ -134,7 +135,7 @@ class FlowManager:
                     logger.warning("Initial messages ignored for static flow configuration")
 
                 # Set initial system message if present
-                if hasattr(self, "initial_system_message"):
+                if self.initial_system_message:
                     await self.task.queue_frame(
                         LLMMessagesUpdateFrame(messages=self.initial_system_message)
                     )

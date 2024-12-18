@@ -732,17 +732,23 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         )
 
         await flow_manager.initialize()
+
+        # Verify initialization succeeded
         self.assertTrue(flow_manager.initialized)
 
-        # Verify initialization succeeded without errors
-        # No need to check message content since there's no initial system message
+        # Verify no initial system message was queued
         calls = self.mock_task.queue_frame.call_args_list
         update_frame_calls = [
             call for call in calls if isinstance(call[0][0], LLMMessagesUpdateFrame)
         ]
+        self.assertEqual(
+            len(update_frame_calls),
+            0,
+            "No LLMMessagesUpdateFrame should be queued when there's no initial system message",
+        )
 
-        # There should be at least one update frame (from the initial node)
-        self.assertGreater(len(update_frame_calls), 0)
+        # Verify node was set
+        self.assertEqual(flow_manager.current_node, "start")
 
     async def test_static_flow_ignores_initial_messages(self):
         """Test that static flows ignore passed initial messages."""
