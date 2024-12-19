@@ -153,7 +153,17 @@ async def end_quote() -> FlowResult:
 def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
     return {
-        "messages": [
+        "role_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a friendly insurance agent. Your responses will be "
+                    "converted to audio, so avoid special characters. Always use "
+                    "the available functions to progress the conversation naturally."
+                ),
+            }
+        ],
+        "task_messages": [
             {
                 "role": "system",
                 "content": "Start by asking for the customer's age.",
@@ -180,7 +190,7 @@ def create_initial_node() -> NodeConfig:
 def create_marital_status_node() -> NodeConfig:
     """Create node for collecting marital status."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": "Ask about the customer's marital status for premium calculation.",
@@ -210,7 +220,7 @@ def create_marital_status_node() -> NodeConfig:
 def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
     """Create node for calculating initial quote."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -249,7 +259,7 @@ def create_quote_results_node(
 ) -> NodeConfig:
     """Create node for showing quote and adjustment options."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -296,7 +306,7 @@ def create_quote_results_node(
 def create_end_node() -> NodeConfig:
     """Create the final node."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -383,19 +393,7 @@ async def main():
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
-        # Create initial context
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a friendly insurance agent. Your responses will be "
-                    "converted to audio, so avoid special characters. Always use "
-                    "the available functions to progress the conversation naturally."
-                ),
-            }
-        ]
-
-        context = OpenAILLMContext(messages, [])
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         # Create pipeline
@@ -422,7 +420,7 @@ async def main():
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             logger.debug("Initializing flow")
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             logger.debug("Setting initial node")
             await flow_manager.set_node("initial", create_initial_node())
             logger.debug("Queueing initial context")

@@ -153,7 +153,22 @@ async def end_quote() -> FlowResult:
 def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
     return {
-        "messages": [
+        "role_messages": [
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "You are a friendly insurance agent. Your responses will be "
+                            "converted to audio, so avoid special characters. Always use "
+                            "the available functions to progress the conversation naturally."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "task_messages": [
             {
                 "role": "user",
                 "content": [
@@ -186,7 +201,7 @@ def create_initial_node() -> NodeConfig:
 def create_marital_status_node() -> NodeConfig:
     """Create node for collecting marital status."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "user",
                 "content": [
@@ -217,7 +232,7 @@ def create_marital_status_node() -> NodeConfig:
 def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
     """Create node for calculating initial quote."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "user",
                 "content": [
@@ -255,7 +270,7 @@ def create_quote_results_node(
 ) -> NodeConfig:
     """Create node for showing quote and adjustment options."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "user",
                 "content": [
@@ -301,7 +316,7 @@ def create_quote_results_node(
 def create_end_node() -> NodeConfig:
     """Create the final node."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "user",
                 "content": [
@@ -385,24 +400,7 @@ async def main():
             api_key=os.getenv("ANTHROPIC_API_KEY"), model="claude-3-5-sonnet-latest"
         )
 
-        # Create initial context
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "You are a friendly insurance agent. Your responses will be "
-                            "converted to audio, so avoid special characters. Always use "
-                            "the available functions to progress the conversation naturally."
-                        ),
-                    }
-                ],
-            }
-        ]
-
-        context = OpenAILLMContext(messages, [])
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         # Create pipeline
@@ -429,7 +427,7 @@ async def main():
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             # Initialize flow
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             # Set initial node
             await flow_manager.set_node("initial", create_initial_node())
             await task.queue_frames([context_aggregator.user().get_context_frame()])

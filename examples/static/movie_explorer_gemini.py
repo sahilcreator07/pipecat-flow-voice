@@ -298,15 +298,15 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
 # Flow configuration
 flow_config: FlowConfig = {
     "initial_node": "greeting",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
-        }
-    ],
     "nodes": {
         "greeting": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
@@ -334,7 +334,7 @@ flow_config: FlowConfig = {
             ],
         },
         "explore_movie": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": """Help the user learn more about movies. You can:
@@ -397,7 +397,7 @@ After showing details or recommendations, ask if they'd like to explore another 
             ],
         },
         "end": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Thank the user warmly and mention they can return anytime to discover more movies.",

@@ -97,13 +97,11 @@ class FlowManager:
         if flow_config:
             self.nodes = flow_config["nodes"]
             self.initial_node = flow_config["initial_node"]
-            self.initial_system_message = flow_config.get("initial_system_message", [])
             self.transition_callback = self._handle_static_transition
             logger.debug("Initialized in static mode")
         else:
             self.nodes = {}
             self.initial_node = None
-            self.initial_system_message = None
             self.transition_callback = transition_callback
             logger.debug("Initialized in dynamic mode")
 
@@ -111,42 +109,13 @@ class FlowManager:
         self.current_functions: Set[str] = set()  # Track registered functions
         self.current_node: Optional[str] = None
 
-    async def initialize(self, initial_messages: Optional[List[dict]] = None) -> None:
-        """Initialize the flow.
-
-        For static flows, sets the initial system message from config.
-        For dynamic flows, uses provided initial_messages.
-
-        Args:
-            initial_messages: Optional initial system messages for dynamic flows.
-                            Ignored for static flows.
-
-        Raises:
-            FlowInitializationError: If initialization fails or if initial_messages
-                                   is missing for dynamic flows.
-        """
+    async def initialize(self) -> None:
+        """Initialize the flow manager."""
         if self.initialized:
             logger.warning(f"{self.__class__.__name__} already initialized")
             return
 
         try:
-            if self.nodes:  # Static flow
-                if initial_messages:
-                    logger.warning("Initial messages ignored for static flow configuration")
-
-                # Set initial system message if present
-                if self.initial_system_message:
-                    await self.task.queue_frame(
-                        LLMMessagesUpdateFrame(messages=self.initial_system_message)
-                    )
-
-            else:  # Dynamic flow
-                if not initial_messages:
-                    raise FlowInitializationError("Initial messages required for dynamic flow")
-
-                # Initialize context with provided messages
-                await self.task.queue_frame(LLMMessagesUpdateFrame(messages=initial_messages))
-
             self.initialized = True
             logger.debug(f"Initialized {self.__class__.__name__}")
 
@@ -375,9 +344,17 @@ class FlowManager:
             self._validate_node_config(node_id, node_config)
             logger.debug(f"Setting node: {node_id}")
 
+            # Execute pre-actions if any
             if pre_actions := node_config.get("pre_actions"):
                 await self._execute_actions(pre_actions=pre_actions)
 
+            # Combine role and task messages
+            messages = []
+            if role_messages := node_config.get("role_messages"):
+                messages.extend(role_messages)
+            messages.extend(node_config["task_messages"])
+
+            # Register functions and prepare tools
             tools = []
             new_functions: Set[str] = set()
 
@@ -414,7 +391,7 @@ class FlowManager:
             formatted_tools = self.adapter.format_functions(tools)
 
             # Update LLM context
-            await self._update_llm_context(node_config["messages"], formatted_tools)
+            await self._update_llm_context(messages, formatted_tools)
             logger.debug("Updated LLM context")
 
             # Execute post-actions if any
@@ -437,11 +414,21 @@ class FlowManager:
         Args:
             messages: New messages to add to context
             functions: New functions to make available
+
+        Raises:
+            FlowError: If context update fails
         """
         try:
-            await self.task.queue_frames(
-                [LLMMessagesAppendFrame(messages=messages), LLMSetToolsFrame(tools=functions)]
+            # Determine frame type based on whether this is the first node
+            frame_type = (
+                LLMMessagesUpdateFrame if self.current_node is None else LLMMessagesAppendFrame
             )
+
+            await self.task.queue_frames(
+                [frame_type(messages=messages), LLMSetToolsFrame(tools=functions)]
+            )
+
+            logger.debug(f"Updated LLM context using {frame_type.__name__}")
         except Exception as e:
             logger.error(f"Failed to update LLM context: {str(e)}")
             raise FlowError(f"Context update failed: {str(e)}") from e
@@ -464,7 +451,7 @@ class FlowManager:
         """Validate the configuration of a conversation node.
 
         This method ensures that:
-        1. Required fields (messages, functions) are present
+        1. Required fields (task_messages, functions) are present
         2. Functions have valid configurations based on their type:
         - Node functions must have either a handler or transition_to
         - Edge functions (matching node names) are allowed without handlers
@@ -478,8 +465,8 @@ class FlowManager:
             ValueError: If configuration is invalid
         """
         # Check required fields
-        if "messages" not in config:
-            raise ValueError(f"Node '{node_id}' missing required 'messages' field")
+        if "task_messages" not in config:
+            raise ValueError(f"Node '{node_id}' missing required 'task_messages' field")
         if "functions" not in config:
             raise ValueError(f"Node '{node_id}' missing required 'functions' field")
 
