@@ -165,15 +165,15 @@ async def record_visit_reasons(args: FlowArgs) -> VisitReasonRecordResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are Jessica, an agent for Tri-County Health Services. You must ALWAYS use one of the available functions to progress the conversation. Be professional but friendly.",
-        }
-    ],
     "nodes": {
         "start": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are Jessica, an agent for Tri-County Health Services. You must ALWAYS use one of the available functions to progress the conversation. Be professional but friendly.",
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If verified (1983-01-01), proceed to prescriptions.",
@@ -202,7 +202,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_prescriptions": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
@@ -244,7 +244,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_allergies": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Collect allergy information. Ask about any allergies they have. After recording allergies (or confirming none), proceed to medical conditions.",
@@ -282,7 +282,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_conditions": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Collect medical condition information. Ask about any medical conditions they have. After recording conditions (or confirming none), proceed to visit reasons.",
@@ -320,7 +320,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_visit_reasons": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Collect information about the reason for their visit. Ask what brings them to the doctor today. After recording their reasons, proceed to verification.",
@@ -358,7 +358,7 @@ flow_config: FlowConfig = {
             ],
         },
         "verify": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": """Review all collected information with the patient. Follow these steps:
@@ -391,7 +391,7 @@ Be thorough in reviewing all details and wait for explicit confirmation.""",
             ],
         },
         "confirm": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Once confirmed, thank them, then use the complete_intake function to end the conversation.",
@@ -410,7 +410,7 @@ Be thorough in reviewing all details and wait for explicit confirmation.""",
             ],
         },
         "end": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Thank them for their time and end the conversation.",

@@ -93,15 +93,15 @@ async def record_time(args: FlowArgs) -> FlowResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are a restaurant reservation assistant for La Maison, an upscale French restaurant. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversations and your responses will be converted to audio. Avoid outputting special characters and emojis. Be causal and friendly.",
-        }
-    ],
     "nodes": {
         "start": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a restaurant reservation assistant for La Maison, an upscale French restaurant. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversations and your responses will be converted to audio. Avoid outputting special characters and emojis. Be causal and friendly.",
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Warmly greet the customer and ask how many people are in their party.",
@@ -127,7 +127,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_time": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM. After they provide a time, confirm it's within operating hours before recording. Use 24-hour format for internal recording (e.g., 17:00 for 5 PM).",
@@ -157,7 +157,7 @@ flow_config: FlowConfig = {
             ],
         },
         "confirm": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Confirm the reservation details and end the conversation.",
@@ -176,7 +176,7 @@ flow_config: FlowConfig = {
             ],
         },
         "end": {
-            "messages": [{"role": "system", "content": "Thank them and end the conversation."}],
+            "task_messages": [{"role": "system", "content": "Thank them and end the conversation."}],
             "functions": [],
             "post_actions": [{"type": "end_conversation"}],
         },
