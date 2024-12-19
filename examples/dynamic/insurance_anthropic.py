@@ -342,38 +342,47 @@ def create_end_node() -> NodeConfig:
     }
 
 
-# Transition callback
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], 
+            flow_manager.state["marital_status"]
+        ),
+    )
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
+    updated_quote = await update_coverage(args)
+    flow_manager.state["quote"] = updated_quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+HANDLERS = {
+    "collect_age": handle_age_collection,
+    "collect_marital_status": handle_marital_status_collection,
+    "calculate_quote": handle_quote_calculation,
+    "update_coverage": handle_coverage_update,
+    "end_quote": handle_end_quote,
+}
+
 async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
     """Handle transitions between insurance flow states."""
-    logger.debug(f"Handling transition for function: {function_name} with args: {args}")
+    logger.debug(f"Processing {function_name} transition with args: {args}")
+    await HANDLERS[function_name](args, flow_manager)
 
-    if function_name == "collect_age":
-        flow_manager.state["age"] = args["age"]
-        await flow_manager.set_node("marital_status", create_marital_status_node())
-
-    elif function_name == "collect_marital_status":
-        flow_manager.state["marital_status"] = args["marital_status"]
-        await flow_manager.set_node(
-            "quote_calculation",
-            create_quote_calculation_node(
-                flow_manager.state["age"], flow_manager.state["marital_status"]
-            ),
-        )
-
-    elif function_name == "calculate_quote":
-        # Calculate the quote using the handler
-        quote = await calculate_quote(args)
-        flow_manager.state["quote"] = quote
-        await flow_manager.set_node("quote_results", create_quote_results_node(quote))
-
-    elif function_name == "update_coverage":
-        # Calculate updated quote using the handler
-        updated_quote = await update_coverage(args)
-        flow_manager.state["quote"] = updated_quote
-        await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
-
-    elif function_name == "end_quote":
-        await flow_manager.set_node("end", create_end_node())
 
 
 async def main():
