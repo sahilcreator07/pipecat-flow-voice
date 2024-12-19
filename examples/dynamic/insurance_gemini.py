@@ -172,17 +172,18 @@ def create_initial_node() -> NodeConfig:
         ],
         "functions": [
             {
-                "type": "function",
-                "function": {
-                    "name": "collect_age",
-                    "handler": collect_age,
-                    "description": "Record customer's age",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"age": {"type": "integer"}},
-                        "required": ["age"],
-                    },
-                },
+                "function_declarations": [
+                    {
+                        "name": "collect_age",
+                        "handler": collect_age,
+                        "description": "Record customer's age",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"age": {"type": "integer"}},
+                            "required": ["age"],
+                        },
+                    }
+                ]
             }
         ],
     }
