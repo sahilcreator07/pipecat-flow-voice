@@ -38,7 +38,7 @@ pip install "pipecat-ai[daily,google,deepgram,cartesia]"     # For Google
 
 ## Quick Start
 
-Here's a basic example of setting up a conversation flow:
+Here's a basic example of setting up a static conversation flow:
 
 ```python
 from pipecat_flows import FlowManager
@@ -46,18 +46,10 @@ from pipecat_flows import FlowManager
 # Initialize flow manager with static configuration
 flow_manager = FlowManager(task, llm, tts, flow_config=flow_config)
 
-# Or with dynamic flow handling
-flow_manager = FlowManager(
-    task,
-    llm,
-    tts,
-    transition_callback=handle_transitions
-)
-
 @transport.event_handler("on_first_participant_joined")
 async def on_first_participant_joined(transport, participant):
     await transport.capture_participant_transcription(participant["id"])
-    await flow_manager.initialize(messages)
+    await flow_manager.initialize()
     await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
@@ -71,16 +63,31 @@ Each conversation flow consists of nodes that define the conversation structure.
 
 #### Messages
 
-Messages set the context for the LLM at each state:
+Nodes use two types of messages to control the conversation:
+
+1. **Role Messages**: Define the bot's personality or role (optional)
 
 ```python
-"messages": [
+"role_messages": [
     {
         "role": "system",
-        "content": "You are handling pizza orders. Ask for size selection."
+        "content": "You are a friendly pizza ordering assistant. Keep responses casual and upbeat."
     }
 ]
 ```
+
+2. **Task Messages**: Define what the bot should do in the current node
+
+```python
+"task_messages": [
+    {
+        "role": "system",
+        "content": "Ask the customer which pizza size they'd like: small, medium, or large."
+    }
+]
+```
+
+Role messages are typically defined in your initial node and inherited by subsequent nodes, while task messages are specific to each node's purpose.
 
 #### Functions
 
@@ -101,7 +108,6 @@ Functions come in two types:
                 "size": {"type": "string", "enum": ["small", "medium", "large"]}
             }
         },
-        "transition_to": "next_node"  # Optional: Specify next node
     }
 }
 ```
@@ -113,6 +119,7 @@ Functions come in two types:
     "type": "function",
     "function": {
         "name": "next_step",
+        "handler": select_size_handler, # Optional handler
         "description": "Move to next state",
         "parameters": {"type": "object", "properties": {}},
         "transition_to": "target_node"  # Required: Specify target node
@@ -129,7 +136,10 @@ Functions can:
 
 #### Actions
 
-Actions execute during state transitions:
+There are two types of actions available:
+
+- `pre_actions`: Run before the LLM inference. For long function calls, you can use a pre_action for the TTS to say something, like "Hold on a moment..."
+- `post_actions`: Run after the LLM inference. This is handy for actions like ending or transferring a call.
 
 ```python
 "pre_actions": [
@@ -137,8 +147,15 @@ Actions execute during state transitions:
         "type": "tts_say",
         "text": "Processing your order..."
     }
+],
+"post_actions": [
+    {
+        "type": "end_conversation"
+    }
 ]
 ```
+
+Learn more about built-in actions and defining your own action in the docs.
 
 #### Provider-Specific Formats
 
@@ -189,15 +206,15 @@ The FlowManager handles both static and dynamic flows through a unified interfac
 # Define flow configuration upfront
 flow_config = {
     "initial_node": "greeting",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant. Your responses will be converted to audio."
-        }
-    ],
     "nodes": {
         "greeting": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant. Your responses will be converted to audio."
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Start by greeting the user and asking for their name."
@@ -225,16 +242,49 @@ await flow_manager.initialize()
 #### Dynamic Flows
 
 ```python
-# Define transition handling
-async def handle_transitions(function_name: str, args: Dict, flow_manager):
-    if function_name == "collect_age":
-        await flow_manager.set_node("next_step", create_next_node())
-
-system_message = "You are an assistant."
+def create_initial_node() -> NodeConfig:
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            }
+        ],
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Ask the user for their age."
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_age",
+                    "handler": collect_age,
+                    "description": "Record user's age",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "age": {"type": "integer"}
+                        },
+                        "required": ["age"]
+                    }
+                }
+            }
+        ]
+    }
 
 # Initialize with transition callback
 flow_manager = FlowManager(task, llm, tts, transition_callback=handle_transitions)
-await flow_manager.initialize(system_message)
+await flow_manager.initialize()
+
+@transport.event_handler("on_first_participant_joined")
+async def on_first_participant_joined(transport, participant):
+    await transport.capture_participant_transcription(participant["id"])
+    await flow_manager.initialize()
+    await flow_manager.set_node("initial", create_initial_node())
+    await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
 ## Examples
