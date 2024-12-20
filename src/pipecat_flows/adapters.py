@@ -22,9 +22,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 from loguru import logger
-from pipecat.services.anthropic import AnthropicLLMService
-from pipecat.services.google import GoogleLLMService
-from pipecat.services.openai import OpenAILLMService
 
 
 class LLMAdapter(ABC):
@@ -266,6 +263,9 @@ class GeminiAdapter(LLMAdapter):
 def create_adapter(llm) -> LLMAdapter:
     """Create appropriate adapter based on LLM service type.
 
+    Uses lazy imports to avoid requiring all provider dependencies at runtime.
+    Only the dependency for the chosen provider needs to be installed.
+
     Args:
         llm: LLM service instance
 
@@ -273,18 +273,44 @@ def create_adapter(llm) -> LLMAdapter:
         LLMAdapter: Provider-specific adapter
 
     Raises:
-        ValueError: If LLM type is not supported
+        ValueError: If LLM type is not supported or required dependency not installed
     """
-    if isinstance(llm, OpenAILLMService):
-        return OpenAIAdapter()
-    elif isinstance(llm, AnthropicLLMService):
-        return AnthropicAdapter()
-    elif isinstance(llm, GoogleLLMService):
-        return GeminiAdapter()
-    raise ValueError(
-        f"Unsupported LLM type: {type(llm)}\n"
-        "Must provide one of:\n"
-        "- OpenAILLMService\n"
-        "- AnthropicLLMService\n"
-        "- GoogleLLMService"
-    )
+    # Try OpenAI
+    try:
+        from pipecat.services.openai import OpenAILLMService
+
+        if isinstance(llm, OpenAILLMService):
+            logger.debug("Creating OpenAI adapter")
+            return OpenAIAdapter()
+    except ImportError:
+        pass
+
+    # Try Anthropic
+    try:
+        from pipecat.services.anthropic import AnthropicLLMService
+
+        if isinstance(llm, AnthropicLLMService):
+            logger.debug("Creating Anthropic adapter")
+            return AnthropicAdapter()
+    except ImportError:
+        pass
+
+    # Try Google
+    try:
+        from pipecat.services.google import GoogleLLMService
+
+        if isinstance(llm, GoogleLLMService):
+            logger.debug("Creating Google adapter")
+            return GeminiAdapter()
+    except ImportError:
+        pass
+
+    # If we get here, either the LLM type is not supported or the required dependency is not installed
+    llm_type = type(llm).__name__
+    error_msg = f"Unsupported LLM type or missing dependency: {llm_type}\n"
+    error_msg += "Make sure you have installed the required dependency:\n"
+    error_msg += "- For OpenAI: pip install 'pipecat-ai[openai]'\n"
+    error_msg += "- For Anthropic: pip install 'pipecat-ai[anthropic]'\n"
+    error_msg += "- For Google: pip install 'pipecat-ai[google]'"
+
+    raise ValueError(error_msg)
