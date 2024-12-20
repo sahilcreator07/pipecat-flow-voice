@@ -16,11 +16,23 @@ export class PipecatEndNode extends PipecatBaseNode {
    * Creates a new end node
    */
   constructor() {
-    super("End Node", "#e74c3c", "Enter final message...");
+    super("End Node", "#e74c3c");
     this.addInput("In", "flow", {
       multipleConnections: true,
       linkType: LiteGraph.MULTIPLE_LINK,
     });
+
+    // Initialize with only task messages for the end node
+    this.properties = {
+      task_messages: [
+        {
+          role: "system",
+          content: "Enter final task message...",
+        },
+      ],
+      pre_actions: [],
+      post_actions: [],
+    };
   }
 
   /**

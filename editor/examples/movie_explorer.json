@@ -2,10 +2,16 @@
   "initial_node": "greeting",
   "nodes": {
     "greeting": {
-      "messages": [
+      "role_messages": [
         {
           "role": "system",
-          "content": "You are a helpful movie expert. Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies."
+          "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally."
+        }
+      ],
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies."
         }
       ],
       "functions": [
@@ -38,7 +44,7 @@
       ]
     },
     "explore_movie": {
-      "messages": [
+      "task_messages": [
         {
           "role": "system",
           "content": "Help the user learn more about movies. You can:\n\n- Use get_movie_details when they express interest in a specific movie\n\n- Use get_similar_movies to show recommendations\n\n- Use get_current_movies to see what's playing now\n\n- Use get_upcoming_movies to see what's coming soon\n\n- Use end_conversation when they're done exploring\n\nAfter showing details or recommendations, ask if they'd like to explore another movie or end the conversation."
@@ -120,7 +126,7 @@
       ]
     },
     "end": {
-      "messages": [
+      "task_messages": [
         {
           "role": "system",
           "content": "Thank the user warmly and mention they can return anytime to discover more movies."

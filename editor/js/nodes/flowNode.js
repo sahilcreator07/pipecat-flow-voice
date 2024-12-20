@@ -15,8 +15,20 @@ export class PipecatFlowNode extends PipecatBaseNode {
    * Creates a new flow node
    */
   constructor() {
-    super("Flow Node", "#3498db", "Enter message content...");
+    super("Flow Node", "#3498db");
     this.addInput("In", "flow");
     this.addOutput("Out", "flow");
+
+    // Initialize with only task messages since role is inherited
+    this.properties = {
+      task_messages: [
+        {
+          role: "system",
+          content: "Enter task message...",
+        },
+      ],
+      pre_actions: [],
+      post_actions: [],
+    };
   }
 }
