@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nodes now have two message types to better delineate defining the role or
   persona of the bot from the task it needs to accomplish. The message types are:
 
-  - `role_message`, which defines the personality or role of the bot
-  - `task_message`, which defines the task to be completed for a given node
+  - `role_messages`, which defines the personality or role of the bot
+  - `task_messages`, which defines the task to be completed for a given node
 
 - `role_messages` can be defined for the initial node and then inherited by
   subsequent nodes. You can treat this as an LLM "system" message.
