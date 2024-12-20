@@ -282,8 +282,8 @@ def create_adapter(llm) -> LLMAdapter:
         if isinstance(llm, OpenAILLMService):
             logger.debug("Creating OpenAI adapter")
             return OpenAIAdapter()
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"OpenAI import failed: {e}")
 
     # Try Anthropic
     try:
@@ -292,8 +292,8 @@ def create_adapter(llm) -> LLMAdapter:
         if isinstance(llm, AnthropicLLMService):
             logger.debug("Creating Anthropic adapter")
             return AnthropicAdapter()
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"Anthropic import failed: {e}")
 
     # Try Google
     try:
@@ -302,8 +302,8 @@ def create_adapter(llm) -> LLMAdapter:
         if isinstance(llm, GoogleLLMService):
             logger.debug("Creating Google adapter")
             return GeminiAdapter()
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"Google import failed: {e}")
 
     # If we get here, either the LLM type is not supported or the required dependency is not installed
     llm_type = type(llm).__name__
