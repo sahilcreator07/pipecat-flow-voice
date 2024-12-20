@@ -49,13 +49,24 @@ SPDX-License-Identifier: BSD 2-Clause License
           <div class="editor-content hidden space-y-4">
             <!-- Message Editor Section -->
             <div class="message-editor">
-              <!-- Message Input -->
-              <div class="form-control">
+              <!-- Role Messages Input (hidden by default) -->
+              <div id="role-messages-container" class="form-control w-full" style="display: none;">
                 <label class="label">
-                  <span class="label-text">Message</span>
+                  <span class="label-text">Role Messages</span>
+                  <span class="label-text-alt text-base-content/60">Define bot's personality</span>
                 </label>
-                <textarea id="message-editor"
-                  class="textarea textarea-bordered font-mono text-xs h-[calc(50vh-200px)]"></textarea>
+                <textarea id="role-messages-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(25vh-100px)] w-full"></textarea>
+              </div>
+
+              <!-- Task Messages Input -->
+              <div class="form-control mt-4">
+                <label class="label">
+                  <span class="label-text">Task Messages</span>
+                  <span class="label-text-alt text-base-content/60">Define node's task</span>
+                </label>
+                <textarea id="task-messages-editor"
+                  class="textarea textarea-bordered font-mono text-xs h-[calc(25vh-100px)]"></textarea>
               </div>
 
               <!-- Pre-actions Input -->

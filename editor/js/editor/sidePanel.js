@@ -196,13 +196,9 @@ export class SidePanel {
     this.saveButton.textContent = "Save changes";
     saveContainer.appendChild(this.saveButton);
 
-    // Add save button after the editors
+    // Add save button after each editor
     this.elements.messageEditor.appendChild(saveContainer.cloneNode(true));
     this.elements.functionEditor.appendChild(saveContainer);
-
-    // Add styles
-    const style = document.createElement("style");
-    document.head.appendChild(style);
 
     this.setupEventListeners();
   }
@@ -246,18 +242,34 @@ export class SidePanel {
       }
     });
 
-    // Message editor
-    const messageEditor = new JsonEditor(
-      document.getElementById("message-editor"),
+    // Role messages editor
+    const roleMessagesEditor = new JsonEditor(
+      document.getElementById("role-messages-editor"),
       (validJson) => {
         if (this.selectedNode) {
-          this.selectedNode.properties.messages = validJson;
+          this.selectedNode.properties.role_messages = validJson;
           this.selectedNode.setDirtyCanvas(true);
           this.graph.change();
         }
       },
       (error) => {
-        console.error("Invalid messages JSON:", error);
+        console.error("Invalid role messages JSON:", error);
+      },
+      (json) => Array.isArray(json), // Validator for messages
+    );
+
+    // Task messages editor
+    const taskMessagesEditor = new JsonEditor(
+      document.getElementById("task-messages-editor"),
+      (validJson) => {
+        if (this.selectedNode) {
+          this.selectedNode.properties.task_messages = validJson;
+          this.selectedNode.setDirtyCanvas(true);
+          this.graph.change();
+        }
+      },
+      (error) => {
+        console.error("Invalid task messages JSON:", error);
       },
       (json) => Array.isArray(json), // Validator for messages
     );
@@ -335,7 +347,8 @@ export class SidePanel {
 
     // Store editor instances for use in updatePanel
     this.editors = {
-      message: messageEditor,
+      roleMessages: roleMessagesEditor,
+      taskMessages: taskMessagesEditor,
       preActions: preActionsEditor,
       postActions: postActionsEditor,
       function: functionEditor,
@@ -437,11 +450,22 @@ export class SidePanel {
         function: node.properties.function,
       };
       this.editors.function.setValue(functionData);
-    } else if (node.properties.messages) {
+    } else {
       this.elements.messageEditor.style.display = "block";
       this.elements.functionEditor.style.display = "none";
 
-      this.editors.message.setValue(node.properties.messages);
+      // Show/hide role messages editor based on node type
+      const roleMessagesContainer = document.getElementById(
+        "role-messages-container",
+      );
+      if (node.constructor.name === "PipecatStartNode") {
+        roleMessagesContainer.style.display = "block";
+        this.editors.roleMessages.setValue(node.properties.role_messages || []);
+      } else {
+        roleMessagesContainer.style.display = "none";
+      }
+
+      this.editors.taskMessages.setValue(node.properties.task_messages || []);
       this.editors.preActions.setValue(node.properties.pre_actions || []);
       this.editors.postActions.setValue(node.properties.post_actions || []);
     }

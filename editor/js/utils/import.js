@@ -59,10 +59,14 @@ export function createFlowFromConfig(graph, flowConfig) {
 
     // Set node properties
     node.properties = {
-      messages: nodeConfig.messages,
+      task_messages: nodeConfig.task_messages,
       pre_actions: nodeConfig.pre_actions || [],
       post_actions: nodeConfig.post_actions || [],
     };
+
+    if (nodeConfig.role_messages?.length > 0) {
+      node.properties.role_messages = nodeConfig.role_messages;
+    }
 
     graph.add(node);
     nodes[nodeId] = { node, config: nodeConfig };

@@ -49,7 +49,7 @@ Example:
 class NodeConfigRequired(TypedDict):
     """Required fields for node configuration."""
 
-    messages: List[dict]
+    task_messages: List[dict]
     functions: List[dict]
 
 
@@ -57,47 +57,39 @@ class NodeConfig(NodeConfigRequired, total=False):
     """Configuration for a single node in the flow.
 
     Required fields:
-        messages: List of message dicts in provider-specific format
+        task_messages: List of message dicts defining the current node's objectives
         functions: List of function definitions in provider-specific format
 
     Optional fields:
+        role_messages: List of message dicts defining the bot's role/personality
         pre_actions: Actions to execute before LLM inference
         post_actions: Actions to execute after LLM inference
 
     Example:
         {
-            "messages": [
+            "role_messages": [
                 {
                     "role": "system",
-                    "content": "You are handling orders..."
+                    "content": "You are a helpful assistant..."
                 }
             ],
-            "functions": [
+            "task_messages": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "process_order",
-                        "description": "Process the order",
-                        "parameters": {...}
-                    }
+                    "role": "system",
+                    "content": "Ask the user for their name..."
                 }
             ],
-            "pre_actions": [
-                {
-                    "type": "tts_say",
-                    "text": "Processing your order..."
-                }
-            ],
-            "post_actions": [
-                {
-                    "type": "update_db",
-                    "user_id": 123,
-                    "data": {"status": "completed"}
-                }
-            ]
+            "functions": [...],
+            "pre_actions": [...],
+            "post_actions": [...]
         }
     """
 
+    role_messages: List[Dict[str, Any]]
+    pre_actions: List[Dict[str, Any]]
+    post_actions: List[Dict[str, Any]]
+
+    role_messages: List[Dict[str, Any]]
     pre_actions: List[Dict[str, Any]]
     post_actions: List[Dict[str, Any]]
 
@@ -114,12 +106,13 @@ class FlowConfig(TypedDict):
             "initial_node": "greeting",
             "nodes": {
                 "greeting": {
-                    "messages": [...],
+                    "role_messages": [...],
+                    "task_messages": [...],
                     "functions": [...],
                     "pre_actions": [...]
                 },
                 "process_order": {
-                    "messages": [...],
+                    "task_messages": [...],
                     "functions": [...],
                     "post_actions": [...]
                 }

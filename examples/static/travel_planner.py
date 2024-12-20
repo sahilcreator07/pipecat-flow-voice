@@ -119,15 +119,15 @@ async def record_activities(args: FlowArgs) -> ActivitiesResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are a travel planning assistant with Summit & Sand Getaways. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
-        }
-    ],
     "nodes": {
         "start": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a travel planning assistant with Summit & Sand Getaways. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "For this step, ask if they're interested in planning a beach vacation or a mountain retreat, and wait for them to choose. Start with an enthusiastic greeting and be conversational; you're helping them plan their dream vacation.",
@@ -155,7 +155,7 @@ flow_config: FlowConfig = {
             ],
         },
         "choose_beach": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "You are handling beach vacation planning. Use the available functions:\n - Use select_destination when the user chooses their preferred beach location\n - After destination is selected, dates will be collected automatically\n\nAvailable beach destinations are: 'Maui', 'Cancun', or 'Maldives'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
@@ -185,7 +185,7 @@ flow_config: FlowConfig = {
             ],
         },
         "choose_mountain": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "You are handling mountain retreat planning. Use the available functions:\n - Use select_destination when the user chooses their preferred mountain location\n - After destination is selected, dates will be collected automatically\n\nAvailable mountain destinations are: 'Swiss Alps', 'Rocky Mountains', or 'Himalayas'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
@@ -215,7 +215,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_dates": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Handle travel date selection. Use the available functions:\n - Use record_dates when the user specifies their travel dates (can be used multiple times if they change their mind)\n - After dates are recorded, activities will be collected automatically\n\nAsk for their preferred travel dates within the next 6 months. After recording dates, confirm the selection.",
@@ -250,7 +250,7 @@ flow_config: FlowConfig = {
             ],
         },
         "get_activities": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Handle activity preferences. Use the available functions:\n - Use record_activities to save their activity preferences\n - After activities are recorded, verification will happen automatically\n\nFor beach destinations, suggest: snorkeling, surfing, sunset cruise\nFor mountain destinations, suggest: hiking, skiing, mountain biking\n\nAfter they choose, confirm their selections.",
@@ -282,7 +282,7 @@ flow_config: FlowConfig = {
             ],
         },
         "verify_itinerary": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Review the complete itinerary with the user. Summarize their destination, dates, and chosen activities. Use revise_plan to make changes or confirm_booking if they're happy. Be thorough in reviewing all details and ask for their confirmation.",
@@ -310,7 +310,7 @@ flow_config: FlowConfig = {
             ],
         },
         "confirm_booking": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "The booking is confirmed. Share some relevant tips about their chosen destination, thank them warmly, and use end to complete the conversation.",
@@ -332,7 +332,7 @@ flow_config: FlowConfig = {
             ],
         },
         "end": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Wish them a wonderful trip and end the conversation.",

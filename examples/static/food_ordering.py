@@ -110,15 +110,15 @@ async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
 
 flow_config: FlowConfig = {
     "initial_node": "start",
-    "initial_system_message": [
-        {
-            "role": "system",
-            "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
-        }
-    ],
     "nodes": {
         "start": {
-            "messages": [
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
+                }
+            ],
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "For this step, ask the user if they want pizza or sushi, and wait for them to use a function to choose. Start off by greeting them. Be friendly and casual; you're taking an order for food over the phone.",
@@ -146,7 +146,7 @@ flow_config: FlowConfig = {
             ],
         },
         "choose_pizza": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": """You are handling a pizza order. Use the available functions:
@@ -198,7 +198,7 @@ After selection, confirm both the size and type, state the price, and ask if the
             ],
         },
         "choose_sushi": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": """You are handling a sushi order. Use the available functions:
@@ -249,7 +249,7 @@ After selection, confirm both the count and type, state the price, and ask if th
             ],
         },
         "confirm": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": """Read back the complete order details to the user and ask for final confirmation. Use the available functions:
@@ -272,7 +272,7 @@ Be friendly and clear when reading back the order details.""",
             ],
         },
         "end": {
-            "messages": [
+            "task_messages": [
                 {
                     "role": "system",
                     "content": "Concisely end the conversation—1-3 words is appropriate. Just say 'Bye' or something similarly short.",

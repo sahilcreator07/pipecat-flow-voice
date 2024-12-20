@@ -23,7 +23,8 @@ import { formatActions } from "../utils/helpers.js";
 
 /**
  * @typedef {Object} NodeProperties
- * @property {Array<Message>} messages - System messages for the node
+ * @property {Array<Message>} [role_messages] - Messages defining bot's role/personality
+ * @property {Array<Message>} [task_messages] - Messages defining the node's task
  * @property {Array<Action>} [pre_actions] - Actions to execute before node processing
  * @property {Array<Action>} [post_actions] - Actions to execute after node processing
  */
@@ -47,10 +48,10 @@ export class PipecatBaseNode extends LGraphNode {
 
     /** @type {NodeProperties} */
     this.properties = {
-      messages: [
+      task_messages: [
         {
           role: "system",
-          content: defaultContent || "Enter message...",
+          content: defaultContent || "Enter task message...",
         },
       ],
       pre_actions: [],
@@ -117,20 +118,24 @@ export class PipecatBaseNode extends LGraphNode {
       return y + 25;
     };
 
-    // Draw each message
-    if (this.properties.messages) {
-      this.properties.messages.forEach((message) => {
-        currentY = drawWrappedText(
-          message.content,
-          currentY,
-          `Role: ${message.role.charAt(0).toUpperCase() + message.role.slice(1)}`,
-        );
-        currentY += 10; // Add spacing between messages
+    // Draw role messages if present
+    if (this.properties.role_messages?.length > 0) {
+      this.properties.role_messages.forEach((message) => {
+        currentY = drawWrappedText(message.content, currentY, "Role Message");
+        currentY += 10;
+      });
+    }
+
+    // Draw task messages
+    if (this.properties.task_messages) {
+      this.properties.task_messages.forEach((message) => {
+        currentY = drawWrappedText(message.content, currentY, "Task Message");
+        currentY += 10;
       });
     }
 
     // Draw pre-actions
-    if (this.properties.pre_actions && this.properties.pre_actions.length > 0) {
+    if (this.properties.pre_actions?.length > 0) {
       currentY = drawWrappedText(
         formatActions(this.properties.pre_actions),
         currentY + 15,
@@ -139,10 +144,7 @@ export class PipecatBaseNode extends LGraphNode {
     }
 
     // Draw post-actions
-    if (
-      this.properties.post_actions &&
-      this.properties.post_actions.length > 0
-    ) {
+    if (this.properties.post_actions?.length > 0) {
       currentY = drawWrappedText(
         formatActions(this.properties.post_actions),
         currentY + 15,
@@ -172,7 +174,8 @@ export class PipecatBaseNode extends LGraphNode {
   serialize() {
     const data = super.serialize();
     data.properties = {
-      messages: this.properties.messages,
+      role_messages: this.properties.role_messages,
+      task_messages: this.properties.task_messages,
       pre_actions: this.properties.pre_actions,
       post_actions: this.properties.post_actions,
     };
@@ -187,8 +190,9 @@ export class PipecatBaseNode extends LGraphNode {
     super.configure(data);
     if (data.properties) {
       this.properties = {
-        messages: data.properties.messages || [
-          { role: "system", content: "Enter message..." },
+        role_messages: data.properties.role_messages || [],
+        task_messages: data.properties.task_messages || [
+          { role: "system", content: "Enter task message..." },
         ],
         pre_actions: data.properties.pre_actions || [],
         post_actions: data.properties.post_actions || [],

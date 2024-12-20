@@ -7,16 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- New `initial_system_message` field in `FlowConfig`, which allows setting a
-  global system message for static flows.
-
 ### Changed
 
+- Nodes now have two message types to better delineate defining the role or
+  persona of the bot from the task it needs to accomplish. The message types are:
+
+  - `role_messages`, which defines the personality or role of the bot
+  - `task_messages`, which defines the task to be completed for a given node
+
+- `role_messages` can be defined for the initial node and then inherited by
+  subsequent nodes. You can treat this as an LLM "system" message.
+
 - Simplified FlowManager initialization by removing the need for manual context
-  setup in static flows.
-- Updated static examples to use the updated API.
+  setup in both static and dynamic flows. Now, you need to create a `FlowManager`
+  and initialize it to start the flow.
+- All examples have been updated to align with the API changes.
 
 ## [0.0.9] - 2024-12-08
 

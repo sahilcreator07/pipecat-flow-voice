@@ -159,18 +159,27 @@ export function generateFlowConfig(graphInstance) {
       return;
     }
 
-    // Use node.title directly as the node ID
-    flowConfig.nodes[node.title] = {
-      messages: node.properties.messages,
+    // Create node configuration with new message structure
+    const nodeConfig = {
+      task_messages: node.properties.task_messages,
       functions: findConnectedFunctions(node),
     };
 
+    // Add role_messages if present
+    if (node.properties.role_messages?.length > 0) {
+      nodeConfig.role_messages = node.properties.role_messages;
+    }
+
+    // Add actions if present
     if (node.properties.pre_actions?.length > 0) {
-      flowConfig.nodes[node.title].pre_actions = node.properties.pre_actions;
+      nodeConfig.pre_actions = node.properties.pre_actions;
     }
     if (node.properties.post_actions?.length > 0) {
-      flowConfig.nodes[node.title].post_actions = node.properties.post_actions;
+      nodeConfig.post_actions = node.properties.post_actions;
     }
+
+    // Use node.title as the node ID
+    flowConfig.nodes[node.title] = nodeConfig;
   });
 
   return flowConfig;

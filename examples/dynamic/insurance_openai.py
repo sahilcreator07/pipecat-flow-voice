@@ -153,7 +153,17 @@ async def end_quote() -> FlowResult:
 def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
     return {
-        "messages": [
+        "role_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a friendly insurance agent. Your responses will be "
+                    "converted to audio, so avoid special characters. Always use "
+                    "the available functions to progress the conversation naturally."
+                ),
+            }
+        ],
+        "task_messages": [
             {
                 "role": "system",
                 "content": "Start by asking for the customer's age.",
@@ -180,7 +190,7 @@ def create_initial_node() -> NodeConfig:
 def create_marital_status_node() -> NodeConfig:
     """Create node for collecting marital status."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": "Ask about the customer's marital status for premium calculation.",
@@ -203,14 +213,13 @@ def create_marital_status_node() -> NodeConfig:
                 },
             }
         ],
-        "pre_actions": [{"type": "tts_say", "text": "Now, I'll need to know your marital status."}],
     }
 
 
 def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
     """Create node for calculating initial quote."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -249,7 +258,7 @@ def create_quote_results_node(
 ) -> NodeConfig:
     """Create node for showing quote and adjustment options."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -296,7 +305,7 @@ def create_quote_results_node(
 def create_end_node() -> NodeConfig:
     """Create the final node."""
     return {
-        "messages": [
+        "task_messages": [
             {
                 "role": "system",
                 "content": (
@@ -306,59 +315,50 @@ def create_end_node() -> NodeConfig:
             }
         ],
         "functions": [],
-        "pre_actions": [
-            {"type": "tts_say", "text": "Thank you for getting a quote with us today!"}
-        ],
         "post_actions": [{"type": "end_conversation"}],
     }
 
 
-# Transition callback
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], 
+            flow_manager.state["marital_status"]
+        ),
+    )
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
+    updated_quote = await update_coverage(args)
+    flow_manager.state["quote"] = updated_quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+HANDLERS = {
+    "collect_age": handle_age_collection,
+    "collect_marital_status": handle_marital_status_collection,
+    "calculate_quote": handle_quote_calculation,
+    "update_coverage": handle_coverage_update,
+    "end_quote": handle_end_quote,
+}
+
 async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
     """Handle transitions between insurance flow states."""
-    logger.debug(f"Transition callback executing for function: {function_name} with args: {args}")
-
-    if function_name == "collect_age":
-        logger.debug("Processing collect_age transition")
-        flow_manager.state["age"] = args["age"]
-        await flow_manager.set_node("marital_status", create_marital_status_node())
-        logger.debug("Completed collect_age transition")
-
-    elif function_name == "collect_marital_status":
-        logger.debug("Processing collect_marital_status transition")
-        flow_manager.state["marital_status"] = args["marital_status"]
-        await flow_manager.set_node(
-            "quote_calculation",
-            create_quote_calculation_node(
-                flow_manager.state["age"], flow_manager.state["marital_status"]
-            ),
-        )
-        logger.debug("Completed collect_marital_status transition")
-
-    elif function_name == "calculate_quote":
-        logger.debug("Processing calculate_quote transition")
-        quote = await calculate_quote(args)
-        flow_manager.state["quote"] = quote
-        await flow_manager.set_node(
-            "quote_results",
-            create_quote_results_node(quote),
-        )
-        logger.debug("Completed calculate_quote transition")
-
-    elif function_name == "update_coverage":
-        logger.debug("Processing update_coverage transition")
-        updated_quote = await update_coverage(args)
-        flow_manager.state["quote"] = updated_quote
-        await flow_manager.set_node(
-            "quote_results",
-            create_quote_results_node(updated_quote),
-        )
-        logger.debug("Completed update_coverage transition")
-
-    elif function_name == "end_quote":
-        logger.debug("Processing end_quote transition")
-        await flow_manager.set_node("end", create_end_node())
-        logger.debug("Completed end_quote transition")
+    logger.debug(f"Processing {function_name} transition with args: {args}")
+    await HANDLERS[function_name](args, flow_manager)
 
 
 async def main():
@@ -383,19 +383,7 @@ async def main():
         tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
-        # Create initial context
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a friendly insurance agent. Your responses will be "
-                    "converted to audio, so avoid special characters. Always use "
-                    "the available functions to progress the conversation naturally."
-                ),
-            }
-        ]
-
-        context = OpenAILLMContext(messages, [])
+        context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
         # Create pipeline
@@ -422,7 +410,7 @@ async def main():
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             logger.debug("Initializing flow")
-            await flow_manager.initialize(messages)
+            await flow_manager.initialize()
             logger.debug("Setting initial node")
             await flow_manager.set_node("initial", create_initial_node())
             logger.debug("Queueing initial context")

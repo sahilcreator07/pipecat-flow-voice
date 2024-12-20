@@ -16,7 +16,25 @@ export class PipecatStartNode extends PipecatBaseNode {
    * @param {string} [title="Start"] - Optional custom title for the node
    */
   constructor(title = "Start") {
-    super(title, "#2ecc71", "Enter initial system message...");
+    super(title, "#2ecc71");
     this.addOutput("Out", "flow");
+
+    // Initialize with both role and task messages for the start node
+    this.properties = {
+      role_messages: [
+        {
+          role: "system",
+          content: "Enter bot's personality/role...",
+        },
+      ],
+      task_messages: [
+        {
+          role: "system",
+          content: "Enter initial task...",
+        },
+      ],
+      pre_actions: [],
+      post_actions: [],
+    };
   }
 }

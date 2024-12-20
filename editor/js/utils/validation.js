@@ -45,6 +45,7 @@ export class FlowValidator {
     this._validateNodeReferences();
     this._validateNodeContents();
     this._validateTransitions();
+    this._validateMessageStructure();
 
     return this.errors;
   }
@@ -60,6 +61,15 @@ export class FlowValidator {
       this.errors.push(
         `Initial node '${this.flow.initial_node}' not found in nodes`,
       );
+    }
+
+    // Validate that initial node has role_messages if it's the start node
+    const initialNode = this.flow.nodes[this.flow.initial_node];
+    if (
+      initialNode &&
+      (!initialNode.role_messages || initialNode.role_messages.length === 0)
+    ) {
+      this.errors.push("Initial node must define role_messages");
     }
   }
 
@@ -157,19 +167,12 @@ export class FlowValidator {
    */
   _validateNodeContents() {
     Object.entries(this.flow.nodes).forEach(([nodeId, node]) => {
-      // Validate messages
-      if (!node.messages || node.messages.length === 0) {
-        this.errors.push(`Node '${nodeId}' must have at least one message`);
+      // Validate task_messages (required)
+      if (!node.task_messages || node.task_messages.length === 0) {
+        this.errors.push(
+          `Node '${nodeId}' must have at least one task message`,
+        );
       }
-
-      node.messages?.forEach((msg) => {
-        if (!msg.role) {
-          this.errors.push(`Message in node '${nodeId}' missing 'role'`);
-        }
-        if (!msg.content) {
-          this.errors.push(`Message in node '${nodeId}' missing 'content'`);
-        }
-      });
 
       // Validate functions
       node.functions?.forEach((func) => {
@@ -179,6 +182,59 @@ export class FlowValidator {
           );
         } else if (!func.function.name) {
           this.errors.push(`Function in node '${nodeId}' missing 'name'`);
+        }
+      });
+
+      // Validate actions if present
+      if (node.pre_actions && !Array.isArray(node.pre_actions)) {
+        this.errors.push(`Node '${nodeId}' pre_actions must be an array`);
+      }
+      if (node.post_actions && !Array.isArray(node.post_actions)) {
+        this.errors.push(`Node '${nodeId}' post_actions must be an array`);
+      }
+    });
+  }
+
+  /**
+   * Validates the message structure of all nodes
+   * @private
+   */
+  _validateMessageStructure() {
+    Object.entries(this.flow.nodes).forEach(([nodeId, node]) => {
+      // Validate task_messages (required)
+      if (
+        !node.task_messages ||
+        !Array.isArray(node.task_messages) ||
+        node.task_messages.length === 0
+      ) {
+        this.errors.push(
+          `Node '${nodeId}' must have at least one task message`,
+        );
+      }
+
+      // Validate role_messages if present
+      if (node.role_messages !== undefined) {
+        if (!Array.isArray(node.role_messages)) {
+          this.errors.push(`Node '${nodeId}' role_messages must be an array`);
+        }
+      }
+
+      // Validate message content
+      if (node.role_messages) {
+        node.role_messages.forEach((msg, index) => {
+          if (!msg.role || !msg.content) {
+            this.errors.push(
+              `Role message ${index} in node '${nodeId}' missing required fields (role, content)`,
+            );
+          }
+        });
+      }
+
+      node.task_messages?.forEach((msg, index) => {
+        if (!msg.role || !msg.content) {
+          this.errors.push(
+            `Task message ${index} in node '${nodeId}' missing required fields (role, content)`,
+          );
         }
       });
     });
