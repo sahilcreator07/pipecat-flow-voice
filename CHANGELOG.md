@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and initialize it to start the flow.
 - All examples have been updated to align with the API changes.
 
+### Fixed
+
+- Fixed an issue where importing the Flows module would require OpenAI,
+  Anthropic, and Google LLM modules.
+
 ## [0.0.9] - 2024-12-08
 
 ### Changed

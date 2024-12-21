@@ -26,7 +26,7 @@ The flow manager coordinates all aspects of a conversation, including:
 import copy
 import inspect
 import sys
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Set, Union
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -35,14 +35,20 @@ from pipecat.frames.frames import (
     LLMSetToolsFrame,
 )
 from pipecat.pipeline.task import PipelineTask
-from pipecat.services.anthropic import AnthropicLLMService
-from pipecat.services.google import GoogleLLMService
-from pipecat.services.openai import OpenAILLMService
 
 from .actions import ActionManager
 from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
 from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig
+
+if TYPE_CHECKING:
+    from pipecat.services.anthropic import AnthropicLLMService
+    from pipecat.services.google import GoogleLLMService
+    from pipecat.services.openai import OpenAILLMService
+
+    LLMService = Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]
+else:
+    LLMService = Any
 
 
 class FlowManager:
@@ -53,8 +59,7 @@ class FlowManager:
 
     Attributes:
         task (PipelineTask): Pipeline task for frame queueing
-        llm (Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]):
-            LLM service instance
+        llm: LLM service instance (OpenAI, Anthropic, or Google)
         tts (Optional[Any]): Text-to-speech service for voice actions
         state (Dict[str, Any]): Shared state dictionary across nodes
         current_node (Optional[str]): Currently active node identifier
@@ -67,7 +72,7 @@ class FlowManager:
         self,
         *,
         task: PipelineTask,
-        llm: Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService],
+        llm: LLMService,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
         transition_callback: Optional[
