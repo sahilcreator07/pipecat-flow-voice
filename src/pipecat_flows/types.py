@@ -89,10 +89,6 @@ class NodeConfig(NodeConfigRequired, total=False):
     pre_actions: List[Dict[str, Any]]
     post_actions: List[Dict[str, Any]]
 
-    role_messages: List[Dict[str, Any]]
-    pre_actions: List[Dict[str, Any]]
-    post_actions: List[Dict[str, Any]]
-
 
 class FlowConfig(TypedDict):
     """Configuration for the entire conversation flow.
