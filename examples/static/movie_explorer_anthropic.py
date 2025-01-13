@@ -466,13 +466,18 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager
-        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+        flow_manager = FlowManager(
+            task=task,
+            llm=llm,
+            context_aggregator=context_aggregator,
+            tts=tts,
+            flow_config=flow_config,
+        )
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             await flow_manager.initialize()
-            await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         runner = PipelineRunner()
         await runner.run(task)

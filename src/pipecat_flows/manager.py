@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
+    FunctionCallResultProperties,
     LLMMessagesAppendFrame,
     LLMMessagesUpdateFrame,
     LLMSetToolsFrame,
@@ -73,6 +74,7 @@ class FlowManager:
         *,
         task: PipelineTask,
         llm: LLMService,
+        context_aggregator: Optional[Any],
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
         transition_callback: Optional[
@@ -97,6 +99,7 @@ class FlowManager:
         self.action_manager = ActionManager(task, tts)
         self.adapter = create_adapter(llm)
         self.initialized = False
+        self._context_aggregator = context_aggregator
 
         # Set up static or dynamic mode
         if flow_config:
@@ -170,10 +173,22 @@ class FlowManager:
         args: Dict[str, Any],
         flow_manager: "FlowManager",
     ) -> None:
-        """Handle transitions for static flows."""
+        """Handle transitions for static flows.
+
+        Transitions to a new node in static flows by looking up the node
+        configuration and setting it as the current node. Logs a warning
+        if the target node is not found in the flow configuration.
+
+        Args:
+            function_name: Name of the target node to transition to
+            args: Arguments passed to the function that triggered the transition
+            flow_manager: Reference to the FlowManager instance
+        """
         if function_name in self.nodes:
             logger.debug(f"Static transition to node: {function_name}")
             await self.set_node(function_name, self.nodes[function_name])
+        else:
+            logger.warning(f"Static transition failed: Node '{function_name}' not found")
 
     async def _create_transition_func(
         self, name: str, handler: Optional[Callable], transition_to: Optional[str]
@@ -181,11 +196,17 @@ class FlowManager:
         """Create a transition function for the given name and handler.
 
         This method creates a function that will be called when the LLM invokes a tool.
-        It handles both data processing (via handlers) and state transitions.
+        It handles both node functions and edge functions differently:
+        - Node functions: Execute handler and allow LLM completion (default behavior)
+        - Edge functions: Execute handler (if any) and transition to next node without
+                        LLM completion
+
+        A function is considered an edge function if it has a transition_to property
+        (static flows) or if transition_callback is set (dynamic flows).
 
         Args:
             name: Name of the function being registered
-            handler: Optional function to process data (for node functions)
+            handler: Optional function to process data
             transition_to: Optional node to transition to after processing
 
         Returns:
@@ -211,23 +232,37 @@ class FlowManager:
                 result_callback: Function to call with results
             """
             try:
+                # Execute handler if present
                 if handler:
-                    # Execute handler for node functions (e.g., data processing)
                     result = await self._call_handler(handler, args)
-                    await result_callback(result)
                     logger.debug(f"Handler completed for {name}")
                 else:
-                    # Acknowledge edge functions without handlers
-                    await result_callback({"status": "acknowledged"})
+                    result = {"status": "acknowledged"}
                     logger.debug(f"Edge function called: {name}")
 
-                # Handle transitions based on flow type
-                if transition_to and self.nodes:  # Static flow with transition_to
-                    logger.debug(f"Static transition via transition_to: {transition_to}")
-                    await self._handle_static_transition(transition_to, args, self)
-                elif self.transition_callback and not self.nodes:  # Dynamic flow
-                    logger.debug(f"Executing dynamic transition for {name}")
-                    await self.transition_callback(function_name, args, self)
+                # Determine if this is an edge function
+                is_edge_function = bool(transition_to) or (
+                    self.transition_callback and not self.nodes
+                )
+
+                if is_edge_function:
+                    # Edge function - prevent LLM completion and set up transition
+                    async def on_context_updated() -> None:
+                        if transition_to and self.nodes:  # Static flow
+                            logger.debug(f"Static transition via transition_to: {transition_to}")
+                            await self._handle_static_transition(transition_to, args, self)
+                        elif self.transition_callback and not self.nodes:  # Dynamic flow
+                            logger.debug(f"Executing dynamic transition for {name}")
+                            await self.transition_callback(function_name, args, self)
+
+                    properties = FunctionCallResultProperties(
+                        run_llm=False, on_context_updated=on_context_updated
+                    )
+                    await result_callback(result, properties=properties)
+                else:
+                    # Node function - allow LLM completion upon function call results
+                    # (using default run_llm=True behavior)
+                    await result_callback(result)
 
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
@@ -327,12 +362,14 @@ class FlowManager:
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
         """Set up a new conversation node and transition to it.
 
-        Handles the complete node transition process including:
-        - Executing pre-actions
-        - Registering node functions
-        - Updating LLM context
-        - Executing post-actions
-        - Updating state
+        Handles the complete node transition process in the following order:
+        1. Execute pre-actions (if any)
+        2. Set up messages (role and task)
+        3. Register node functions
+        4. Update LLM context with messages and tools
+        5. Update state (current node and functions)
+        6. Trigger LLM completion with new context
+        7. Execute post-actions (if any)
 
         Args:
             node_id: Identifier for the new node
@@ -399,13 +436,17 @@ class FlowManager:
             await self._update_llm_context(messages, formatted_tools)
             logger.debug("Updated LLM context")
 
-            # Execute post-actions if any
-            if post_actions := node_config.get("post_actions"):
-                await self._execute_actions(post_actions=post_actions)
-
             # Update state
             self.current_node = node_id
             self.current_functions = new_functions
+
+            # Trigger completion with new context
+            if self._context_aggregator:
+                await self.task.queue_frames([self._context_aggregator.user().get_context_frame()])
+
+            # Execute post-actions if any
+            if post_actions := node_config.get("post_actions"):
+                await self._execute_actions(post_actions=post_actions)
 
             logger.debug(f"Successfully set node: {node_id}")
 
