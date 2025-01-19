@@ -74,7 +74,7 @@ class FlowManager:
         *,
         task: PipelineTask,
         llm: LLMService,
-        context_aggregator: Optional[Any],
+        context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
         transition_callback: Optional[
@@ -86,6 +86,7 @@ class FlowManager:
         Args:
             task: PipelineTask instance for queueing frames
             llm: LLM service instance (e.g., OpenAI, Anthropic)
+            context_aggregator: Context aggregator for updating user context
             tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
                        operates in static mode with predefined nodes

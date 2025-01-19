@@ -5,7 +5,7 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.11] - 2025-01-19
 
 ### Changed
 
@@ -18,7 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     result in an LLM completion upon the function call result returning.
   - This change also improves the reliability of the pre- and post-action
     execution timing.
-  - Note: the FlowManager has a new required arg, `context_aggregator`.
+
+- Breaking changes:
+
+  - The FlowManager has a new required arg, `context_aggregator`.
+  - Pipecat's minimum version has been updated to 0.0.53 in order to use the
+    new `FunctionCallResultProperties` frame.
 
 - Updated all examples to align with the new changes.
 
