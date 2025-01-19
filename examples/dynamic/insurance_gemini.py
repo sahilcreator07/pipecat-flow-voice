@@ -409,7 +409,11 @@ async def main():
 
         # Initialize flow manager with transition callback
         flow_manager = FlowManager(
-            task=task, llm=llm, tts=tts, transition_callback=handle_insurance_transition
+            task=task,
+            llm=llm,
+            context_aggregator=context_aggregator,
+            tts=tts,
+            transition_callback=handle_insurance_transition,
         )
 
         @transport.event_handler("on_first_participant_joined")
@@ -419,7 +423,6 @@ async def main():
             await flow_manager.initialize()
             # Set initial node
             await flow_manager.set_node("initial", create_initial_node())
-            await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         # Run the pipeline
         runner = PipelineRunner()

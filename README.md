@@ -44,7 +44,13 @@ Here's a basic example of setting up a static conversation flow:
 from pipecat_flows import FlowManager
 
 # Initialize flow manager with static configuration
-flow_manager = FlowManager(task, llm, tts, flow_config=flow_config)
+flow_manager = FlowManager(
+    task=task,
+    llm=llm,
+    context_aggregator=context_aggregator,
+    tts=tts,
+    flow_config=flow_config,
+)
 
 @transport.event_handler("on_first_participant_joined")
 async def on_first_participant_joined(transport, participant):
@@ -126,6 +132,11 @@ Functions come in two types:
     }
 }
 ```
+
+Functions behave differently based on their type:
+
+Node Functions execute their handler and trigger an immediate LLM completion with the result
+Edge Functions execute their handler (if any) and transition to a new node, with the LLM completion occurring after both the function result and new node's messages are added to context
 
 Functions can:
 
@@ -235,7 +246,13 @@ flow_config = {
 }
 
 # Create and initialize the FlowManager
-flow_manager = FlowManager(task, llm, tts, flow_config=flow_config)
+flow_manager = FlowManager(
+    task=task,
+    llm=llm,
+    context_aggregator=context_aggregator,
+    tts=tts,
+    flow_config=flow_config,
+)
 await flow_manager.initialize()
 ```
 
@@ -276,7 +293,13 @@ def create_initial_node() -> NodeConfig:
     }
 
 # Initialize with transition callback
-flow_manager = FlowManager(task, llm, tts, transition_callback=handle_transitions)
+flow_manager = FlowManager(
+    task=task,
+    llm=llm,
+    context_aggregator=context_aggregator,
+    tts=tts,
+    transition_callback=handle_transition,
+)
 await flow_manager.initialize()
 
 @transport.event_handler("on_first_participant_joined")

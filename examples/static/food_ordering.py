@@ -151,14 +151,13 @@ flow_config: FlowConfig = {
                     "role": "system",
                     "content": """You are handling a pizza order. Use the available functions:
 - Use select_pizza_order when the user specifies both size AND type
-- Use confirm_order when the user confirms they are satisfied with their selection
 
 Pricing:
 - Small: $10
 - Medium: $15
 - Large: $20
 
-After selection, confirm both the size and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
+Remember to be friendly and casual.""",
                 }
             ],
             "functions": [
@@ -184,14 +183,6 @@ After selection, confirm both the size and type, state the price, and ask if the
                             },
                             "required": ["size", "type"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "confirm_order",
-                        "description": "Proceed to order confirmation",
-                        "parameters": {"type": "object", "properties": {}},
                         "transition_to": "confirm",
                     },
                 },
@@ -203,12 +194,11 @@ After selection, confirm both the size and type, state the price, and ask if the
                     "role": "system",
                     "content": """You are handling a sushi order. Use the available functions:
 - Use select_sushi_order when the user specifies both count AND type
-- Use confirm_order when the user confirms they are satisfied with their selection
 
 Pricing:
 - $8 per roll
 
-After selection, confirm both the count and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
+Remember to be friendly and casual.""",
                 }
             ],
             "functions": [
@@ -235,14 +225,6 @@ After selection, confirm both the count and type, state the price, and ask if th
                             },
                             "required": ["count", "type"],
                         },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "confirm_order",
-                        "description": "Proceed to order confirmation",
-                        "parameters": {"type": "object", "properties": {}},
                         "transition_to": "confirm",
                     },
                 },
@@ -252,8 +234,8 @@ After selection, confirm both the count and type, state the price, and ask if th
             "task_messages": [
                 {
                     "role": "system",
-                    "content": """Read back the complete order details to the user and ask for final confirmation. Use the available functions:
-- Use complete_order when the user confirms
+                    "content": """Read back the complete order details to the user and if they want anything else or if they want to make changes. Use the available functions:
+- Use complete_order when the user confirms that the order is correct and no changes are needed
 - Use revise_order if they want to change something
 
 Be friendly and clear when reading back the order details.""",
@@ -269,13 +251,22 @@ Be friendly and clear when reading back the order details.""",
                         "transition_to": "end",
                     },
                 },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "revise_order",
+                        "description": "User wants to make changes to their order",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "start",
+                    },
+                },
             ],
         },
         "end": {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "Concisely end the conversation—1-3 words is appropriate. Just say 'Bye' or something similarly short.",
+                    "content": "Thank the user for their order and end the conversation politely and concisely.",
                 }
             ],
             "functions": [],
@@ -330,15 +321,19 @@ async def main():
         task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager in static mode
-        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+        flow_manager = FlowManager(
+            task=task,
+            llm=llm,
+            context_aggregator=context_aggregator,
+            tts=tts,
+            flow_config=flow_config,
+        )
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             logger.debug("Initializing flow")
             await flow_manager.initialize()
-            logger.debug("Starting conversation")
-            await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         runner = PipelineRunner()
         await runner.run(task)

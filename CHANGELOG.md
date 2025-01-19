@@ -5,6 +5,23 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Updated `FlowManager` to more predictably handle function calls:
+
+  - Edge functions (which transition to a new node) now result in an LLM
+    completion after both the function call and messages are added to the
+    LLM's context.
+  - Node functions (which execute a function call without transitioning nodes)
+    result in an LLM completion upon the function call result returning.
+  - This change also improves the reliability of the pre- and post-action
+    execution timing.
+  - Note: the FlowManager has a new required arg, `context_aggregator`.
+
+- Updated all examples to align with the new changes.
+
 ## [0.0.10] - 2024-12-21
 
 ### Changed
