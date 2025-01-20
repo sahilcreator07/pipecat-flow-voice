@@ -56,7 +56,6 @@ flow_manager = FlowManager(
 async def on_first_participant_joined(transport, participant):
     await transport.capture_participant_transcription(participant["id"])
     await flow_manager.initialize()
-    await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
 For more detailed examples and guides, visit our [documentation](https://docs.pipecat.ai/guides/features/pipecat-flows).
@@ -307,7 +306,6 @@ async def on_first_participant_joined(transport, participant):
     await transport.capture_participant_transcription(participant["id"])
     await flow_manager.initialize()
     await flow_manager.set_node("initial", create_initial_node())
-    await task.queue_frames([context_aggregator.user().get_context_frame()])
 ```
 
 ## Examples
