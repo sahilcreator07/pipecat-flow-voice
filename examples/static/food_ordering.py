@@ -301,7 +301,6 @@ async def main():
         )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
-
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 

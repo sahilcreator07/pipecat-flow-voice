@@ -3,8 +3,7 @@
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-"""
-Insurance Quote Example using Pipecat Dynamic Flows
+"""Insurance Quote Example using Pipecat Dynamic Flows.
 
 This example demonstrates how to create a conversational insurance quote bot using:
 - Dynamic flow management for flexible conversation paths
@@ -92,14 +91,14 @@ async def collect_age(args: FlowArgs) -> AgeCollectionResult:
     """Process age collection."""
     age = args["age"]
     logger.debug(f"collect_age handler executing with age: {age}")
-    return {"age": age}
+    return AgeCollectionResult(age=age)
 
 
 async def collect_marital_status(args: FlowArgs) -> MaritalStatusResult:
     """Process marital status collection."""
     status = args["marital_status"]
     logger.debug(f"collect_marital_status handler executing with status: {status}")
-    return {"marital_status": status}
+    return MaritalStatusResult(marital_status=status)
 
 
 async def calculate_quote(args: FlowArgs) -> QuoteCalculationResult:
@@ -324,28 +323,32 @@ async def handle_age_collection(args: Dict, flow_manager: FlowManager):
     flow_manager.state["age"] = args["age"]
     await flow_manager.set_node("marital_status", create_marital_status_node())
 
+
 async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
     flow_manager.state["marital_status"] = args["marital_status"]
     await flow_manager.set_node(
         "quote_calculation",
         create_quote_calculation_node(
-            flow_manager.state["age"], 
-            flow_manager.state["marital_status"]
+            flow_manager.state["age"], flow_manager.state["marital_status"]
         ),
     )
+
 
 async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
     quote = await calculate_quote(args)
     flow_manager.state["quote"] = quote
     await flow_manager.set_node("quote_results", create_quote_results_node(quote))
 
+
 async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
     updated_quote = await update_coverage(args)
     flow_manager.state["quote"] = updated_quote
     await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
 
+
 async def handle_end_quote(_: Dict, flow_manager: FlowManager):
     await flow_manager.set_node("end", create_end_node())
+
 
 HANDLERS = {
     "collect_age": handle_age_collection,
@@ -354,6 +357,7 @@ HANDLERS = {
     "update_coverage": handle_coverage_update,
     "end_quote": handle_end_quote,
 }
+
 
 async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
     """Handle transitions between insurance flow states."""
