@@ -5,6 +5,39 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Updated dynamic flows to use per-function transition handlers:
+  - Removed global `transition_callback` in favor of `transition_callbacks`
+    dict
+  - Each edge function now explicitly registers its transition handler
+  - Clearer distinction between node functions (LLM completion) and edge
+    functions (transitions)
+  - Better type safety and error detection for transition handlers
+  - Breaking change: Dynamic flows must now use `transition_callbacks` instead
+    of `transition_callback`
+
+Example of the new pattern:
+
+```python
+# Before - global router
+flow_manager = FlowManager(
+    transition_callback=handle_transition
+)
+
+# After - per-function transitions
+flow_manager = FlowManager(
+    transition_callbacks={
+        "collect_age": handle_age_collection,
+        "collect_status": handle_status_collection
+    }
+)
+```
+
+- Updated all dynamic flow examples to use the new transition handler pattern
+
 ## [0.0.11] - 2025-01-19
 
 ### Changed
