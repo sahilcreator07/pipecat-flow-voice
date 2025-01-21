@@ -32,6 +32,7 @@ from pipecat.frames.frames import (
 from pipecat.pipeline.task import PipelineTask
 
 from .exceptions import ActionError
+from .types import ActionConfig
 
 
 class ActionManager:
@@ -80,7 +81,7 @@ class ActionManager:
         self.action_handlers[action_type] = handler
         logger.debug(f"Registered handler for action type: {action_type}")
 
-    async def execute_actions(self, actions: Optional[List[Dict[str, Any]]]) -> None:
+    async def execute_actions(self, actions: Optional[List[ActionConfig]]) -> None:
         """Execute a list of actions.
 
         Args:
