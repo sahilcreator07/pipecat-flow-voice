@@ -85,6 +85,11 @@ class SushiOrderResult(FlowResult):
 
 
 # Function handlers
+async def check_kitchen_status(action: dict) -> None:
+    """Check if kitchen is open and log status."""
+    logger.info("Checking kitchen status")
+
+
 async def select_pizza_order(args: FlowArgs) -> PizzaOrderResult:
     """Handle pizza size and type selection."""
     size = args["size"]
@@ -123,6 +128,12 @@ flow_config: FlowConfig = {
                     "role": "system",
                     "content": "For this step, ask the user if they want pizza or sushi, and wait for them to use a function to choose. Start off by greeting them. Be friendly and casual; you're taking an order for food over the phone.",
                 }
+            ],
+            "pre_actions": [
+                {
+                    "type": "check_kitchen",
+                    "handler": check_kitchen_status,
+                },
             ],
             "functions": [
                 {
