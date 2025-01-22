@@ -165,18 +165,40 @@ There are two types of actions available:
 - `pre_actions`: Run before the LLM inference. For long function calls, you can use a pre_action for the TTS to say something, like "Hold on a moment..."
 - `post_actions`: Run after the LLM inference. This is handy for actions like ending or transferring a call.
 
+Actions can be registered in two ways:
+
+1. Via handler field in action config:
+
 ```python
 "pre_actions": [
+    # Built-in action (no handler needed)
     {
         "type": "tts_say",
         "text": "Processing your order..."
-    }
-],
-"post_actions": [
+    },
+    # Custom action with handler
     {
-        "type": "end_conversation"
+        "type": "check_status",
+        "handler": check_status_handler
     }
 ]
+```
+
+2. Via manual registration:
+
+```python
+flow_manager.register_action("check_status", check_status_handler)
+```
+
+Built-in actions (`tts_say`, `end_conversation`) don't require registration.
+
+Example custom action:
+
+```python
+async def check_status_handler(action: dict) -> None:
+    """Custom action to check system status."""
+    logger.info("Checking system status")
+    # Perform status check
 ```
 
 Learn more about built-in actions and defining your own action in the docs.

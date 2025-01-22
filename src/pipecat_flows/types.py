@@ -58,6 +58,28 @@ Example:
 """
 
 
+class ActionConfigRequired(TypedDict):
+    """Required fields for action configuration."""
+
+    type: str
+
+
+class ActionConfig(ActionConfigRequired, total=False):
+    """Configuration for an action.
+
+    Required:
+        type: Action type identifier (e.g. "tts_say", "notify_slack")
+
+    Optional:
+        handler: Callable to handle the action
+        text: Text for tts_say action
+        Additional fields are allowed and passed to the handler
+    """
+
+    handler: Callable[[Dict[str, Any]], Awaitable[None]]
+    text: str
+
+
 class NodeConfigRequired(TypedDict):
     """Required fields for node configuration."""
 
@@ -98,8 +120,8 @@ class NodeConfig(NodeConfigRequired, total=False):
     """
 
     role_messages: List[Dict[str, Any]]
-    pre_actions: List[Dict[str, Any]]
-    post_actions: List[Dict[str, Any]]
+    pre_actions: List[ActionConfig]
+    post_actions: List[ActionConfig]
 
 
 class FlowConfig(TypedDict):

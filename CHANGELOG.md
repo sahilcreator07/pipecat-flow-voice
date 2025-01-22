@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for inline action handlers in flow configuration:
+  - Actions can now be registered via handler field in config
+  - Maintains backwards compatibility with manual registration
+  - Built-in actions (`tts_say`, `end_conversation`) work without changes
+
+Example of the new pattern:
+
+```python
+"pre_actions": [
+    {
+        "type": "check_status",
+        "handler": check_status_handler
+    }
+]
+```
+
 ### Changed
 
 - Updated dynamic flows to use per-function transition handlers:

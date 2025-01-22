@@ -37,10 +37,10 @@ from pipecat.frames.frames import (
 )
 from pipecat.pipeline.task import PipelineTask
 
-from .actions import ActionManager
+from .actions import ActionError, ActionManager
 from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
-from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig, TransitionHandler
+from .types import ActionConfig, FlowArgs, FlowConfig, FlowResult, NodeConfig, TransitionHandler
 
 if TYPE_CHECKING:
     from pipecat.services.anthropic import AnthropicLLMService
@@ -170,6 +170,31 @@ class FlowManager:
             flow_manager.register_action("notify", custom_notification)
         """
         self.action_manager._register_action(action_type, handler)
+
+    def _register_action_from_config(self, action: ActionConfig) -> None:
+        """Register an action handler from action configuration.
+
+        Args:
+            action: Action configuration dictionary containing type and optional handler
+
+        Raises:
+            ActionError: If action type is not registered and no valid handler provided
+        """
+        action_type = action.get("type")
+        handler = action.get("handler")
+
+        # Register action if not already registered
+        if action_type and action_type not in self.action_manager.action_handlers:
+            # Register handler if provided
+            if handler and callable(handler):
+                self.register_action(action_type, handler)
+                logger.debug(f"Registered action handler from config: {action_type}")
+            # Raise error if no handler provided and not a built-in action
+            elif action_type not in ["tts_say", "end_conversation"]:
+                raise ActionError(
+                    f"Action '{action_type}' not registered. "
+                    "Provide handler in action config or register manually."
+                )
 
     async def _call_handler(self, handler: Callable, args: FlowArgs) -> FlowResult:
         """Call handler with or without args based on its signature.
@@ -391,6 +416,14 @@ class FlowManager:
             self._validate_node_config(node_id, node_config)
             logger.debug(f"Setting node: {node_id}")
 
+            # Register action handlers from config
+            for action_list in [
+                node_config.get("pre_actions", []),
+                node_config.get("post_actions", []),
+            ]:
+                for action in action_list:
+                    self._register_action_from_config(action)
+
             # Execute pre-actions if any
             if pre_actions := node_config.get("pre_actions"):
                 await self._execute_actions(pre_actions=pre_actions)
@@ -485,7 +518,9 @@ class FlowManager:
             raise FlowError(f"Context update failed: {str(e)}") from e
 
     async def _execute_actions(
-        self, pre_actions: Optional[List[dict]] = None, post_actions: Optional[List[dict]] = None
+        self,
+        pre_actions: Optional[List[ActionConfig]] = None,
+        post_actions: Optional[List[ActionConfig]] = None,
     ) -> None:
         """Execute pre and post actions.
 
