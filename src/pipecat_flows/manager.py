@@ -277,21 +277,28 @@ class FlowManager:
                     logger.debug(f"Function called without handler: {name}")
 
                 if is_edge_function:
-                    # Edge function - prevent LLM completion and handle transition
+
                     async def on_context_updated() -> None:
-                        if transition_to:  # Static flow
-                            logger.debug(f"Static transition to: {transition_to}")
-                            await self.set_node(transition_to, self.nodes[transition_to])
-                        elif transition_callback:  # Dynamic flow
-                            logger.debug(f"Dynamic transition for: {name}")
-                            await transition_callback(args, self)
+                        try:
+                            if transition_to:  # Static flow
+                                logger.debug(f"Static transition to: {transition_to}")
+                                await self.set_node(transition_to, self.nodes[transition_to])
+                            elif transition_callback:  # Dynamic flow
+                                logger.debug(f"Dynamic transition for: {name}")
+                                await transition_callback(args, self)
+                        except Exception as e:
+                            logger.error(f"Error in transition: {str(e)}")
+                            await result_callback(
+                                {"status": "error", "error": str(e)},
+                                properties=None,  # Clear properties to prevent further callbacks
+                            )
+                            raise  # Re-raise to prevent further processing
 
                     properties = FunctionCallResultProperties(
                         run_llm=False, on_context_updated=on_context_updated
                     )
                     await result_callback(result, properties=properties)
                 else:
-                    # Node function - allow LLM completion
                     await result_callback(result)
 
             except Exception as e:
@@ -617,7 +624,7 @@ class FlowManager:
             )
 
             # Check for transition_to in provider-specific formats
-            has_transition = (
+            has_transition_to = (
                 ("function" in func and "transition_to" in func["function"])
                 or "transition_to" in func
                 or (
@@ -627,9 +634,19 @@ class FlowManager:
                 )
             )
 
-            # Warn if function has neither handler nor transition_to
-            # End nodes may have neither, so just warn rather than error
-            if not has_handler and not has_transition:
+            # Check for transition_callback in provider-specific formats
+            has_transition_callback = (
+                ("function" in func and "transition_callback" in func["function"])
+                or "transition_callback" in func
+                or (
+                    "function_declarations" in func
+                    and func["function_declarations"]
+                    and "transition_callback" in func["function_declarations"][0]
+                )
+            )
+
+            # Warn if function has no handler or transitions
+            if not has_handler and not has_transition_to and not has_transition_callback:
                 logger.warning(
-                    f"Function '{name}' in node '{node_id}' has neither handler nor transition_to"
+                    f"Function '{name}' in node '{node_id}' has neither handler, transition_to, nor transition_callback"
                 )
