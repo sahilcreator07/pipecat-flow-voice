@@ -252,7 +252,7 @@ async def get_movies() -> Union[MoviesResult, ErrorResult]:
             return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error="Failed to fetch movies")
+            return ErrorResult(status="error", error="Failed to fetch movies")
 
 
 async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
@@ -265,7 +265,7 @@ async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
             return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error="Failed to fetch upcoming movies")
+            return ErrorResult(status="error", error="Failed to fetch upcoming movies")
 
 
 async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
@@ -279,7 +279,9 @@ async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorRe
             return MovieDetailsResult(**details)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch details for movie {movie_id}"
+            )
 
 
 async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
@@ -293,7 +295,9 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
             return SimilarMoviesResult(movies=similar)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch similar movies for {movie_id}"
+            )
 
 
 # Flow configuration
