@@ -16,7 +16,19 @@ These types provide structure and validation for flow configurations
 and function interactions.
 """
 
-from typing import Any, Dict, List, TypedDict
+from typing import Any, Awaitable, Callable, Dict, List, TypedDict, TypeVar
+
+T = TypeVar("T")
+TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
+"""Type for transition handler functions.
+
+Args:
+    args: Dictionary of arguments from the function call
+    flow_manager: Reference to the FlowManager instance
+
+Returns:
+    None: Handlers are expected to update state and set next node
+"""
 
 
 class FlowResult(TypedDict, total=False):

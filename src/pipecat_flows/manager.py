@@ -40,7 +40,7 @@ from pipecat.pipeline.task import PipelineTask
 from .actions import ActionManager
 from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
-from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig
+from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig, TransitionHandler
 
 if TYPE_CHECKING:
     from pipecat.services.anthropic import AnthropicLLMService
@@ -59,14 +59,15 @@ class FlowManager:
     function registration, and message handling across different LLM providers.
 
     Attributes:
-        task (PipelineTask): Pipeline task for frame queueing
+        task: Pipeline task for frame queueing
         llm: LLM service instance (OpenAI, Anthropic, or Google)
-        tts (Optional[Any]): Text-to-speech service for voice actions
-        state (Dict[str, Any]): Shared state dictionary across nodes
-        current_node (Optional[str]): Currently active node identifier
-        initialized (bool): Whether the manager has been initialized
-        nodes (Dict[str, Dict]): Node configurations for static flows
-        current_functions (Set[str]): Currently registered function names
+        tts: Optional TTS service for voice actions
+        state: Shared state dictionary across nodes
+        current_node: Currently active node identifier
+        initialized: Whether the manager has been initialized
+        nodes: Node configurations for static flows
+        current_functions: Currently registered function names
+        transition_callbacks: Map of function names to their transition handlers
     """
 
     def __init__(
@@ -77,9 +78,7 @@ class FlowManager:
         context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
-        transition_callback: Optional[
-            Callable[[str, Dict[str, Any], "FlowManager"], Awaitable[None]]
-        ] = None,
+        transition_callbacks: Optional[Dict[str, TransitionHandler]] = None,
     ):
         """Initialize the flow manager.
 
@@ -89,10 +88,13 @@ class FlowManager:
             context_aggregator: Context aggregator for updating user context
             tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
-                       operates in static mode with predefined nodes
-            transition_callback: Optional callback for handling transitions.
-                               Required for dynamic flows, ignored for static flows
-                               in favor of static transitions
+                operates in static mode with predefined nodes
+            transition_callbacks: Map of function names to their transition handlers
+                for dynamic flows. Each handler should be an async function that
+                takes (args, flow_manager) parameters
+
+        Raises:
+            ValueError: If any transition handler is not a valid async callable
         """
         self.task = task
         self.llm = llm
@@ -101,22 +103,38 @@ class FlowManager:
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
+        self.transition_callbacks = transition_callbacks or {}
+
+        # Validate handlers at initialization
+        self._validate_transition_handlers()
 
         # Set up static or dynamic mode
         if flow_config:
             self.nodes = flow_config["nodes"]
             self.initial_node = flow_config["initial_node"]
-            self.transition_callback = self._handle_static_transition
             logger.debug("Initialized in static mode")
         else:
             self.nodes = {}
             self.initial_node = None
-            self.transition_callback = transition_callback
             logger.debug("Initialized in dynamic mode")
 
         self.state: Dict[str, Any] = {}  # Shared state across nodes
         self.current_functions: Set[str] = set()  # Track registered functions
         self.current_node: Optional[str] = None
+
+    def _validate_transition_handlers(self) -> None:
+        """Validate all transition handlers at initialization.
+
+        Ensures all registered handlers are async callables with the correct signature.
+
+        Raises:
+            ValueError: If any handler is not callable or not async
+        """
+        for name, handler in self.transition_callbacks.items():
+            if not callable(handler):
+                raise ValueError(f"Handler for {name} must be callable")
+            if not inspect.iscoroutinefunction(handler):
+                raise ValueError(f"Handler for {name} must be async")
 
     async def initialize(self) -> None:
         """Initialize the flow manager."""
@@ -196,23 +214,24 @@ class FlowManager:
     ) -> Callable:
         """Create a transition function for the given name and handler.
 
-        This method creates a function that will be called when the LLM invokes a tool.
-        It handles both node functions and edge functions differently:
-        - Node functions: Execute handler and allow LLM completion (default behavior)
-        - Edge functions: Execute handler (if any) and transition to next node without
-                        LLM completion
+        Creates a function that will be called when the LLM invokes a tool.
+        Handles both node functions and edge functions:
+        - Node functions: Execute handler and allow LLM completion
+        - Edge functions: Execute handler and transition without LLM completion
 
-        A function is considered an edge function if it has a transition_to property
-        (static flows) or if transition_callback is set (dynamic flows).
+        A function is considered an edge function if it either:
+        - Has a transition_to parameter (static flows)
+        - Has a registered transition handler (dynamic flows)
 
         Args:
             name: Name of the function being registered
             handler: Optional function to process data
-            transition_to: Optional node to transition to after processing
+            transition_to: Optional node to transition to (static flows)
 
         Returns:
             Callable: Async function that handles the tool invocation
         """
+        is_edge_function = bool(transition_to) or name in self.transition_callbacks
 
         async def transition_func(
             function_name: str,
@@ -222,16 +241,7 @@ class FlowManager:
             context: Any,
             result_callback: Callable,
         ) -> None:
-            """Inner function that handles the actual tool invocation.
-
-            Args:
-                function_name: Name of the called function
-                tool_call_id: Unique identifier for this tool call
-                args: Arguments passed to the function
-                llm: LLM service instance
-                context: Current conversation context
-                result_callback: Function to call with results
-            """
+            """Inner function that handles the actual tool invocation."""
             try:
                 # Execute handler if present
                 if handler:
@@ -239,30 +249,24 @@ class FlowManager:
                     logger.debug(f"Handler completed for {name}")
                 else:
                     result = {"status": "acknowledged"}
-                    logger.debug(f"Edge function called: {name}")
-
-                # Determine if this is an edge function
-                is_edge_function = bool(transition_to) or (
-                    self.transition_callback and not self.nodes
-                )
+                    logger.debug(f"Function called without handler: {name}")
 
                 if is_edge_function:
-                    # Edge function - prevent LLM completion and set up transition
+                    # Edge function - prevent LLM completion and handle transition
                     async def on_context_updated() -> None:
-                        if transition_to and self.nodes:  # Static flow
-                            logger.debug(f"Static transition via transition_to: {transition_to}")
-                            await self._handle_static_transition(transition_to, args, self)
-                        elif self.transition_callback and not self.nodes:  # Dynamic flow
-                            logger.debug(f"Executing dynamic transition for {name}")
-                            await self.transition_callback(function_name, args, self)
+                        if transition_to:  # Static flow
+                            logger.debug(f"Static transition to: {transition_to}")
+                            await self.set_node(transition_to, self.nodes[transition_to])
+                        elif name in self.transition_callbacks:  # Dynamic flow
+                            logger.debug(f"Dynamic transition for: {name}")
+                            await self.transition_callbacks[name](args, self)
 
                     properties = FunctionCallResultProperties(
                         run_llm=False, on_context_updated=on_context_updated
                     )
                     await result_callback(result, properties=properties)
                 else:
-                    # Node function - allow LLM completion upon function call results
-                    # (using default run_llm=True behavior)
+                    # Node function - allow LLM completion
                     await result_callback(result)
 
             except Exception as e:
@@ -316,7 +320,7 @@ class FlowManager:
             new_functions: Set to track newly registered functions for this node
 
         Raises:
-            FlowError: If function registration fails
+            FlowError: If function registration fails or handler lookup fails
         """
         if name not in self.current_functions:
             try:
@@ -509,7 +513,7 @@ class FlowManager:
             config: Complete node configuration to validate
 
         Raises:
-            ValueError: If configuration is invalid
+            ValueError: If configuration is invalid or missing required fields
         """
         # Check required fields
         if "task_messages" not in config:

@@ -93,7 +93,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         # Verify static mode setup
         self.assertEqual(flow_manager.initial_node, "start")
         self.assertEqual(flow_manager.nodes, self.static_flow_config["nodes"])
-        self.assertEqual(flow_manager.transition_callback.__name__, "_handle_static_transition")
+        self.assertEqual(len(flow_manager.transition_callbacks), 0)  # No dynamic transitions
 
         # Initialize flow
         await flow_manager.initialize()
@@ -121,20 +121,22 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_dynamic_flow_initialization(self):
         """Test initialization of dynamic flow."""
         # Create mock transition callback
-        mock_transition_callback = AsyncMock()
+        mock_transition_handler = AsyncMock()
 
         flow_manager = FlowManager(
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
             tts=self.mock_tts,
-            transition_callback=mock_transition_callback,
+            transition_callbacks={"test_function": mock_transition_handler},
         )
 
         # Verify dynamic mode setup
         self.assertIsNone(flow_manager.initial_node)
         self.assertEqual(flow_manager.nodes, {})
-        self.assertEqual(flow_manager.transition_callback, mock_transition_callback)
+        self.assertEqual(
+            flow_manager.transition_callbacks["test_function"], mock_transition_handler
+        )
 
         # Initialize flow
         await flow_manager.initialize()
@@ -217,7 +219,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         3. State is updated correctly
         """
         # Create mock transition callback
-        mock_transition_callback = AsyncMock()
+        mock_transition_handler = AsyncMock()
 
         # Initialize flow manager with mock callback
         flow_manager = FlowManager(
@@ -225,7 +227,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
             tts=self.mock_tts,
-            transition_callback=mock_transition_callback,
+            transition_callbacks={"test_function": mock_transition_handler},
         )
         await flow_manager.initialize()
 
@@ -237,14 +239,11 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         self.mock_task.queue_frames.reset_mock()
 
         # Trigger transition
-        test_function_name = "test_function"
         test_args = {"test": "value"}
-        await flow_manager.transition_callback(test_function_name, test_args, flow_manager)
+        await flow_manager.transition_callbacks["test_function"](test_args, flow_manager)
 
-        # Verify callback was called with correct arguments
-        mock_transition_callback.assert_called_once_with(
-            test_function_name, test_args, flow_manager
-        )
+        # Verify handler was called with correct arguments
+        mock_transition_handler.assert_called_once_with(test_args, flow_manager)
 
     async def test_node_validation(self):
         """Test node configuration validation."""
@@ -531,14 +530,14 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def test_transition_callback_error_handling(self):
         """Test error handling in transition callback."""
 
-        async def failing_transition(function_name, args, flow_manager):
+        async def failing_handler(args, flow_manager):
             raise ValueError("Transition error")
 
         flow_manager = FlowManager(
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            transition_callback=failing_transition,
+            transition_callbacks={"test": failing_handler},
         )
         await flow_manager.initialize()
 
@@ -549,6 +548,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         async def result_callback(result):
             pass
 
+        # Should handle the error gracefully
         await transition_func("test", "id", {}, None, None, result_callback)
 
     async def test_register_function_error_handling(self):

@@ -33,14 +33,13 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.ruff]
+exclude = [".git", "*_pb2.py"]
 line-length = 100
 
+[tool.ruff.lint]
 select = [
     "D", # Docstring rules
-]
-ignore = ["D212"]
-exclude = [
-    "examples"
+    "I", # Import rules
 ]
 
 [tool.ruff.pydocstyle]

@@ -2,25 +2,26 @@
 # Copyright (c) 2024, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
-#
-# Movie Explorer Example
-#
-# This example demonstrates how to create a conversational movie exploration bot using:
-# - TMDB API for real movie data (including cast information)
-# - Pipecat Flows for conversation management
-# - Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
-# - Edge functions for state transitions (explore_movie, greeting, end)
-#
-# The flow allows users to:
-# 1. See what movies are currently playing or coming soon
-# 2. Get detailed information about specific movies (including cast)
-# 3. Find similar movies as recommendations
-#
-# Requirements:
-# - TMDB API key (https://www.themoviedb.org/documentation/api)
-# - Daily room URL
-# - OpenAI API key
-# - Deepgram API key
+
+"""Movie Explorer Example.
+
+This example demonstrates how to create a conversational movie exploration bot using:
+- TMDB API for real movie data (including cast information)
+- Pipecat Flows for conversation management
+- Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
+- Edge functions for state transitions (explore_movie, greeting, end)
+
+The flow allows users to:
+1. See what movies are currently playing or coming soon
+2. Get detailed information about specific movies (including cast)
+3. Find similar movies as recommendations
+
+Requirements:
+- TMDB API key (https://www.themoviedb.org/documentation/api)
+- Daily room URL
+- OpenAI API key
+- Deepgram API key
+"""
 
 import asyncio
 import os
@@ -42,10 +43,10 @@ from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
-
-from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
 
 load_dotenv(override=True)
 
@@ -70,7 +71,7 @@ class MovieDetails(TypedDict):
     rating: float
     overview: str
     genres: List[str]
-    cast: List[str]  # List of "Actor Name as Character Name"
+    cast: List[str]
 
 
 class MoviesResult(FlowResult):

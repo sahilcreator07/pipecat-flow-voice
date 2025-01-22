@@ -23,10 +23,10 @@ from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
-
-from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
 
 load_dotenv(override=True)
 

@@ -2,25 +2,26 @@
 # Copyright (c) 2024, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
-#
-# Movie Explorer Example
-#
-# This example demonstrates how to create a conversational movie exploration bot using:
-# - TMDB API for real movie data (including cast information)
-# - Pipecat Flows for conversation management
-# - Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
-# - Edge functions for state transitions (explore_movie, greeting, end)
-#
-# The flow allows users to:
-# 1. See what movies are currently playing or coming soon
-# 2. Get detailed information about specific movies (including cast)
-# 3. Find similar movies as recommendations
-#
-# Requirements:
-# - TMDB API key (https://www.themoviedb.org/documentation/api)
-# - Daily room URL
-# - Google API key (also, pip install pipecat-ai[google])
-# - Deepgram API key
+
+"""Movie Explorer Example.
+
+This example demonstrates how to create a conversational movie exploration bot using:
+- TMDB API for real movie data (including cast information)
+- Pipecat Flows for conversation management
+- Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
+- Edge functions for state transitions (explore_movie, greeting, end)
+
+The flow allows users to:
+1. See what movies are currently playing or coming soon
+2. Get detailed information about specific movies (including cast)
+3. Find similar movies as recommendations
+
+Requirements:
+- TMDB API key (https://www.themoviedb.org/documentation/api)
+- Daily room URL
+- Google API key (also, pip install pipecat-ai[google])
+- Deepgram API key
+"""
 
 import asyncio
 import os
@@ -42,10 +43,10 @@ from pipecat.services.google import GoogleLLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
-
-from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
 
 load_dotenv(override=True)
 
@@ -70,7 +71,7 @@ class MovieDetails(TypedDict):
     rating: float
     overview: str
     genres: List[str]
-    cast: List[str]  # List of "Actor Name as Character Name"
+    cast: List[str]
 
 
 class MoviesResult(FlowResult):
@@ -251,7 +252,7 @@ async def get_movies() -> Union[MoviesResult, ErrorResult]:
             return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error="Failed to fetch movies")
+            return ErrorResult(status="error", error="Failed to fetch movies")
 
 
 async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
@@ -264,7 +265,7 @@ async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
             return MoviesResult(movies=movies)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error="Failed to fetch upcoming movies")
+            return ErrorResult(status="error", error="Failed to fetch upcoming movies")
 
 
 async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
@@ -278,7 +279,9 @@ async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorRe
             return MovieDetailsResult(**details)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch details for movie {movie_id}"
+            )
 
 
 async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
@@ -292,7 +295,9 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
             return SimilarMoviesResult(movies=similar)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch similar movies for {movie_id}"
+            )
 
 
 # Flow configuration
@@ -319,14 +324,14 @@ flow_config: FlowConfig = {
                             "name": "get_current_movies",
                             "handler": get_movies,
                             "description": "Fetch movies currently playing in theaters",
-                            "parameters": None, # Specify None for no parameters
+                            "parameters": None,  # Specify None for no parameters
                             "transition_to": "explore_movie",
                         },
                         {
                             "name": "get_upcoming_movies",
                             "handler": get_upcoming_movies,
                             "description": "Fetch movies coming soon to theaters",
-                            "parameters": None, # Specify None for no parameters
+                            "parameters": None,  # Specify None for no parameters
                             "transition_to": "explore_movie",
                         },
                     ]
@@ -378,18 +383,18 @@ After showing details or recommendations, ask if they'd like to explore another 
                             "name": "get_current_movies",
                             "handler": get_movies,
                             "description": "Show current movies in theaters",
-                            "parameters": None, # Specify None for no parameters
+                            "parameters": None,  # Specify None for no parameters
                         },
                         {
                             "name": "get_upcoming_movies",
                             "handler": get_upcoming_movies,
                             "description": "Show movies coming soon",
-                            "parameters": None, # Specify None for no parameters,
+                            "parameters": None,  # Specify None for no parameters,
                         },
                         {
                             "name": "end_conversation",
                             "description": "End the conversation",
-                            "parameters": None, # Specify None for no parameters,
+                            "parameters": None,  # Specify None for no parameters,
                             "transition_to": "end",
                         },
                     ]

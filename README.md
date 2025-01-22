@@ -119,6 +119,8 @@ Functions come in two types:
 
 2. **Edge Functions**: Create transitions between states
 
+Static flows use `transition_to`:
+
 ```python
 {
     "type": "function",
@@ -132,15 +134,27 @@ Functions come in two types:
 }
 ```
 
+Dynamic flows use registered transition handlers:
+
+```python
+# Register transition handlers
+flow_manager = FlowManager(
+    transition_callbacks={
+        "collect_age": handle_age_collection,
+        "collect_status": handle_status_collection
+    }
+)
+```
+
 Functions behave differently based on their type:
 
-Node Functions execute their handler and trigger an immediate LLM completion with the result
-Edge Functions execute their handler (if any) and transition to a new node, with the LLM completion occurring after both the function result and new node's messages are added to context
+- Node Functions execute their handler and trigger an immediate LLM completion with the result
+- Edge Functions execute their handler (if provided) and transition to a new node, with the LLM completion occurring after both the function result and new node's messages are added to context
 
 Functions can:
 
 - Have a handler (for data processing)
-- Have a transition_to (for state changes)
+- Have a transition_to or transition callback (for state changes)
 - Have both (process data and transition)
 - Have neither (end node functions)
 
@@ -258,6 +272,7 @@ await flow_manager.initialize()
 #### Dynamic Flows
 
 ```python
+# Create nodes
 def create_initial_node() -> NodeConfig:
     return {
         "role_messages": [
@@ -291,13 +306,27 @@ def create_initial_node() -> NodeConfig:
         ]
     }
 
+# Define handlers
+async def update_coverage(args: FlowArgs) -> FlowResult:
+    """Update coverage options; node function without a transition."""
+    return {"coverage": args["coverage"]}
+
+# Edge function - handles transition
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    """Handle age collection transition; edge function which transitions to the next node."""
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("next", create_next_node())
+
 # Initialize with transition callback
 flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
     tts=tts,
-    transition_callback=handle_transition,
+    transition_callbacks={
+        "collect_age": handle_age_collection,
+    }
+,
 )
 await flow_manager.initialize()
 
