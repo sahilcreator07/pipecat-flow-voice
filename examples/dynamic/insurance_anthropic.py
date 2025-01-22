@@ -148,6 +148,32 @@ async def end_quote() -> FlowResult:
     return {"status": "completed"}
 
 
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], flow_manager.state["marital_status"]
+        ),
+    )
+
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+
 # Node configurations
 def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
@@ -192,6 +218,7 @@ def create_initial_node() -> NodeConfig:
                     "properties": {"age": {"type": "integer"}},
                     "required": ["age"],
                 },
+                "transition_callback": handle_age_collection,
             }
         ],
     }
@@ -223,6 +250,7 @@ def create_marital_status_node() -> NodeConfig:
                     },
                     "required": ["marital_status"],
                 },
+                "transition_callback": handle_marital_status_collection,
             }
         ],
     }
@@ -259,6 +287,7 @@ def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
                     },
                     "required": ["age", "marital_status"],
                 },
+                "transition_callback": handle_quote_calculation,
             }
         ],
     }
@@ -309,6 +338,7 @@ def create_quote_results_node(
                 "handler": end_quote,
                 "description": "Complete the quote process",
                 "input_schema": {"type": "object", "properties": {}},
+                "transition_callback": handle_end_quote,
             },
         ],
     }
@@ -341,32 +371,6 @@ def create_end_node() -> NodeConfig:
         ],
         "post_actions": [{"type": "end_conversation"}],
     }
-
-
-# Transition callbacks and handlers
-async def handle_age_collection(args: Dict, flow_manager: FlowManager):
-    flow_manager.state["age"] = args["age"]
-    await flow_manager.set_node("marital_status", create_marital_status_node())
-
-
-async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
-    flow_manager.state["marital_status"] = args["marital_status"]
-    await flow_manager.set_node(
-        "quote_calculation",
-        create_quote_calculation_node(
-            flow_manager.state["age"], flow_manager.state["marital_status"]
-        ),
-    )
-
-
-async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
-    quote = await calculate_quote(args)
-    flow_manager.state["quote"] = quote
-    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
-
-
-async def handle_end_quote(_: Dict, flow_manager: FlowManager):
-    await flow_manager.set_node("end", create_end_node())
 
 
 async def main():
@@ -417,12 +421,6 @@ async def main():
             llm=llm,
             context_aggregator=context_aggregator,
             tts=tts,
-            transition_callbacks={
-                "collect_age": handle_age_collection,
-                "collect_marital_status": handle_marital_status_collection,
-                "calculate_quote": handle_quote_calculation,
-                "end_quote": handle_end_quote,
-            },
         )
 
         @transport.event_handler("on_first_participant_joined")
