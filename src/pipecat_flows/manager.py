@@ -67,7 +67,6 @@ class FlowManager:
         initialized: Whether the manager has been initialized
         nodes: Node configurations for static flows
         current_functions: Currently registered function names
-        transition_callbacks: Map of function names to their transition handlers
     """
 
     def __init__(
@@ -78,7 +77,6 @@ class FlowManager:
         context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
-        transition_callbacks: Optional[Dict[str, TransitionHandler]] = None,
     ):
         """Initialize the flow manager.
 
@@ -89,9 +87,6 @@ class FlowManager:
             tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
                 operates in static mode with predefined nodes
-            transition_callbacks: Map of function names to their transition handlers
-                for dynamic flows. Each handler should be an async function that
-                takes (args, flow_manager) parameters
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
@@ -103,10 +98,6 @@ class FlowManager:
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
-        self.transition_callbacks = transition_callbacks or {}
-
-        # Validate handlers at initialization
-        self._validate_transition_handlers()
 
         # Set up static or dynamic mode
         if flow_config:
@@ -122,19 +113,20 @@ class FlowManager:
         self.current_functions: Set[str] = set()  # Track registered functions
         self.current_node: Optional[str] = None
 
-    def _validate_transition_handlers(self) -> None:
-        """Validate all transition handlers at initialization.
+    def _validate_transition_callback(self, name: str, callback: Any) -> None:
+        """Validate a transition callback.
 
-        Ensures all registered handlers are async callables with the correct signature.
+        Args:
+            name: Name of the function the callback is for
+            callback: The callback to validate
 
         Raises:
-            ValueError: If any handler is not callable or not async
+            ValueError: If callback is not a valid async callable
         """
-        for name, handler in self.transition_callbacks.items():
-            if not callable(handler):
-                raise ValueError(f"Handler for {name} must be callable")
-            if not inspect.iscoroutinefunction(handler):
-                raise ValueError(f"Handler for {name} must be async")
+        if not callable(callback):
+            raise ValueError(f"Transition callback for {name} must be callable")
+        if not inspect.iscoroutinefunction(callback):
+            raise ValueError(f"Transition callback for {name} must be async")
 
     async def initialize(self) -> None:
         """Initialize the flow manager."""
@@ -235,28 +227,36 @@ class FlowManager:
             logger.warning(f"Static transition failed: Node '{function_name}' not found")
 
     async def _create_transition_func(
-        self, name: str, handler: Optional[Callable], transition_to: Optional[str]
+        self,
+        name: str,
+        handler: Optional[Callable],
+        transition_to: Optional[str],
+        transition_callback: Optional[Callable] = None,
     ) -> Callable:
         """Create a transition function for the given name and handler.
-
-        Creates a function that will be called when the LLM invokes a tool.
-        Handles both node functions and edge functions:
-        - Node functions: Execute handler and allow LLM completion
-        - Edge functions: Execute handler and transition without LLM completion
-
-        A function is considered an edge function if it either:
-        - Has a transition_to parameter (static flows)
-        - Has a registered transition handler (dynamic flows)
 
         Args:
             name: Name of the function being registered
             handler: Optional function to process data
             transition_to: Optional node to transition to (static flows)
+            transition_callback: Optional callback for dynamic transitions
 
         Returns:
             Callable: Async function that handles the tool invocation
+
+        Raises:
+            ValueError: If both transition_to and transition_callback are specified
         """
-        is_edge_function = bool(transition_to) or name in self.transition_callbacks
+        if transition_to and transition_callback:
+            raise ValueError(
+                f"Function {name} cannot have both transition_to and transition_callback"
+            )
+
+        # Validate transition callback if provided
+        if transition_callback:
+            self._validate_transition_callback(name, transition_callback)
+
+        is_edge_function = bool(transition_to) or bool(transition_callback)
 
         async def transition_func(
             function_name: str,
@@ -277,21 +277,28 @@ class FlowManager:
                     logger.debug(f"Function called without handler: {name}")
 
                 if is_edge_function:
-                    # Edge function - prevent LLM completion and handle transition
+
                     async def on_context_updated() -> None:
-                        if transition_to:  # Static flow
-                            logger.debug(f"Static transition to: {transition_to}")
-                            await self.set_node(transition_to, self.nodes[transition_to])
-                        elif name in self.transition_callbacks:  # Dynamic flow
-                            logger.debug(f"Dynamic transition for: {name}")
-                            await self.transition_callbacks[name](args, self)
+                        try:
+                            if transition_to:  # Static flow
+                                logger.debug(f"Static transition to: {transition_to}")
+                                await self.set_node(transition_to, self.nodes[transition_to])
+                            elif transition_callback:  # Dynamic flow
+                                logger.debug(f"Dynamic transition for: {name}")
+                                await transition_callback(args, self)
+                        except Exception as e:
+                            logger.error(f"Error in transition: {str(e)}")
+                            await result_callback(
+                                {"status": "error", "error": str(e)},
+                                properties=None,  # Clear properties to prevent further callbacks
+                            )
+                            raise  # Re-raise to prevent further processing
 
                     properties = FunctionCallResultProperties(
                         run_llm=False, on_context_updated=on_context_updated
                     )
                     await result_callback(result, properties=properties)
                 else:
-                    # Node function - allow LLM completion
                     await result_callback(result)
 
             except Exception as e:
@@ -331,9 +338,10 @@ class FlowManager:
     async def _register_function(
         self,
         name: str,
-        handler: Optional[Callable],
-        transition_to: Optional[str],
         new_functions: Set[str],
+        handler: Optional[Callable],
+        transition_to: Optional[str] = None,
+        transition_callback: Optional[Callable] = None,
     ) -> None:
         """Register a function with the LLM if not already registered.
 
@@ -342,6 +350,7 @@ class FlowManager:
             handler: Either a callable function or a string. If string starts with
                     '__function__:', extracts the function name after the prefix
             transition_to: Optional node name to transition to after function execution
+            transition_callback: Optional callback for dynamic transitions
             new_functions: Set to track newly registered functions for this node
 
         Raises:
@@ -355,7 +364,10 @@ class FlowManager:
                     handler = self._lookup_function(func_name)
 
                 self.llm.register_function(
-                    name, await self._create_transition_func(name, handler, transition_to)
+                    name,
+                    await self._create_transition_func(
+                        name, handler, transition_to, transition_callback
+                    ),
                 )
                 new_functions.add(name)
                 logger.debug(f"Registered function: {name}")
@@ -379,15 +391,33 @@ class FlowManager:
                     del decl["handler"]
 
     def _remove_transition_info(self, tool_config: Dict[str, Any]) -> None:
-        """Remove transition information from tool configuration."""
-        if "function" in tool_config and "transition_to" in tool_config["function"]:
-            del tool_config["function"]["transition_to"]
-        elif "transition_to" in tool_config:
-            del tool_config["transition_to"]
+        """Remove transition information from tool configuration.
+
+        Removes transition_to and transition_callback fields to prevent them from being
+        sent to the LLM provider.
+
+        Args:
+            tool_config: Function configuration to clean
+        """
+        if "function" in tool_config:
+            # Clean OpenAI format
+            if "transition_to" in tool_config["function"]:
+                del tool_config["function"]["transition_to"]
+            if "transition_callback" in tool_config["function"]:
+                del tool_config["function"]["transition_callback"]
         elif "function_declarations" in tool_config:
+            # Clean Gemini format
             for decl in tool_config["function_declarations"]:
                 if "transition_to" in decl:
                     del decl["transition_to"]
+                if "transition_callback" in decl:
+                    del decl["transition_callback"]
+        else:
+            # Clean Anthropic format
+            if "transition_to" in tool_config:
+                del tool_config["transition_to"]
+            if "transition_callback" in tool_config:
+                del tool_config["transition_callback"]
 
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
         """Set up a new conversation node and transition to it.
@@ -445,8 +475,15 @@ class FlowManager:
                         name = declaration["name"]
                         handler = declaration.get("handler")
                         transition_to = declaration.get("transition_to")
+                        transition_callback = declaration.get("transition_callback")
                         logger.debug(f"Processing function: {name}")
-                        await self._register_function(name, handler, transition_to, new_functions)
+                        await self._register_function(
+                            name=name,
+                            new_functions=new_functions,
+                            handler=handler,
+                            transition_to=transition_to,
+                            transition_callback=transition_callback,
+                        )
                 else:
                     name = self.adapter.get_function_name(func_config)
                     logger.debug(f"Processing function: {name}")
@@ -455,13 +492,21 @@ class FlowManager:
                     if "function" in func_config:
                         handler = func_config["function"].get("handler")
                         transition_to = func_config["function"].get("transition_to")
+                        transition_callback = func_config["function"].get("transition_callback")
                     else:
                         handler = func_config.get("handler")
                         transition_to = func_config.get("transition_to")
+                        transition_callback = func_config.get("transition_callback")
 
-                    await self._register_function(name, handler, transition_to, new_functions)
+                    await self._register_function(
+                        name=name,
+                        new_functions=new_functions,
+                        handler=handler,
+                        transition_to=transition_to,
+                        transition_callback=transition_callback,
+                    )
 
-                # Create tool config (after removing handler and transition_to)
+                # Create tool config (after removing handler and transition info)
                 tool_config = copy.deepcopy(func_config)
                 self._remove_handlers(tool_config)
                 self._remove_transition_info(tool_config)
@@ -579,7 +624,7 @@ class FlowManager:
             )
 
             # Check for transition_to in provider-specific formats
-            has_transition = (
+            has_transition_to = (
                 ("function" in func and "transition_to" in func["function"])
                 or "transition_to" in func
                 or (
@@ -589,9 +634,19 @@ class FlowManager:
                 )
             )
 
-            # Warn if function has neither handler nor transition_to
-            # End nodes may have neither, so just warn rather than error
-            if not has_handler and not has_transition:
+            # Check for transition_callback in provider-specific formats
+            has_transition_callback = (
+                ("function" in func and "transition_callback" in func["function"])
+                or "transition_callback" in func
+                or (
+                    "function_declarations" in func
+                    and func["function_declarations"]
+                    and "transition_callback" in func["function_declarations"][0]
+                )
+            )
+
+            # Warn if function has no handler or transitions
+            if not has_handler and not has_transition_to and not has_transition_callback:
                 logger.warning(
-                    f"Function '{name}' in node '{node_id}' has neither handler nor transition_to"
+                    f"Function '{name}' in node '{node_id}' has neither handler, transition_to, nor transition_callback"
                 )

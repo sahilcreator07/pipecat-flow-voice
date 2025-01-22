@@ -27,34 +27,39 @@ Example of the new pattern:
 
 ### Changed
 
-- Updated dynamic flows to use per-function transition handlers:
-  - Removed global `transition_callback` in favor of `transition_callbacks`
-    dict
-  - Each edge function now explicitly registers its transition handler
-  - Clearer distinction between node functions (LLM completion) and edge
-    functions (transitions)
-  - Better type safety and error detection for transition handlers
-  - Breaking change: Dynamic flows must now use `transition_callbacks` instead
-    of `transition_callback`
+- Updated dynamic flows to use per-function, inline transition callbacks:
+  - Removed global `transition_callback` from FlowManager initialization
+  - Transition handlers are now specified directly in function definitions
+  - Dynamic transitions are now specified similarly to the static flows'
+    `transition_to` field
+  - Breaking change: Dynamic flows must now specify transition callbacks in
+    function configuration
 
 Example of the new pattern:
 
 ```python
-# Before - global router
+# Before - global transition callback
 flow_manager = FlowManager(
     transition_callback=handle_transition
 )
 
-# After - per-function transitions
-flow_manager = FlowManager(
-    transition_callbacks={
-        "collect_age": handle_age_collection,
-        "collect_status": handle_status_collection
+# After - inline transition callbacks
+def create_node() -> NodeConfig:
+    return {
+        "functions": [{
+            "type": "function",
+            "function": {
+                "name": "collect_age",
+                "handler": collect_age,
+                "description": "Record user's age",
+                "parameters": {...},
+                "transition_callback": handle_age_collection
+            }
+        }]
     }
-)
 ```
 
-- Updated all dynamic flow examples to use the new transition handler pattern
+- Updated dynamic flow examples to use the new `transition_callback` pattern.
 
 ## [0.0.11] - 2025-01-19
 
