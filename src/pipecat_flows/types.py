@@ -16,6 +16,7 @@ These types provide structure and validation for flow configurations
 and function interactions.
 """
 
+from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, TypedDict, TypeVar
 
 T = TypeVar("T")
@@ -80,6 +81,18 @@ class ActionConfig(ActionConfigRequired, total=False):
     text: str
 
 
+class ContextUpdateStrategy(Enum):
+    """Strategy for updating context during node transitions.
+
+    Attributes:
+        APPEND: Append new messages to existing context (default)
+        RESET: Reset context with new messages only
+    """
+
+    APPEND = "append"
+    RESET = "reset"
+
+
 class NodeConfigRequired(TypedDict):
     """Required fields for node configuration."""
 
@@ -98,6 +111,7 @@ class NodeConfig(NodeConfigRequired, total=False):
         role_messages: List of message dicts defining the bot's role/personality
         pre_actions: Actions to execute before LLM inference
         post_actions: Actions to execute after LLM inference
+        context_update_strategy: Strategy for updating context during transitions
 
     Example:
         {
@@ -122,6 +136,7 @@ class NodeConfig(NodeConfigRequired, total=False):
     role_messages: List[Dict[str, Any]]
     pre_actions: List[ActionConfig]
     post_actions: List[ActionConfig]
+    context_update_strategy: ContextUpdateStrategy
 
 
 class FlowConfig(TypedDict):

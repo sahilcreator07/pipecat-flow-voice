@@ -19,7 +19,7 @@ function calling convention).
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
@@ -55,6 +55,22 @@ class LLMAdapter(ABC):
     @abstractmethod
     def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Format functions for provider-specific use."""
+        pass
+
+    @abstractmethod
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Get recent consecutive tool calls and results from message history.
+
+        Collects all consecutive tool call pairs working backwards from the end
+        of the message history until reaching a regular message interaction.
+
+        Args:
+            messages: List of messages in provider's format
+
+        Returns:
+            List[dict]: List of messages containing tool calls and results in
+                       chronological order, empty list if none found
+        """
         pass
 
 
@@ -108,6 +124,31 @@ class OpenAIAdapter(LLMAdapter):
             Functions in OpenAI format (unchanged as this is our default format)
         """
         return functions
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Get recent consecutive tool calls from OpenAI message format."""
+        tool_messages = []
+
+        for i in range(len(messages) - 1, -1, -1):
+            # If we hit a regular message, stop collecting
+            if (
+                messages[i].get("role") in ["user", "assistant"]
+                and not messages[i].get("tool_calls")
+                and not messages[i].get("role") == "tool"
+            ):
+                break
+
+            # Collect tool call pairs
+            if (
+                messages[i].get("role") == "tool"
+                and i > 0
+                and messages[i - 1].get("role") == "assistant"
+                and messages[i - 1].get("tool_calls")
+            ):
+                # Insert at beginning to maintain chronological order
+                tool_messages[0:0] = [messages[i - 1], messages[i]]
+
+        return tool_messages
 
 
 class AnthropicAdapter(LLMAdapter):
@@ -180,6 +221,36 @@ class AnthropicAdapter(LLMAdapter):
                 # Already in Anthropic format
                 formatted.append(func)
         return formatted
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Get recent consecutive tool calls from Anthropic message format."""
+        tool_messages = []
+
+        for i in range(len(messages) - 1, -1, -1):
+            content = messages[i].get("content", [])
+            # Handle both string and list content formats
+            content_list = (
+                content if isinstance(content, list) else [{"type": "text", "text": content}]
+            )
+
+            # If we hit a regular message, stop collecting
+            if all(item.get("type", "text") == "text" for item in content_list):
+                break
+
+            # Collect tool call pairs
+            if (
+                messages[i].get("role") == "user"
+                and any(item.get("type") == "tool_result" for item in content_list)
+                and i > 0
+                and messages[i - 1].get("role") == "assistant"
+                and isinstance(messages[i - 1].get("content"), list)
+                and any(
+                    item.get("type") == "tool_use" for item in messages[i - 1].get("content", [])
+                )
+            ):
+                tool_messages[0:0] = [messages[i - 1], messages[i]]
+
+        return tool_messages
 
 
 class GeminiAdapter(LLMAdapter):
@@ -258,6 +329,29 @@ class GeminiAdapter(LLMAdapter):
                     }
                 )
         return [{"function_declarations": all_declarations}] if all_declarations else []
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Get recent consecutive tool calls from Gemini message format."""
+        tool_messages = []
+
+        for i in range(len(messages) - 1, -1, -1):
+            # If we hit a regular message, stop collecting
+            if not (
+                messages[i].get("parts", [{}])[0].get("function_response")
+                or messages[i].get("parts", [{}])[0].get("function_call")
+            ):
+                break
+
+            # Collect tool call pairs
+            if (
+                messages[i].get("role") == "user"
+                and messages[i].get("parts", [{}])[0].get("function_response")
+                and i > 0
+                and messages[i - 1].get("role") == "model"
+            ):
+                tool_messages[0:0] = [messages[i - 1], messages[i]]
+
+        return tool_messages
 
 
 def create_adapter(llm) -> LLMAdapter:
