@@ -98,6 +98,7 @@ class FlowManager:
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
+        self._pending_function_calls = 0
 
         # Set up static or dynamic mode
         if flow_config:
@@ -268,6 +269,12 @@ class FlowManager:
         ) -> None:
             """Inner function that handles the actual tool invocation."""
             try:
+                # Track pending function call
+                self._pending_function_calls += 1
+                logger.debug(
+                    f"Function call pending: {name} (total: {self._pending_function_calls})"
+                )
+
                 # Execute handler if present
                 if handler:
                     result = await self._call_handler(handler, args)
@@ -280,14 +287,29 @@ class FlowManager:
 
                     async def on_context_updated() -> None:
                         try:
-                            if transition_to:  # Static flow
-                                logger.debug(f"Static transition to: {transition_to}")
-                                await self.set_node(transition_to, self.nodes[transition_to])
-                            elif transition_callback:  # Dynamic flow
-                                logger.debug(f"Dynamic transition for: {name}")
-                                await transition_callback(args, self)
+                            self._pending_function_calls -= 1
+                            logger.debug(
+                                f"Function call completed: {name} (remaining: {self._pending_function_calls})"
+                            )
+
+                            # Only process transition if this was the last pending call
+                            if self._pending_function_calls == 0:
+                                if transition_to:  # Static flow
+                                    logger.debug(f"Static transition to: {transition_to}")
+                                    await self.set_node(transition_to, self.nodes[transition_to])
+                                elif transition_callback:  # Dynamic flow
+                                    logger.debug(f"Dynamic transition for: {name}")
+                                    await transition_callback(args, self)
+                                # Reset counter after transition completes
+                                self._pending_function_calls = 0
+                                logger.debug("Reset pending function calls counter")
+                            else:
+                                logger.debug(
+                                    f"Skipping transition, {self._pending_function_calls} calls still pending"
+                                )
                         except Exception as e:
                             logger.error(f"Error in transition: {str(e)}")
+                            self._pending_function_calls = 0
                             await result_callback(
                                 {"status": "error", "error": str(e)},
                                 properties=None,  # Clear properties to prevent further callbacks
@@ -299,10 +321,15 @@ class FlowManager:
                     )
                     await result_callback(result, properties=properties)
                 else:
+                    self._pending_function_calls -= 1
+                    logger.debug(
+                        f"Node function completed: {name} (remaining: {self._pending_function_calls})"
+                    )
                     await result_callback(result)
 
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
+                self._pending_function_calls = 0
                 error_result = {"status": "error", "error": str(e)}
                 await result_callback(error_result)
 
