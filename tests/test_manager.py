@@ -846,7 +846,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             # Get the registered function and test it
             name, func = self.mock_llm.register_function.call_args[0]
 
-            async def callback(result):
+            async def callback(result, properties=None):
                 self.assertEqual(result["status"], "success")
                 self.assertEqual(result["args"], {"test": "value"})
 
