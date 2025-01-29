@@ -61,6 +61,10 @@ def create_node() -> NodeConfig:
 
 - Updated dynamic flow examples to use the new `transition_callback` pattern.
 
+### Fixed
+
+- Fixed an issue where multiple, consecutive function calls could result in two completions.
+
 ## [0.0.11] - 2025-01-19
 
 ### Changed
