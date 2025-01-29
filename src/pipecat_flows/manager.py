@@ -300,9 +300,6 @@ class FlowManager:
                                 elif transition_callback:  # Dynamic flow
                                     logger.debug(f"Dynamic transition for: {name}")
                                     await transition_callback(args, self)
-                                # Reset counter after transition completes
-                                self._pending_function_calls = 0
-                                logger.debug("Reset pending function calls counter")
                             else:
                                 logger.debug(
                                     f"Skipping transition, {self._pending_function_calls} calls still pending"
