@@ -361,6 +361,38 @@ async def on_first_participant_joined(transport, participant):
     await flow_manager.set_node("initial", create_initial_node())
 ```
 
+### Context Management
+
+The `FlowManager` provides three strategies for managing conversation context during node transitions:
+
+- **APPEND** (default): Adds new messages to the existing context, maintaining the full conversation history
+- **RESET**: Clears the context and starts fresh with the new node's messages, including the previous function call results
+- **RESET_WITH_SUMMARY**: Resets the context but includes an AI-generated summary of the previous conversation and the new node's messages
+
+Strategies can be set globally or per-node:
+
+```python
+# Global strategy
+flow_manager = FlowManager(
+    task=task,
+    llm=llm,
+    context_aggregator=context_aggregator,
+    context_strategy=ContextUpdateStrategy.APPEND  # Default behavior
+)
+
+# Per-node strategy
+node_config = {
+    "task_messages": [...],
+    "functions": [...],
+    "context_update_strategy": ContextUpdateConfig(
+        strategy=ContextUpdateStrategy.RESET_WITH_SUMMARY,
+        summary_prompt="Summarize the key points discussed so far."
+    )
+}
+```
+
+When using `RESET_WITH_SUMMARY`, the system automatically falls back to `RESET` if summary generation fails or times out.
+
 ## Examples
 
 The repository includes several complete example implementations in the `examples/` directory.
