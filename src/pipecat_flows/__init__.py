@@ -63,12 +63,20 @@ from .exceptions import (
     InvalidFunctionError,
 )
 from .manager import FlowManager
-from .types import ContextUpdateStrategy, FlowArgs, FlowConfig, FlowResult, NodeConfig
+from .types import (
+    ContextUpdateConfig,
+    ContextUpdateStrategy,
+    FlowArgs,
+    FlowConfig,
+    FlowResult,
+    NodeConfig,
+)
 
 __all__ = [
     # Flow Manager
     "FlowManager",
     # Types
+    "ContextUpdateConfig",
     "ContextUpdateStrategy",
     "FlowArgs",
     "FlowConfig",

@@ -23,6 +23,7 @@ The flow manager coordinates all aspects of a conversation, including:
 - Error handling
 """
 
+import asyncio
 import copy
 import inspect
 import sys
@@ -40,7 +41,15 @@ from pipecat.pipeline.task import PipelineTask
 from .actions import ActionError, ActionManager
 from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
-from .types import ActionConfig, ContextUpdateStrategy, FlowArgs, FlowConfig, FlowResult, NodeConfig
+from .types import (
+    ActionConfig,
+    ContextUpdateConfig,
+    ContextUpdateStrategy,
+    FlowArgs,
+    FlowConfig,
+    FlowResult,
+    NodeConfig,
+)
 
 if TYPE_CHECKING:
     from pipecat.services.anthropic import AnthropicLLMService
@@ -580,44 +589,68 @@ class FlowManager:
             logger.error(f"Error setting node {node_id}: {str(e)}")
             raise FlowError(f"Failed to set node {node_id}: {str(e)}") from e
 
+    async def _create_conversation_summary(
+        self, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate a conversation summary from messages."""
+        return await self.adapter.generate_summary(self.llm, summary_prompt, messages)
+
     async def _update_llm_context(
         self,
         messages: List[dict],
         functions: List[dict],
-        strategy: Optional[ContextUpdateStrategy] = None,
+        strategy: Optional[ContextUpdateConfig] = None,
     ) -> None:
         """Update LLM context with new messages and functions.
 
         Args:
             messages: New messages to add to context
             functions: New functions to make available
-            strategy: Optional context update strategy
+            strategy: Optional context update configuration
 
         Raises:
             FlowError: If context update fails
         """
         try:
-            # Determine strategy - use node-specific or instance default
-            update_strategy = strategy or self._context_strategy
+            update_config = strategy or ContextUpdateConfig(strategy=self._context_strategy)
 
-            # For RESET strategy, preserve function call context if exists
             if (
-                update_strategy == ContextUpdateStrategy.RESET
+                update_config.strategy == ContextUpdateStrategy.RESET_WITH_SUMMARY
                 and self._context_aggregator
                 and self._context_aggregator.user()._context.messages
             ):
-                if tool_messages := self.adapter.get_recent_tool_call_pairs(
-                    self._context_aggregator.user()._context.messages
-                ):
-                    messages[0:0] = tool_messages  # Insert at beginning
-                    logger.debug(
-                        f"Preserving function call context ({len(tool_messages) // 2} pairs)"
+                if not update_config.summary_prompt:
+                    raise FlowError("summary_prompt required for RESET_WITH_SUMMARY strategy")
+
+                try:
+                    # Try to get summary with 5 second timeout
+                    summary = await asyncio.wait_for(
+                        self._create_conversation_summary(
+                            update_config.summary_prompt,
+                            self._context_aggregator.user()._context.messages,
+                        ),
+                        timeout=5.0,
                     )
 
-            # For first node or RESET strategy, use update frame
+                    if summary:
+                        summary_message = self.adapter.format_summary_message(summary)
+                        messages.insert(0, summary_message)
+                        logger.debug("Added conversation summary to context")
+                    else:
+                        # Fall back to RESET strategy if summary fails
+                        logger.warning("Failed to generate summary, falling back to RESET strategy")
+                        update_config.strategy = ContextUpdateStrategy.RESET
+
+                except asyncio.TimeoutError:
+                    logger.warning("Summary generation timed out, falling back to RESET strategy")
+                    update_config.strategy = ContextUpdateStrategy.RESET
+
+            # For first node or RESET/RESET_WITH_SUMMARY strategy, use update frame
             frame_type = (
                 LLMMessagesUpdateFrame
-                if self.current_node is None or update_strategy == ContextUpdateStrategy.RESET
+                if self.current_node is None
+                or update_config.strategy
+                in [ContextUpdateStrategy.RESET, ContextUpdateStrategy.RESET_WITH_SUMMARY]
                 else LLMMessagesAppendFrame
             )
 
@@ -625,7 +658,10 @@ class FlowManager:
                 [frame_type(messages=messages), LLMSetToolsFrame(tools=functions)]
             )
 
-            logger.info(f"Updated LLM context using {frame_type.__name__} using {update_strategy}")
+            logger.info(
+                f"Updated LLM context using {frame_type.__name__} with strategy {update_config.strategy}"
+            )
+
         except Exception as e:
             logger.error(f"Failed to update LLM context: {str(e)}")
             raise FlowError(f"Context update failed: {str(e)}") from e

@@ -16,8 +16,9 @@ These types provide structure and validation for flow configurations
 and function interactions.
 """
 
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, List, TypedDict, TypeVar
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar
 
 T = TypeVar("T")
 TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
@@ -87,10 +88,30 @@ class ContextUpdateStrategy(Enum):
     Attributes:
         APPEND: Append new messages to existing context (default)
         RESET: Reset context with new messages only
+        RESET_WITH_SUMMARY: Reset context but include an LLM-generated summary
     """
 
     APPEND = "append"
     RESET = "reset"
+    RESET_WITH_SUMMARY = "reset_with_summary"
+
+
+@dataclass
+class ContextUpdateConfig:
+    """Configuration for context updates.
+
+    Attributes:
+        strategy: Strategy to use for context updates
+        summary_prompt: Required prompt text when using RESET_WITH_SUMMARY
+    """
+
+    strategy: ContextUpdateStrategy
+    summary_prompt: Optional[str] = None
+
+    def __post_init__(self):
+        """Validate configuration."""
+        if self.strategy == ContextUpdateStrategy.RESET_WITH_SUMMARY and not self.summary_prompt:
+            raise ValueError("summary_prompt is required when using RESET_WITH_SUMMARY strategy")
 
 
 class NodeConfigRequired(TypedDict):
@@ -129,14 +150,15 @@ class NodeConfig(NodeConfigRequired, total=False):
             ],
             "functions": [...],
             "pre_actions": [...],
-            "post_actions": [...]
+            "post_actions": [...],
+            "context_update_strategy": ContextUpdateConfig(strategy=ContextUpdateStrategy.APPEND)
         }
     """
 
     role_messages: List[Dict[str, Any]]
     pre_actions: List[ActionConfig]
     post_actions: List[ActionConfig]
-    context_update_strategy: ContextUpdateStrategy
+    context_update_strategy: ContextUpdateConfig
 
 
 class FlowConfig(TypedDict):

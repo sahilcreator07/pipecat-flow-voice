@@ -19,7 +19,7 @@ function calling convention).
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
@@ -70,6 +70,32 @@ class LLMAdapter(ABC):
         Returns:
             List[dict]: List of messages containing tool calls and results in
                        chronological order, empty list if none found
+        """
+        pass
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format a summary as a message appropriate for this LLM provider.
+
+        Args:
+            summary: The generated summary text
+
+        Returns:
+            A properly formatted message for this provider
+        """
+        pass
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate a summary using the LLM provider's API directly.
+
+        Args:
+            llm: LLM service instance containing client/credentials
+            summary_prompt: Prompt text to guide summary generation
+            messages: List of messages to summarize
+
+        Returns:
+            Generated summary text, or None if generation fails
         """
         pass
 
@@ -165,6 +191,39 @@ class OpenAIAdapter(LLMAdapter):
                 tool_messages[0:0] = [messages[i - 1], messages[i]]
 
         return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a system message for OpenAI."""
+        return {"role": "system", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using OpenAI's API directly."""
+        try:
+            prompt_messages = [
+                {
+                    "role": "system",
+                    "content": summary_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": f"Conversation history: {messages}",
+                },
+            ]
+
+            # LLM completion
+            response = await llm._client.chat.completions.create(
+                model=llm.model_name,
+                messages=prompt_messages,
+                stream=False,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"OpenAI summary generation failed: {e}", exc_info=True)
+            return None
 
 
 class AnthropicAdapter(LLMAdapter):
@@ -283,6 +342,37 @@ class AnthropicAdapter(LLMAdapter):
                 tool_messages[0:0] = [messages[i - 1], messages[i]]
 
         return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a user message for Anthropic."""
+        return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using Anthropic's API directly."""
+        try:
+            prompt_messages = [
+                {
+                    "role": "user",
+                    "content": f"Conversation history: {messages}",
+                },
+            ]
+
+            # LLM completion
+            response = await llm._client.messages.create(
+                model=llm.model_name,
+                messages=prompt_messages,
+                system=summary_prompt,
+                max_tokens=8192,
+                stream=False,
+            )
+
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Anthropic summary generation failed: {e}", exc_info=True)
+            return None
 
 
 class GeminiAdapter(LLMAdapter):
@@ -419,6 +509,32 @@ class GeminiAdapter(LLMAdapter):
                 continue
 
         return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a user message for Gemini."""
+        return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using Google's API directly."""
+        try:
+            # Format messages for Gemini
+            contents = [
+                {
+                    "role": "user",
+                    "parts": [{"text": (f"{summary_prompt}\n\nConversation history: {messages}")}],
+                }
+            ]
+
+            # Use non-streaming completion
+            response = await llm._client.generate_content_async(contents=contents, stream=False)
+
+            return response.text
+
+        except Exception as e:
+            logger.error(f"Google summary generation failed: {e}", exc_info=True)
+            return None
 
 
 def create_adapter(llm) -> LLMAdapter:
