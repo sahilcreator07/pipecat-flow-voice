@@ -5,7 +5,7 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.12] - 2025-01-30
 
 ### Added
 
@@ -32,7 +32,7 @@ Example of the new pattern:
   - Transition handlers are now specified directly in function definitions
   - Dynamic transitions are now specified similarly to the static flows'
     `transition_to` field
-  - Breaking change: Dynamic flows must now specify transition callbacks in
+  - **Breaking change**: Dynamic flows must now specify transition callbacks in
     function configuration
 
 Example of the new pattern:
