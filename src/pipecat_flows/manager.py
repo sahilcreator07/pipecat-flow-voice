@@ -27,7 +27,7 @@ import asyncio
 import copy
 import inspect
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -621,14 +621,13 @@ class FlowManager:
                 and self._context_aggregator
                 and self._context_aggregator.user()._context.messages
             ):
-                if not update_config.summary_prompt:
-                    raise FlowError("summary_prompt required for RESET_WITH_SUMMARY strategy")
-
+                # We know summary_prompt exists because of __post_init__ validation in ContextStrategyConfig
+                summary_prompt = cast(str, update_config.summary_prompt)
                 try:
                     # Try to get summary with 5 second timeout
                     summary = await asyncio.wait_for(
                         self._create_conversation_summary(
-                            update_config.summary_prompt,
+                            summary_prompt,
                             self._context_aggregator.user()._context.messages,
                         ),
                         timeout=5.0,
