@@ -64,8 +64,8 @@ from .exceptions import (
 )
 from .manager import FlowManager
 from .types import (
-    ContextUpdateConfig,
-    ContextUpdateStrategy,
+    ContextStrategy,
+    ContextStrategyConfig,
     FlowArgs,
     FlowConfig,
     FlowResult,
@@ -76,8 +76,8 @@ __all__ = [
     # Flow Manager
     "FlowManager",
     # Types
-    "ContextUpdateConfig",
-    "ContextUpdateStrategy",
+    "ContextStrategy",
+    "ContextStrategyConfig",
     "FlowArgs",
     "FlowConfig",
     "FlowResult",

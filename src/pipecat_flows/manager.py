@@ -43,8 +43,8 @@ from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
 from .types import (
     ActionConfig,
-    ContextUpdateConfig,
-    ContextUpdateStrategy,
+    ContextStrategy,
+    ContextStrategyConfig,
     FlowArgs,
     FlowConfig,
     FlowResult,
@@ -86,7 +86,7 @@ class FlowManager:
         context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
-        context_strategy: Optional[ContextUpdateStrategy] = None,
+        context_strategy: Optional[ContextStrategy] = None,
     ):
         """Initialize the flow manager.
 
@@ -110,7 +110,7 @@ class FlowManager:
         self.initialized = False
         self._context_aggregator = context_aggregator
         self._pending_function_calls = 0
-        self._context_strategy = context_strategy or ContextUpdateStrategy.APPEND
+        self._context_strategy = context_strategy or ContextStrategy.APPEND
 
         # Set up static or dynamic mode
         if flow_config:
@@ -567,7 +567,7 @@ class FlowManager:
 
             # Update LLM context
             await self._update_llm_context(
-                messages, formatted_tools, strategy=node_config.get("context_update_strategy")
+                messages, formatted_tools, strategy=node_config.get("context_strategy")
             )
             logger.debug("Updated LLM context")
 
@@ -599,7 +599,7 @@ class FlowManager:
         self,
         messages: List[dict],
         functions: List[dict],
-        strategy: Optional[ContextUpdateConfig] = None,
+        strategy: Optional[ContextStrategyConfig] = None,
     ) -> None:
         """Update LLM context with new messages and functions.
 
@@ -612,10 +612,10 @@ class FlowManager:
             FlowError: If context update fails
         """
         try:
-            update_config = strategy or ContextUpdateConfig(strategy=self._context_strategy)
+            update_config = strategy or ContextStrategyConfig(strategy=self._context_strategy)
 
             if (
-                update_config.strategy == ContextUpdateStrategy.RESET_WITH_SUMMARY
+                update_config.strategy == ContextStrategy.RESET_WITH_SUMMARY
                 and self._context_aggregator
                 and self._context_aggregator.user()._context.messages
             ):
@@ -639,18 +639,18 @@ class FlowManager:
                     else:
                         # Fall back to RESET strategy if summary fails
                         logger.warning("Failed to generate summary, falling back to RESET strategy")
-                        update_config.strategy = ContextUpdateStrategy.RESET
+                        update_config.strategy = ContextStrategy.RESET
 
                 except asyncio.TimeoutError:
                     logger.warning("Summary generation timed out, falling back to RESET strategy")
-                    update_config.strategy = ContextUpdateStrategy.RESET
+                    update_config.strategy = ContextStrategy.RESET
 
             # For first node or RESET/RESET_WITH_SUMMARY strategy, use update frame
             frame_type = (
                 LLMMessagesUpdateFrame
                 if self.current_node is None
                 or update_config.strategy
-                in [ContextUpdateStrategy.RESET, ContextUpdateStrategy.RESET_WITH_SUMMARY]
+                in [ContextStrategy.RESET, ContextStrategy.RESET_WITH_SUMMARY]
                 else LLMMessagesAppendFrame
             )
 
@@ -658,7 +658,7 @@ class FlowManager:
                 [frame_type(messages=messages), LLMSetToolsFrame(tools=functions)]
             )
 
-            logger.info(
+            logger.debug(
                 f"Updated LLM context using {frame_type.__name__} with strategy {update_config.strategy}"
             )
 

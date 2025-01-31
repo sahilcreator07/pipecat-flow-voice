@@ -13,16 +13,7 @@ from typing import List, TypedDict
 import aiohttp
 from dotenv import load_dotenv
 from loguru import logger
-
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.flows import (
-    ContextUpdateConfig,
-    ContextUpdateStrategy,
-    FlowArgs,
-    FlowConfig,
-    FlowManager,
-    FlowResult,
-)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -32,6 +23,15 @@ from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+
+from pipecat_flows import (
+    ContextStrategy,
+    ContextStrategyConfig,
+    FlowArgs,
+    FlowConfig,
+    FlowManager,
+    FlowResult,
+)
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -362,8 +362,8 @@ flow_config: FlowConfig = {
 Be thorough in reviewing all details and wait for explicit confirmation.""",
                 }
             ],
-            "context_update_strategy": ContextUpdateConfig(
-                strategy=ContextUpdateStrategy.RESET_WITH_SUMMARY,
+            "context_strategy": ContextStrategyConfig(
+                strategy=ContextStrategy.RESET_WITH_SUMMARY,
                 summary_prompt=(
                     "Summarize the patient intake conversation, including their birthday, "
                     "prescriptions, allergies, medical conditions, and reasons for visiting. "

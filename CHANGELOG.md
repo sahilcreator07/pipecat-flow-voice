@@ -24,15 +24,15 @@ Example usage:
 ```python
 # Global strategy
 flow_manager = FlowManager(
-    context_strategy=ContextUpdateStrategy.APPEND
+    context_strategy=ContextStrategy.APPEND
 )
 
 # Per-node strategy
 node_config = {
     "task_messages": [...],
     "functions": [...],
-    "context_update_strategy": ContextUpdateConfig(
-        strategy=ContextUpdateStrategy.RESET_WITH_SUMMARY,
+    "context_strategy": ContextStrategyConfig(
+        strategy=ContextStrategy.RESET_WITH_SUMMARY,
         summary_prompt="Summarize the key points discussed so far."
     )
 }

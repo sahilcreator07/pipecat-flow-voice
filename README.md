@@ -377,15 +377,15 @@ flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
-    context_strategy=ContextUpdateStrategy.APPEND  # Default behavior
+    context_strategy=ContextStrategy.APPEND  # Default behavior
 )
 
 # Per-node strategy
 node_config = {
     "task_messages": [...],
     "functions": [...],
-    "context_update_strategy": ContextUpdateConfig(
-        strategy=ContextUpdateStrategy.RESET_WITH_SUMMARY,
+    "context_strategy": ContextStrategyConfig(
+        strategy=ContextStrategy.RESET_WITH_SUMMARY,
         summary_prompt="Summarize the key points discussed so far."
     )
 }

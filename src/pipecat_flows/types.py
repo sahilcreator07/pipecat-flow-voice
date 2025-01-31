@@ -82,8 +82,8 @@ class ActionConfig(ActionConfigRequired, total=False):
     text: str
 
 
-class ContextUpdateStrategy(Enum):
-    """Strategy for updating context during node transitions.
+class ContextStrategy(Enum):
+    """Strategy for managing context during node transitions.
 
     Attributes:
         APPEND: Append new messages to existing context (default)
@@ -97,20 +97,20 @@ class ContextUpdateStrategy(Enum):
 
 
 @dataclass
-class ContextUpdateConfig:
-    """Configuration for context updates.
+class ContextStrategyConfig:
+    """Configuration for context management.
 
     Attributes:
-        strategy: Strategy to use for context updates
+        strategy: Strategy to use for context management
         summary_prompt: Required prompt text when using RESET_WITH_SUMMARY
     """
 
-    strategy: ContextUpdateStrategy
+    strategy: ContextStrategy
     summary_prompt: Optional[str] = None
 
     def __post_init__(self):
         """Validate configuration."""
-        if self.strategy == ContextUpdateStrategy.RESET_WITH_SUMMARY and not self.summary_prompt:
+        if self.strategy == ContextStrategy.RESET_WITH_SUMMARY and not self.summary_prompt:
             raise ValueError("summary_prompt is required when using RESET_WITH_SUMMARY strategy")
 
 
@@ -132,7 +132,7 @@ class NodeConfig(NodeConfigRequired, total=False):
         role_messages: List of message dicts defining the bot's role/personality
         pre_actions: Actions to execute before LLM inference
         post_actions: Actions to execute after LLM inference
-        context_update_strategy: Strategy for updating context during transitions
+        context_strategy: Strategy for updating context during transitions
 
     Example:
         {
@@ -151,14 +151,14 @@ class NodeConfig(NodeConfigRequired, total=False):
             "functions": [...],
             "pre_actions": [...],
             "post_actions": [...],
-            "context_update_strategy": ContextUpdateConfig(strategy=ContextUpdateStrategy.APPEND)
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.APPEND)
         }
     """
 
     role_messages: List[Dict[str, Any]]
     pre_actions: List[ActionConfig]
     post_actions: List[ActionConfig]
-    context_update_strategy: ContextUpdateConfig
+    context_strategy: ContextStrategyConfig
 
 
 class FlowConfig(TypedDict):
