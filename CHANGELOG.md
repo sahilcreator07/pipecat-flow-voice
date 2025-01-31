@@ -24,7 +24,9 @@ Example usage:
 ```python
 # Global strategy
 flow_manager = FlowManager(
-    context_strategy=ContextStrategy.APPEND
+    context_strategy=ContextStrategyConfig(
+        strategy=ContextStrategy.RESET
+    )
 )
 
 # Per-node strategy

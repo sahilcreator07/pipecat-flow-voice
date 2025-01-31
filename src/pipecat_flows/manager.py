@@ -86,7 +86,7 @@ class FlowManager:
         context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
-        context_strategy: Optional[ContextStrategy] = None,
+        context_strategy: Optional[ContextStrategyConfig] = None,
     ):
         """Initialize the flow manager.
 
@@ -97,7 +97,7 @@ class FlowManager:
             tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
                 operates in static mode with predefined nodes
-            context_strategy: Optional context update strategy for transitions
+            context_strategy: Optional context strategy configuration
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
@@ -110,7 +110,9 @@ class FlowManager:
         self.initialized = False
         self._context_aggregator = context_aggregator
         self._pending_function_calls = 0
-        self._context_strategy = context_strategy or ContextStrategy.APPEND
+        self._context_strategy = context_strategy or ContextStrategyConfig(
+            strategy=ContextStrategy.APPEND
+        )
 
         # Set up static or dynamic mode
         if flow_config:
@@ -612,7 +614,7 @@ class FlowManager:
             FlowError: If context update fails
         """
         try:
-            update_config = strategy or ContextStrategyConfig(strategy=self._context_strategy)
+            update_config = strategy or self._context_strategy
 
             if (
                 update_config.strategy == ContextStrategy.RESET_WITH_SUMMARY

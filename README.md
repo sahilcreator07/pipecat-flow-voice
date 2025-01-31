@@ -377,7 +377,9 @@ flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
-    context_strategy=ContextStrategy.APPEND  # Default behavior
+    context_strategy=ContextStrategyConfig(
+        strategy=ContextStrategy.RESET
+    )
 )
 
 # Per-node strategy
