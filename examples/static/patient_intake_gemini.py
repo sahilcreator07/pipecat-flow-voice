@@ -217,6 +217,7 @@ flow_config: FlowConfig = {
                     "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
                 }
             ],
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.RESET),
             "functions": [
                 {
                     "function_declarations": [
@@ -466,7 +467,7 @@ async def main():
             voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
             text_filter=MarkdownTextFilter(),
         )
-        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-2.0-flash-exp")
+        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"))
 
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)

@@ -213,6 +213,7 @@ flow_config: FlowConfig = {
                     "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
                 }
             ],
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.RESET),
             "functions": [
                 {
                     "name": "record_prescriptions",
