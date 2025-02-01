@@ -1094,3 +1094,26 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn(
             "cannot have both transition_to and transition_callback", str(context.exception)
         )
+
+    async def test_get_current_context(self):
+        """Test getting current conversation context."""
+        flow_manager = FlowManager(
+            task=self.mock_task,
+            llm=self.mock_llm,
+            context_aggregator=self.mock_context_aggregator,
+        )
+        await flow_manager.initialize()
+
+        # Mock the context messages
+        mock_messages = [{"role": "system", "content": "Test message"}]
+        self.mock_context_aggregator.user()._context.messages = mock_messages
+
+        # Test getting context
+        context = flow_manager.get_current_context()
+        self.assertEqual(context, mock_messages)
+
+        # Test error when context aggregator is not available
+        flow_manager._context_aggregator = None
+        with self.assertRaises(FlowError) as context:
+            flow_manager.get_current_context()
+        self.assertIn("No context aggregator available", str(context.exception))
