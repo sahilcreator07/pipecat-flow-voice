@@ -162,6 +162,21 @@ class FlowManager:
             self.initialized = False
             raise FlowInitializationError(f"Failed to initialize flow: {str(e)}") from e
 
+    def get_current_context(self) -> List[dict]:
+        """Get the current conversation context.
+
+        Returns:
+            List of messages in the current context, including system messages,
+            user messages, and assistant responses.
+
+        Raises:
+            FlowError: If context aggregator is not available
+        """
+        if not self._context_aggregator:
+            raise FlowError("No context aggregator available")
+
+        return self._context_aggregator.user()._context.messages
+
     def register_action(self, action_type: str, handler: Callable) -> None:
         """Register a handler for a specific action type.
 

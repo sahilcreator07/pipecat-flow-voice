@@ -40,6 +40,16 @@ node_config = {
 }
 ```
 
+- Added a new function called `get_current_context` which provides access to
+  the LLM context.
+
+Example usage:
+
+```python
+# Access current conversation context
+context = flow_manager.get_current_context()
+```
+
 ## [0.0.12] - 2025-01-30
 
 ### Added
