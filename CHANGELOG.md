@@ -50,6 +50,12 @@ Example usage:
 context = flow_manager.get_current_context()
 ```
 
+### Deprecated
+
+- The `tts` parameter in `FlowManager.__init__()` is now deprecated and will
+  be removed in a future version. The `tts_say` action now pushes a
+  `TTSSpeakFrame`.
+
 ## [0.0.12] - 2025-01-30
 
 ### Added
