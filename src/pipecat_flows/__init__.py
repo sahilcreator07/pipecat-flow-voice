@@ -3,8 +3,7 @@
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-"""
-Pipecat Flows.
+"""Pipecat Flows.
 
 This package provides a framework for building structured conversations in Pipecat.
 The FlowManager can handle both static and dynamic conversation flows:
@@ -64,12 +63,21 @@ from .exceptions import (
     InvalidFunctionError,
 )
 from .manager import FlowManager
-from .types import FlowArgs, FlowConfig, FlowResult, NodeConfig
+from .types import (
+    ContextStrategy,
+    ContextStrategyConfig,
+    FlowArgs,
+    FlowConfig,
+    FlowResult,
+    NodeConfig,
+)
 
 __all__ = [
     # Flow Manager
     "FlowManager",
     # Types
+    "ContextStrategy",
+    "ContextStrategyConfig",
     "FlowArgs",
     "FlowConfig",
     "FlowResult",

@@ -5,6 +5,41 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added context update strategies to control how context is managed during node
+  transitions:
+  - `APPEND`: Add new messages to existing context (default behavior)
+  - `RESET`: Clear and replace context with new messages and most recent
+    function call results
+  - `RESET_WITH_SUMMARY`: Reset context but include an LLM-generated summary
+    along with the new messages
+  - Strategies can be set globally or per-node
+  - Includes automatic fallback to RESET if summary generation fails
+
+Example usage:
+
+```python
+# Global strategy
+flow_manager = FlowManager(
+    context_strategy=ContextStrategyConfig(
+        strategy=ContextStrategy.RESET
+    )
+)
+
+# Per-node strategy
+node_config = {
+    "task_messages": [...],
+    "functions": [...],
+    "context_strategy": ContextStrategyConfig(
+        strategy=ContextStrategy.RESET_WITH_SUMMARY,
+        summary_prompt="Summarize the key points discussed so far."
+    )
+}
+```
+
 ## [0.0.12] - 2025-01-30
 
 ### Added

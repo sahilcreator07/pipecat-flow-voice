@@ -16,7 +16,9 @@ These types provide structure and validation for flow configurations
 and function interactions.
 """
 
-from typing import Any, Awaitable, Callable, Dict, List, TypedDict, TypeVar
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar
 
 T = TypeVar("T")
 TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
@@ -80,6 +82,38 @@ class ActionConfig(ActionConfigRequired, total=False):
     text: str
 
 
+class ContextStrategy(Enum):
+    """Strategy for managing context during node transitions.
+
+    Attributes:
+        APPEND: Append new messages to existing context (default)
+        RESET: Reset context with new messages only
+        RESET_WITH_SUMMARY: Reset context but include an LLM-generated summary
+    """
+
+    APPEND = "append"
+    RESET = "reset"
+    RESET_WITH_SUMMARY = "reset_with_summary"
+
+
+@dataclass
+class ContextStrategyConfig:
+    """Configuration for context management.
+
+    Attributes:
+        strategy: Strategy to use for context management
+        summary_prompt: Required prompt text when using RESET_WITH_SUMMARY
+    """
+
+    strategy: ContextStrategy
+    summary_prompt: Optional[str] = None
+
+    def __post_init__(self):
+        """Validate configuration."""
+        if self.strategy == ContextStrategy.RESET_WITH_SUMMARY and not self.summary_prompt:
+            raise ValueError("summary_prompt is required when using RESET_WITH_SUMMARY strategy")
+
+
 class NodeConfigRequired(TypedDict):
     """Required fields for node configuration."""
 
@@ -98,6 +132,7 @@ class NodeConfig(NodeConfigRequired, total=False):
         role_messages: List of message dicts defining the bot's role/personality
         pre_actions: Actions to execute before LLM inference
         post_actions: Actions to execute after LLM inference
+        context_strategy: Strategy for updating context during transitions
 
     Example:
         {
@@ -115,13 +150,15 @@ class NodeConfig(NodeConfigRequired, total=False):
             ],
             "functions": [...],
             "pre_actions": [...],
-            "post_actions": [...]
+            "post_actions": [...],
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.APPEND)
         }
     """
 
     role_messages: List[Dict[str, Any]]
     pre_actions: List[ActionConfig]
     post_actions: List[ActionConfig]
+    context_strategy: ContextStrategyConfig
 
 
 class FlowConfig(TypedDict):

@@ -23,10 +23,11 @@ The flow manager coordinates all aspects of a conversation, including:
 - Error handling
 """
 
+import asyncio
 import copy
 import inspect
 import sys
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -40,7 +41,15 @@ from pipecat.pipeline.task import PipelineTask
 from .actions import ActionError, ActionManager
 from .adapters import create_adapter
 from .exceptions import FlowError, FlowInitializationError, FlowTransitionError
-from .types import ActionConfig, FlowArgs, FlowConfig, FlowResult, NodeConfig, TransitionHandler
+from .types import (
+    ActionConfig,
+    ContextStrategy,
+    ContextStrategyConfig,
+    FlowArgs,
+    FlowConfig,
+    FlowResult,
+    NodeConfig,
+)
 
 if TYPE_CHECKING:
     from pipecat.services.anthropic import AnthropicLLMService
@@ -77,6 +86,7 @@ class FlowManager:
         context_aggregator: Any,
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
+        context_strategy: Optional[ContextStrategyConfig] = None,
     ):
         """Initialize the flow manager.
 
@@ -87,6 +97,7 @@ class FlowManager:
             tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
                 operates in static mode with predefined nodes
+            context_strategy: Optional context strategy configuration
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
@@ -99,6 +110,9 @@ class FlowManager:
         self.initialized = False
         self._context_aggregator = context_aggregator
         self._pending_function_calls = 0
+        self._context_strategy = context_strategy or ContextStrategyConfig(
+            strategy=ContextStrategy.APPEND
+        )
 
         # Set up static or dynamic mode
         if flow_config:
@@ -554,7 +568,9 @@ class FlowManager:
             formatted_tools = self.adapter.format_functions(tools)
 
             # Update LLM context
-            await self._update_llm_context(messages, formatted_tools)
+            await self._update_llm_context(
+                messages, formatted_tools, strategy=node_config.get("context_strategy")
+            )
             logger.debug("Updated LLM context")
 
             # Update state
@@ -575,27 +591,78 @@ class FlowManager:
             logger.error(f"Error setting node {node_id}: {str(e)}")
             raise FlowError(f"Failed to set node {node_id}: {str(e)}") from e
 
-    async def _update_llm_context(self, messages: List[dict], functions: List[dict]) -> None:
+    async def _create_conversation_summary(
+        self, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate a conversation summary from messages."""
+        return await self.adapter.generate_summary(self.llm, summary_prompt, messages)
+
+    async def _update_llm_context(
+        self,
+        messages: List[dict],
+        functions: List[dict],
+        strategy: Optional[ContextStrategyConfig] = None,
+    ) -> None:
         """Update LLM context with new messages and functions.
 
         Args:
             messages: New messages to add to context
             functions: New functions to make available
+            strategy: Optional context update configuration
 
         Raises:
             FlowError: If context update fails
         """
         try:
-            # Determine frame type based on whether this is the first node
+            update_config = strategy or self._context_strategy
+
+            if (
+                update_config.strategy == ContextStrategy.RESET_WITH_SUMMARY
+                and self._context_aggregator
+                and self._context_aggregator.user()._context.messages
+            ):
+                # We know summary_prompt exists because of __post_init__ validation in ContextStrategyConfig
+                summary_prompt = cast(str, update_config.summary_prompt)
+                try:
+                    # Try to get summary with 5 second timeout
+                    summary = await asyncio.wait_for(
+                        self._create_conversation_summary(
+                            summary_prompt,
+                            self._context_aggregator.user()._context.messages,
+                        ),
+                        timeout=5.0,
+                    )
+
+                    if summary:
+                        summary_message = self.adapter.format_summary_message(summary)
+                        messages.insert(0, summary_message)
+                        logger.debug("Added conversation summary to context")
+                    else:
+                        # Fall back to RESET strategy if summary fails
+                        logger.warning("Failed to generate summary, falling back to RESET strategy")
+                        update_config.strategy = ContextStrategy.RESET
+
+                except asyncio.TimeoutError:
+                    logger.warning("Summary generation timed out, falling back to RESET strategy")
+                    update_config.strategy = ContextStrategy.RESET
+
+            # For first node or RESET/RESET_WITH_SUMMARY strategy, use update frame
             frame_type = (
-                LLMMessagesUpdateFrame if self.current_node is None else LLMMessagesAppendFrame
+                LLMMessagesUpdateFrame
+                if self.current_node is None
+                or update_config.strategy
+                in [ContextStrategy.RESET, ContextStrategy.RESET_WITH_SUMMARY]
+                else LLMMessagesAppendFrame
             )
 
             await self.task.queue_frames(
                 [frame_type(messages=messages), LLMSetToolsFrame(tools=functions)]
             )
 
-            logger.debug(f"Updated LLM context using {frame_type.__name__}")
+            logger.debug(
+                f"Updated LLM context using {frame_type.__name__} with strategy {update_config.strategy}"
+            )
+
         except Exception as e:
             logger.error(f"Failed to update LLM context: {str(e)}")
             raise FlowError(f"Context update failed: {str(e)}") from e

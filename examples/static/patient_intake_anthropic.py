@@ -18,12 +18,20 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.anthropic import AnthropicLLMService
 from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.deepgram import DeepgramSTTService
-from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
 
-from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+from pipecat_flows import (
+    ContextStrategy,
+    ContextStrategyConfig,
+    FlowArgs,
+    FlowConfig,
+    FlowManager,
+    FlowResult,
+)
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -175,192 +183,178 @@ flow_config: FlowConfig = {
             ],
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If verified (1983-01-01), proceed to prescriptions.",
                 }
             ],
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "verify_birthday",
-                        "handler": verify_birthday,
-                        "description": "Verify the user has provided their correct birthday. Once confirmed, the next step is to recording the user's prescriptions.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "birthday": {
-                                    "type": "string",
-                                    "description": "The user's birthdate (convert to YYYY-MM-DD format)",
-                                }
-                            },
-                            "required": ["birthday"],
+                    "name": "verify_birthday",
+                    "handler": verify_birthday,
+                    "description": "Verify the user has provided their correct birthday. Once confirmed, the next step is to recording the user's prescriptions.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "birthday": {
+                                "type": "string",
+                                "description": "The user's birthdate (convert to YYYY-MM-DD format)",
+                            }
                         },
-                        "transition_to": "get_prescriptions",
+                        "required": ["birthday"],
                     },
+                    "transition_to": "get_prescriptions",
                 },
             ],
         },
         "get_prescriptions": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
                 }
             ],
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.RESET),
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "record_prescriptions",
-                        "handler": record_prescriptions,
-                        "description": "Record the user's prescriptions. Once confirmed, the next step is to collect allergy information.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prescriptions": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "medication": {
-                                                "type": "string",
-                                                "description": "The medication's name",
-                                            },
-                                            "dosage": {
-                                                "type": "string",
-                                                "description": "The prescription's dosage",
-                                            },
+                    "name": "record_prescriptions",
+                    "handler": record_prescriptions,
+                    "description": "Record the user's prescriptions. Once confirmed, the next step is to collect allergy information.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "prescriptions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "medication": {
+                                            "type": "string",
+                                            "description": "The medication's name",
                                         },
-                                        "required": ["medication", "dosage"],
+                                        "dosage": {
+                                            "type": "string",
+                                            "description": "The prescription's dosage",
+                                        },
                                     },
-                                }
-                            },
-                            "required": ["prescriptions"],
+                                    "required": ["medication", "dosage"],
+                                },
+                            }
                         },
-                        "transition_to": "get_allergies",
+                        "required": ["prescriptions"],
                     },
+                    "transition_to": "get_allergies",
                 },
             ],
         },
         "get_allergies": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Collect allergy information. Ask about any allergies they have. After recording allergies (or confirming none), proceed to medical conditions.",
                 }
             ],
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "record_allergies",
-                        "handler": record_allergies,
-                        "description": "Record the user's allergies. Once confirmed, then next step is to collect medical conditions.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "allergies": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string",
-                                                "description": "What the user is allergic to",
-                                            },
+                    "name": "record_allergies",
+                    "handler": record_allergies,
+                    "description": "Record the user's allergies. Once confirmed, then next step is to collect medical conditions.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "allergies": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "What the user is allergic to",
                                         },
-                                        "required": ["name"],
                                     },
-                                }
-                            },
-                            "required": ["allergies"],
+                                    "required": ["name"],
+                                },
+                            }
                         },
-                        "transition_to": "get_conditions",
+                        "required": ["allergies"],
                     },
+                    "transition_to": "get_conditions",
                 },
             ],
         },
         "get_conditions": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Collect medical condition information. Ask about any medical conditions they have. After recording conditions (or confirming none), proceed to visit reasons.",
                 }
             ],
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "record_conditions",
-                        "handler": record_conditions,
-                        "description": "Record the user's medical conditions. Once confirmed, the next step is to collect visit reasons.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "conditions": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string",
-                                                "description": "The user's medical condition",
-                                            },
+                    "name": "record_conditions",
+                    "handler": record_conditions,
+                    "description": "Record the user's medical conditions. Once confirmed, the next step is to collect visit reasons.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "conditions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "The user's medical condition",
                                         },
-                                        "required": ["name"],
                                     },
-                                }
-                            },
-                            "required": ["conditions"],
+                                    "required": ["name"],
+                                },
+                            }
                         },
-                        "transition_to": "get_visit_reasons",
+                        "required": ["conditions"],
                     },
+                    "transition_to": "get_visit_reasons",
                 },
             ],
         },
         "get_visit_reasons": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Collect information about the reason for their visit. Ask what brings them to the doctor today. After recording their reasons, proceed to verification.",
                 }
             ],
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "record_visit_reasons",
-                        "handler": record_visit_reasons,
-                        "description": "Record the reasons for their visit. Once confirmed, the next step is to verify all information.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "visit_reasons": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string",
-                                                "description": "The user's reason for visiting",
-                                            },
+                    "name": "record_visit_reasons",
+                    "handler": record_visit_reasons,
+                    "description": "Record the reasons for their visit. Once confirmed, the next step is to verify all information.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "visit_reasons": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "The user's reason for visiting",
                                         },
-                                        "required": ["name"],
                                     },
-                                }
-                            },
-                            "required": ["visit_reasons"],
+                                    "required": ["name"],
+                                },
+                            }
                         },
-                        "transition_to": "verify",
+                        "required": ["visit_reasons"],
                     },
+                    "transition_to": "verify",
                 },
             ],
         },
         "verify": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": """Review all collected information with the patient. Follow these steps:
 1. Summarize their prescriptions, allergies, conditions, and visit reasons
 2. Ask if everything is correct
@@ -369,54 +363,60 @@ flow_config: FlowConfig = {
 Be thorough in reviewing all details and wait for explicit confirmation.""",
                 }
             ],
+            "context_strategy": ContextStrategyConfig(
+                strategy=ContextStrategy.RESET_WITH_SUMMARY,
+                summary_prompt=(
+                    "Summarize the patient intake conversation, including their birthday, "
+                    "prescriptions, allergies, medical conditions, and reasons for visiting. "
+                    "Focus on the specific medical information provided."
+                ),
+            ),
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "revise_information",
-                        "description": "Return to prescriptions to revise information",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "get_prescriptions",
-                    },
+                    "name": "revise_information",
+                    "description": "Return to prescriptions to revise information",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "get_prescriptions",
                 },
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "confirm_information",
-                        "description": "Proceed with confirmed information",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "confirm",
-                    },
+                    "name": "confirm_information",
+                    "description": "Proceed with confirmed information",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "confirm",
                 },
             ],
         },
         "confirm": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Once confirmed, thank them, then use the complete_intake function to end the conversation.",
                 }
             ],
             "functions": [
                 {
-                    "type": "function",
-                    "function": {
-                        "name": "complete_intake",
-                        "description": "Complete the intake process",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "end",
-                    },
+                    "name": "complete_intake",
+                    "description": "Complete the intake process",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "end",
                 },
             ],
         },
         "end": {
             "task_messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": "Thank them for their time and end the conversation.",
                 }
             ],
-            "functions": [],
+            "functions": [
+                # Add a dummy function to satisfy Anthropic's requirement
+                {
+                    "name": "end_conversation",
+                    "description": "End the conversation",
+                    "input_schema": {"type": "object", "properties": {}},
+                }
+            ],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
@@ -444,8 +444,9 @@ async def main():
         tts = CartesiaTTSService(
             api_key=os.getenv("CARTESIA_API_KEY"),
             voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+            text_filter=MarkdownTextFilter(),
         )
-        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+        llm = AnthropicLLMService(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)

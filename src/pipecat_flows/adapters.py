@@ -19,7 +19,7 @@ function calling convention).
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
@@ -55,6 +55,48 @@ class LLMAdapter(ABC):
     @abstractmethod
     def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Format functions for provider-specific use."""
+        pass
+
+    @abstractmethod
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Get recent consecutive tool calls and results from message history.
+
+        Collects all consecutive tool call pairs working backwards from the end
+        of the message history until reaching a regular message interaction.
+
+        Args:
+            messages: List of messages in provider's format
+
+        Returns:
+            List[dict]: List of messages containing tool calls and results in
+                       chronological order, empty list if none found
+        """
+        pass
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format a summary as a message appropriate for this LLM provider.
+
+        Args:
+            summary: The generated summary text
+
+        Returns:
+            A properly formatted message for this provider
+        """
+        pass
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate a summary using the LLM provider's API directly.
+
+        Args:
+            llm: LLM service instance containing client/credentials
+            summary_prompt: Prompt text to guide summary generation
+            messages: List of messages to summarize
+
+        Returns:
+            Generated summary text, or None if generation fails
+        """
         pass
 
 
@@ -108,6 +150,80 @@ class OpenAIAdapter(LLMAdapter):
             Functions in OpenAI format (unchanged as this is our default format)
         """
         return functions
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Gets consecutive function call/response pairs from message history.
+
+        Processes messages in reverse order to find the most recent function
+        interactions. Stops at the first regular message to maintain
+        conversation context.
+
+        Args:
+        messages: List of messages in OpenAI format
+
+        Returns:
+        List of messages containing matched function call/response pairs
+        in chronological order.
+
+        Note:
+        Function calls must be from "assistant" role with tool_calls,
+        and responses must have "tool" role with matching tool_call_id.
+        """
+        tool_messages = []
+
+        for i in range(len(messages) - 1, -1, -1):
+            # If we hit a regular message, stop collecting
+            if (
+                messages[i].get("role") in ["user", "assistant"]
+                and not messages[i].get("tool_calls")
+                and not messages[i].get("role") == "tool"
+            ):
+                break
+
+            # Collect tool call pairs
+            if (
+                messages[i].get("role") == "tool"
+                and i > 0
+                and messages[i - 1].get("role") == "assistant"
+                and messages[i - 1].get("tool_calls")
+            ):
+                # Insert at beginning to maintain chronological order
+                tool_messages[0:0] = [messages[i - 1], messages[i]]
+
+        return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a system message for OpenAI."""
+        return {"role": "system", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using OpenAI's API directly."""
+        try:
+            prompt_messages = [
+                {
+                    "role": "system",
+                    "content": summary_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": f"Conversation history: {messages}",
+                },
+            ]
+
+            # LLM completion
+            response = await llm._client.chat.completions.create(
+                model=llm.model_name,
+                messages=prompt_messages,
+                stream=False,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"OpenAI summary generation failed: {e}", exc_info=True)
+            return None
 
 
 class AnthropicAdapter(LLMAdapter):
@@ -180,6 +296,83 @@ class AnthropicAdapter(LLMAdapter):
                 # Already in Anthropic format
                 formatted.append(func)
         return formatted
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Gets consecutive function call/response pairs from message history.
+
+        Processes messages in reverse order to find the most recent function
+        interactions. Stops at the first regular message to maintain
+        conversation context.
+
+        Args:
+        messages: List of messages in Anthropic format
+
+        Returns:
+        List of messages containing matched function call/response pairs
+        in chronological order.
+
+        Note:
+        Function calls must be from "assistant" role with tool_use content,
+        and responses must be from "user" role with tool_result content.
+        """
+        tool_messages = []
+
+        for i in range(len(messages) - 1, -1, -1):
+            content = messages[i].get("content", [])
+            # Handle both string and list content formats
+            content_list = (
+                content if isinstance(content, list) else [{"type": "text", "text": content}]
+            )
+
+            # If we hit a regular message, stop collecting
+            if all(item.get("type", "text") == "text" for item in content_list):
+                break
+
+            # Collect tool call pairs
+            if (
+                messages[i].get("role") == "user"
+                and any(item.get("type") == "tool_result" for item in content_list)
+                and i > 0
+                and messages[i - 1].get("role") == "assistant"
+                and isinstance(messages[i - 1].get("content"), list)
+                and any(
+                    item.get("type") == "tool_use" for item in messages[i - 1].get("content", [])
+                )
+            ):
+                tool_messages[0:0] = [messages[i - 1], messages[i]]
+
+        return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a user message for Anthropic."""
+        return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using Anthropic's API directly."""
+        try:
+            prompt_messages = [
+                {
+                    "role": "user",
+                    "content": f"Conversation history: {messages}",
+                },
+            ]
+
+            # LLM completion
+            response = await llm._client.messages.create(
+                model=llm.model_name,
+                messages=prompt_messages,
+                system=summary_prompt,
+                max_tokens=8192,
+                stream=False,
+            )
+
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Anthropic summary generation failed: {e}", exc_info=True)
+            return None
 
 
 class GeminiAdapter(LLMAdapter):
@@ -258,6 +451,90 @@ class GeminiAdapter(LLMAdapter):
                     }
                 )
         return [{"function_declarations": all_declarations}] if all_declarations else []
+
+    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
+        """Gets consecutive function call/response pairs from message history.
+
+        Processes messages in reverse order to find the most recent function
+        interactions. Stops at the first regular text message to maintain
+        conversation context.
+
+        Args:
+            messages: List of messages in Gemini format
+
+        Returns:
+            List of messages containing matched function call/response pairs
+            in chronological order.
+
+        Note:
+            Function calls must be from "model" role and responses from "user" role.
+            Names must match between call and response.
+        """
+        tool_messages = []
+
+        # Process messages in reverse order
+        for i in range(len(messages) - 1, -1, -1):
+            current_message = messages[i]
+
+            # Stop at first regular text message
+            if len(current_message.parts) > 0 and str(current_message.parts[0]).startswith("text:"):
+                break
+
+            try:
+                part = current_message.parts[0]
+                # Check if current message is a function response
+                is_function_response = (
+                    current_message.role == "user"
+                    and len(current_message.parts) > 0
+                    and str(part).startswith("function_response {")
+                )
+
+                if is_function_response and i > 0:
+                    prev_message = messages[i - 1]
+                    prev_part = prev_message.parts[0]
+
+                    # Check if previous message is matching function call
+                    is_matching_function_call = (
+                        prev_message.role == "model"
+                        and len(prev_message.parts) > 0
+                        and str(prev_part).startswith("function_call {")
+                        and prev_part.function_call.name == part.function_response.name
+                    )
+
+                    # Add pair to start of list to maintain chronological order
+                    if is_matching_function_call:
+                        tool_messages[0:0] = [prev_message, current_message]
+
+            except Exception:
+                continue
+
+        return tool_messages
+
+    def format_summary_message(self, summary: str) -> dict:
+        """Format summary as a user message for Gemini."""
+        return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
+
+    async def generate_summary(
+        self, llm: Any, summary_prompt: str, messages: List[dict]
+    ) -> Optional[str]:
+        """Generate summary using Google's API directly."""
+        try:
+            # Format messages for Gemini
+            contents = [
+                {
+                    "role": "user",
+                    "parts": [{"text": (f"{summary_prompt}\n\nConversation history: {messages}")}],
+                }
+            ]
+
+            # Use non-streaming completion
+            response = await llm._client.generate_content_async(contents=contents, stream=False)
+
+            return response.text
+
+        except Exception as e:
+            logger.error(f"Google summary generation failed: {e}", exc_info=True)
+            return None
 
 
 def create_adapter(llm) -> LLMAdapter:
