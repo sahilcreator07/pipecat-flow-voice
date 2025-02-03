@@ -462,7 +462,6 @@ async def main():
             task=task,
             llm=llm,
             context_aggregator=context_aggregator,
-            tts=tts,
             flow_config=flow_config,
         )
 

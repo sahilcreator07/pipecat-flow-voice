@@ -22,7 +22,7 @@ Actions are used to perform side effects during conversations, such as:
 """
 
 import asyncio
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -45,22 +45,20 @@ class ActionManager:
     - Custom user-defined actions
 
     Built-in actions:
-    - tts_say: Speak text using TTS
+    - tts_say: Speak text using TTSSpeakFrame
     - end_conversation: End the current conversation
 
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, tts=None):
+    def __init__(self, task: PipelineTask):
         """Initialize the action manager.
 
         Args:
             task: PipelineTask instance used to queue frames
-            tts: Optional TTS service for voice actions
         """
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
-        self.tts = tts
 
         # Register built-in actions
         self._register_action("tts_say", self._handle_tts_action)
@@ -120,19 +118,13 @@ class ActionManager:
         Args:
             action: Action configuration containing 'text' to speak
         """
-        if not self.tts:
-            logger.warning("TTS action called but no TTS service provided")
-            return
-
         text = action.get("text")
         if not text:
             logger.error("TTS action missing 'text' field")
             return
 
         try:
-            await self.tts.say(text)
-            # TODO: Update to TTSSpeakFrame once Pipecat is fixed
-            # await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
+            await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
         except Exception as e:
             logger.error(f"TTS error: {e}")
 

@@ -420,7 +420,6 @@ async def main():
             task=task,
             llm=llm,
             context_aggregator=context_aggregator,
-            tts=tts,
         )
 
         @transport.event_handler("on_first_participant_joined")
