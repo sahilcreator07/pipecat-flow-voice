@@ -51,16 +51,16 @@ class ActionManager:
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, tts=None):
+    def __init__(self, task: PipelineTask, flow_manager: "FlowManager"):
         """Initialize the action manager.
 
         Args:
             task: PipelineTask instance used to queue frames
-            tts: Optional TTS service for voice actions
+            flow_manager: FlowManager instance that this ActionManager is part of
         """
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
-        self.tts = tts
+        self._flow_manager = flow_manager
 
         # Register built-in actions
         self._register_action("tts_say", self._handle_tts_action)
@@ -106,10 +106,17 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(action)
+                if 'flow_manager' in handler.__code__.co_varnames:
+                # Conditionally pass self._flow_manager if handler can handle it
+                    if asyncio.iscoroutinefunction(handler):
+                        await handler(action, self._flow_manager)
+                    else:
+                        handler(action, self._flow_manager)
                 else:
-                    handler(action)
+                    if asyncio.iscoroutinefunction(handler):
+                        await handler(action)
+                    else:
+                        handler(action)
                 logger.debug(f"Successfully executed action: {action_type}")
             except Exception as e:
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
@@ -120,7 +127,7 @@ class ActionManager:
         Args:
             action: Action configuration containing 'text' to speak
         """
-        if not self.tts:
+        if not self._flow_manager.tts:
             logger.warning("TTS action called but no TTS service provided")
             return
 
@@ -130,7 +137,7 @@ class ActionManager:
             return
 
         try:
-            await self.tts.say(text)
+            await self._flow_manager.tts.say(text)
             # TODO: Update to TTSSpeakFrame once Pipecat is fixed
             # await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
         except Exception as e:

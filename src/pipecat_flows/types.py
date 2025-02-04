@@ -78,7 +78,7 @@ class ActionConfig(ActionConfigRequired, total=False):
         Additional fields are allowed and passed to the handler
     """
 
-    handler: Callable[[Dict[str, Any]], Awaitable[None]]
+    handler: Callable[[Dict[str, Any], "FlowManager"], Awaitable[None]]
     text: str
 
 
