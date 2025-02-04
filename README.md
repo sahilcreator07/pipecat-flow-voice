@@ -404,8 +404,9 @@ In the `examples/static` directory, you'll find these examples:
 - `movie_explorer_openai.py` - Movie information bot demonstrating real API integration with TMDB
 - `movie_explorer_anthropic.py` - The same movie information demo adapted for Anthropic's format
 - `movie_explorer_gemini.py` - The same movie explorer demo adapted for Google Gemini's format
-- `patient_intake.py` - A medical intake system showing complex state management
-- `restaurant_reservation.py` - A reservation system with availability checking
+- `patient_intake_openai.py` - A medical intake system showing complex state management
+- `patient_intake_anthropic.py` - The same medical intake demo adapted for Anthropic's format
+- `patient_intake_gemini.py` - The same medical intake demo adapted for Gemini's format
 - `travel_planner.py` - A vacation planning assistant with parallel paths
 
 ### Dynamic
@@ -415,6 +416,7 @@ In the `examples/dynamic` directory, you'll find these examples:
 - `insurance_openai.py` - An insurance quote system using OpenAI's format
 - `insurance_anthropic.py` - The same insurance system adapted for Anthropic's format
 - `insurance_gemini.py` - The insurance system implemented with Google's format
+- `restaurant_reservation.py` - A reservation system with availability checking
 
 Each LLM provider (OpenAI, Anthropic, Google) has slightly different function calling formats, but Pipecat Flows handles these differences internally while maintaining a consistent API for developers.
 

@@ -149,13 +149,15 @@ async def end_quote() -> FlowResult:
 
 
 # Transition callbacks and handlers
-async def handle_age_collection(args: Dict, flow_manager: FlowManager):
-    flow_manager.state["age"] = args["age"]
+async def handle_age_collection(args: Dict, result: AgeCollectionResult, flow_manager: FlowManager):
+    flow_manager.state["age"] = result["age"]
     await flow_manager.set_node("marital_status", create_marital_status_node())
 
 
-async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
-    flow_manager.state["marital_status"] = args["marital_status"]
+async def handle_marital_status_collection(
+    args: Dict, result: MaritalStatusResult, flow_manager: FlowManager
+):
+    flow_manager.state["marital_status"] = result["marital_status"]
     await flow_manager.set_node(
         "quote_calculation",
         create_quote_calculation_node(
@@ -164,13 +166,13 @@ async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager
     )
 
 
-async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
-    quote = await calculate_quote(args)
-    flow_manager.state["quote"] = quote
-    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+async def handle_quote_calculation(
+    args: Dict, result: QuoteCalculationResult, flow_manager: FlowManager
+):
+    await flow_manager.set_node("quote_results", create_quote_results_node(result))
 
 
-async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+async def handle_end_quote(_: Dict, result: FlowResult, flow_manager: FlowManager):
     await flow_manager.set_node("end", create_end_node())
 
 
