@@ -303,9 +303,10 @@ async def update_coverage(args: FlowArgs) -> FlowResult:
     return {"coverage": args["coverage"]}
 
 # Edge function transition handler
-async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+async def handle_age_collection(args: Dict, result: FlowResult, flow_manager: FlowManager):
     """Handle age collection transition; edge function which transitions to the next node."""
-    flow_manager.state["age"] = args["age"]
+    # Use typed result directly
+    flow_manager.state["age"] = result.age
     await flow_manager.set_node("next", create_next_node())
 
 # Create nodes
