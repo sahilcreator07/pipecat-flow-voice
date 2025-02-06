@@ -42,6 +42,8 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r dev-requirements.txt -r test-requirements.txt
+          pip uninstall -y google-generativeai google-genai google-ai-generativelanguage
+          pip install "google-genai==0.7.0"
           pip install "pipecat-ai[google,openai,anthropic]"
           pip install -e .
 
