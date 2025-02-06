@@ -19,6 +19,7 @@ include mocked dependencies for PipelineTask and LLM services.
 """
 
 import unittest
+from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame, TTSSpeakFrame
@@ -26,6 +27,7 @@ from pipecat.services.openai import OpenAILLMService
 
 from pipecat_flows.exceptions import FlowError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
+from pipecat_flows.types import FlowArgs, FlowResult
 
 
 class TestFlowManager(unittest.IsolatedAsyncioTestCase):
@@ -165,18 +167,8 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         append_frames = [f for f in first_frames if isinstance(f, LLMMessagesAppendFrame)]
         self.assertEqual(len(append_frames), 1, "Should have exactly one AppendFrame")
 
-    async def test_dynamic_flow_transitions(self):
-        """Test transitions in dynamic flow.
-
-        Verifies that:
-        1. Transition callback is called with correct arguments
-        2. Dynamic node transitions work properly
-        3. State is updated correctly
-        """
-        # Create mock transition callback
-        mock_transition_handler = AsyncMock()
-
-        # Initialize flow manager
+    async def test_transition_callback_signatures(self):
+        """Test both two and three argument transition callback signatures."""
         flow_manager = FlowManager(
             task=self.mock_task,
             llm=self.mock_llm,
@@ -184,57 +176,99 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         )
         await flow_manager.initialize()
 
-        # Create test node with transition callback
-        test_node: NodeConfig = {
-            "task_messages": [{"role": "system", "content": "Test message"}],
+        # Track callback executions
+        old_style_called = False
+        new_style_called = False
+        received_result = None
+
+        # Old style callback (args, flow_manager)
+        async def old_style_callback(args: Dict, flow_manager: FlowManager):
+            nonlocal old_style_called
+            old_style_called = True
+
+        # New style callback (args, result, flow_manager)
+        async def new_style_callback(args: Dict, result: FlowResult, flow_manager: FlowManager):
+            nonlocal new_style_called, received_result
+            new_style_called = True
+            received_result = result
+
+        # Test handler that returns a known result
+        async def test_handler(args: FlowArgs) -> FlowResult:
+            return {"status": "success", "test_data": "test_value"}
+
+        # Create and test old style node
+        old_style_node: NodeConfig = {
+            "task_messages": [{"role": "system", "content": "Test"}],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "test_function",
+                        "name": "old_style_function",
+                        "handler": test_handler,
                         "description": "Test function",
-                        "parameters": {},
-                        "transition_callback": mock_transition_handler,
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_callback": old_style_callback,
                     },
                 }
             ],
         }
 
-        # Set node and get registered function
-        await flow_manager.set_node("test", test_node)
-        self.assertEqual(flow_manager.current_node, "test")
+        # Test old style callback
+        await flow_manager.set_node("old_style", old_style_node)
+        func = flow_manager.llm.register_function.call_args[0][1]
 
-        # Reset frame tracking
-        self.mock_task.queue_frames.reset_mock()
-
-        # Get the registered function and call it
-        transition_func = flow_manager.llm.register_function.call_args[0][1]
-        test_args = {"test": "value"}
-
-        # Track the on_context_updated callback
+        # Store the context_updated callback
         context_updated_callback = None
 
-        async def mock_result_callback(result, properties=None):
+        async def result_callback(result, properties=None):
             nonlocal context_updated_callback
             if properties and properties.on_context_updated:
                 context_updated_callback = properties.on_context_updated
 
-        # Call the transition function
-        await transition_func(
-            "test_function",
-            "test_id",
-            test_args,
-            self.mock_llm,
-            {},
-            mock_result_callback,
-        )
+        # Call function and get context_updated callback
+        await func("old_style_function", "id", {}, None, None, result_callback)
 
-        # Execute the context updated callback
+        # Execute the context_updated callback
         self.assertIsNotNone(context_updated_callback, "Context updated callback not set")
         await context_updated_callback()
 
-        # Verify handler was called with correct arguments
-        mock_transition_handler.assert_called_once_with(test_args, flow_manager)
+        self.assertTrue(old_style_called, "Old style callback was not called")
+
+        # Reset and test new style node
+        flow_manager.llm.register_function.reset_mock()
+        new_style_node: NodeConfig = {
+            "task_messages": [{"role": "system", "content": "Test"}],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "new_style_function",
+                        "handler": test_handler,
+                        "description": "Test function",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_callback": new_style_callback,
+                    },
+                }
+            ],
+        }
+
+        # Test new style callback
+        await flow_manager.set_node("new_style", new_style_node)
+        func = flow_manager.llm.register_function.call_args[0][1]
+
+        # Reset context_updated callback
+        context_updated_callback = None
+
+        # Call function and get context_updated callback
+        await func("new_style_function", "id", {}, None, None, result_callback)
+
+        # Execute the context_updated callback
+        self.assertIsNotNone(context_updated_callback, "Context updated callback not set")
+        await context_updated_callback()
+
+        self.assertTrue(new_style_called, "New style callback was not called")
+        self.assertIsNotNone(received_result, "Result was not passed to callback")
+        self.assertEqual(received_result["test_data"], "test_value")
 
     async def test_node_validation(self):
         """Test node configuration validation."""

@@ -304,7 +304,9 @@ class FlowManager:
                     f"Function call completed: {name} (remaining: {self._pending_function_calls})"
                 )
 
-        async def on_context_updated_edge(args: Dict[str, Any], result_callback: Callable) -> None:
+        async def on_context_updated_edge(
+            args: Dict[str, Any], result: Any, result_callback: Callable
+        ) -> None:
             """Handle context updates for edge functions with transitions."""
             try:
                 decrease_pending_function_calls()
@@ -316,7 +318,14 @@ class FlowManager:
                         await self.set_node(transition_to, self.nodes[transition_to])
                     elif transition_callback:  # Dynamic flow
                         logger.debug(f"Dynamic transition for: {name}")
-                        await transition_callback(args, self)
+                        # Check callback signature
+                        sig = inspect.signature(transition_callback)
+                        if len(sig.parameters) == 2:
+                            # Old style: (args, flow_manager)
+                            await transition_callback(args, self)
+                        else:
+                            # New style: (args, result, flow_manager)
+                            await transition_callback(args, result, self)
                     # Reset counter after transition completes
                     self._pending_function_calls = 0
                     logger.debug("Reset pending function calls counter")
@@ -365,7 +374,7 @@ class FlowManager:
                 # For node functions, allow immediate completion (run_llm=True)
                 async def on_context_updated() -> None:
                     if is_edge_function:
-                        await on_context_updated_edge(args, result_callback)
+                        await on_context_updated_edge(args, result, result_callback)
                     else:
                         await on_context_updated_node()
 

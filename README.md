@@ -303,9 +303,10 @@ async def update_coverage(args: FlowArgs) -> FlowResult:
     return {"coverage": args["coverage"]}
 
 # Edge function transition handler
-async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+async def handle_age_collection(args: Dict, result: FlowResult, flow_manager: FlowManager):
     """Handle age collection transition; edge function which transitions to the next node."""
-    flow_manager.state["age"] = args["age"]
+    # Use typed result directly
+    flow_manager.state["age"] = result.age
     await flow_manager.set_node("next", create_next_node())
 
 # Create nodes
@@ -404,8 +405,9 @@ In the `examples/static` directory, you'll find these examples:
 - `movie_explorer_openai.py` - Movie information bot demonstrating real API integration with TMDB
 - `movie_explorer_anthropic.py` - The same movie information demo adapted for Anthropic's format
 - `movie_explorer_gemini.py` - The same movie explorer demo adapted for Google Gemini's format
-- `patient_intake.py` - A medical intake system showing complex state management
-- `restaurant_reservation.py` - A reservation system with availability checking
+- `patient_intake_openai.py` - A medical intake system showing complex state management
+- `patient_intake_anthropic.py` - The same medical intake demo adapted for Anthropic's format
+- `patient_intake_gemini.py` - The same medical intake demo adapted for Gemini's format
 - `travel_planner.py` - A vacation planning assistant with parallel paths
 
 ### Dynamic
@@ -415,6 +417,7 @@ In the `examples/dynamic` directory, you'll find these examples:
 - `insurance_openai.py` - An insurance quote system using OpenAI's format
 - `insurance_anthropic.py` - The same insurance system adapted for Anthropic's format
 - `insurance_gemini.py` - The insurance system implemented with Google's format
+- `restaurant_reservation.py` - A reservation system with availability checking
 
 Each LLM provider (OpenAI, Anthropic, Google) has slightly different function calling formats, but Pipecat Flows handles these differences internally while maintaining a consistent API for developers.
 

@@ -50,6 +50,18 @@ Example usage:
 context = flow_manager.get_current_context()
 ```
 
+- Added a new dynamic example called `restaurant_reservation.py`.
+
+### Changed
+
+- Transition callbacks now receive function results directly as a second argument:
+  `async def handle_transition(args: Dict, result: FlowResult, flow_manager: FlowManager)`.
+  This enables direct access to typed function results for making routing decisions.
+  For backwards compatibility, the two-argument signature
+  `(args: Dict, flow_manager: FlowManager)` is still supported.
+
+- Updated dynamic examples to use the new result argument.
+
 ### Deprecated
 
 - The `tts` parameter in `FlowManager.__init__()` is now deprecated and will
