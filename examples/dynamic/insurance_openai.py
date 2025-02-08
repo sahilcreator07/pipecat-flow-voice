@@ -394,9 +394,7 @@ async def main():
 
         # Initialize flow manager with transition callback
         flow_manager = FlowManager(
-            task=task,
-            llm=llm,
-            context_aggregator=context_aggregator,
+            task=task, llm=llm, context_aggregator=context_aggregator, tts=tts
         )
 
         @transport.event_handler("on_first_participant_joined")

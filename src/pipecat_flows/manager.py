@@ -27,7 +27,6 @@ import asyncio
 import copy
 import inspect
 import sys
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
@@ -71,6 +70,7 @@ class FlowManager:
     Attributes:
         task: Pipeline task for frame queueing
         llm: LLM service instance (OpenAI, Anthropic, or Google)
+        tts: Optional TTS service for voice actions
         state: Shared state dictionary across nodes
         current_node: Currently active node identifier
         initialized: Whether the manager has been initialized
@@ -94,26 +94,18 @@ class FlowManager:
             task: PipelineTask instance for queueing frames
             llm: LLM service instance (e.g., OpenAI, Anthropic)
             context_aggregator: Context aggregator for updating user context
-            tts: Optional TTS service for voice actions (deprecated)
+            tts: Optional TTS service for voice actions
             flow_config: Optional static flow configuration. If provided,
                 operates in static mode with predefined nodes
             context_strategy: Optional context strategy configuration
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
-        Deprecated:
-            0.0.13: The `tts` parameter is deprecated and will be removed in a future version.
         """
-        if tts is not None:
-            warnings.warn(
-                "The 'tts' parameter is deprecated and will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         self.task = task
         self.llm = llm
-        self.action_manager = ActionManager(task)
+        self.tts = tts
+        self.action_manager = ActionManager(task, tts)
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
