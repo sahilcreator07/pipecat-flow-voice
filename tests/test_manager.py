@@ -15,17 +15,17 @@ flow management across different LLM providers. Tests cover:
 - Error cases
 
 The tests use unittest.IsolatedAsyncioTestCase for async support and
-include mocked dependencies for PipelineTask and LLM services.
+include mocked dependencies for PipelineTask, LLM services, and TTS.
 """
 
 import unittest
 from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame, TTSSpeakFrame
+from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame
 from pipecat.services.openai import OpenAILLMService
 
-from pipecat_flows.exceptions import FlowError, FlowTransitionError
+from pipecat_flows.exceptions import FlowError, FlowInitializationError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
 from pipecat_flows.types import FlowArgs, FlowResult
 
@@ -46,6 +46,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures before each test."""
         self.mock_task = AsyncMock()
         self.mock_llm = MagicMock(spec=OpenAILLMService)
+        self.mock_tts = AsyncMock()
 
         # Create mock context aggregator
         self.mock_context_aggregator = MagicMock()
@@ -89,6 +90,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -107,6 +109,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
         )
 
         # Create test node with transition callback
@@ -140,6 +143,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -173,6 +177,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -318,6 +323,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -331,21 +337,15 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
 
         # Reset mock to clear initialization calls
-        self.mock_task.queue_frame.reset_mock()
+        self.mock_tts.say.reset_mock()
 
         # Set node with actions
         await flow_manager.set_node("test", node_with_actions)
 
-        # Verify TTSSpeakFrames were queued for both actions
-        tts_frames = [
-            call[0][0]
-            for call in self.mock_task.queue_frame.call_args_list
-            if isinstance(call[0][0], TTSSpeakFrame)
-        ]
-
-        self.assertEqual(len(tts_frames), 2)
-        self.assertEqual(tts_frames[0].text, "Pre action")
-        self.assertEqual(tts_frames[1].text, "Post action")
+        # Verify TTS was called for both actions
+        self.assertEqual(self.mock_tts.say.call_count, 2)
+        self.mock_tts.say.assert_any_call("Pre action")
+        self.mock_tts.say.assert_any_call("Post action")
 
     async def test_error_handling(self):
         """Test error handling in flow manager.
@@ -568,6 +568,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
+            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 

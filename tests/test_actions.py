@@ -12,10 +12,11 @@ during conversation flows. Tests cover:
 - Custom action registration and execution
 - Error handling and validation
 - Action sequencing
+- TTS service integration
 - Frame queueing
 
 The tests use unittest.IsolatedAsyncioTestCase for async support and include
-mocked dependencies for PipelineTask.
+mocked dependencies for PipelineTask and TTS service.
 """
 
 import unittest
@@ -37,6 +38,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
     - Custom action registration
     - Action execution sequencing
     - Error handling:
+        - Missing TTS service
         - Invalid actions
         - Failed handlers
     - Multiple action execution
@@ -50,15 +52,21 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
     """
 
     def setUp(self):
-        """Set up test fixtures before each test.
+        """
+        Set up test fixtures before each test.
 
         Creates:
         - Mock PipelineTask for frame queueing
+        - Mock TTS service for speech synthesis
         - ActionManager instance with mocked dependencies
         """
         self.mock_task = AsyncMock()
         self.mock_task.queue_frame = AsyncMock()
-        self.action_manager = ActionManager(self.mock_task)
+
+        self.mock_tts = AsyncMock()
+        self.mock_tts.say = AsyncMock()
+
+        self.action_manager = ActionManager(self.mock_task, self.mock_tts)
 
     async def test_initialization(self):
         """Test ActionManager initialization and default handlers."""
@@ -66,16 +74,17 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn("tts_say", self.action_manager.action_handlers)
         self.assertIn("end_conversation", self.action_manager.action_handlers)
 
+        # Test initialization without TTS service
+        action_manager_no_tts = ActionManager(self.mock_task, None)
+        self.assertIsNone(action_manager_no_tts.tts)
+
     async def test_tts_action(self):
         """Test basic TTS action execution."""
         action = {"type": "tts_say", "text": "Hello"}
         await self.action_manager.execute_actions([action])
 
-        # Verify TTSSpeakFrame was queued with correct text
-        self.mock_task.queue_frame.assert_called_once()
-        frame = self.mock_task.queue_frame.call_args[0][0]
-        self.assertIsInstance(frame, TTSSpeakFrame)
-        self.assertEqual(frame.text, "Hello")
+        # Verify TTS service was called with correct text
+        self.mock_tts.say.assert_called_once_with("Hello")
 
     @patch("loguru.logger.error")
     async def test_tts_action_no_text(self, mock_logger):
@@ -88,7 +97,22 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         # Verify error was logged
         mock_logger.assert_called_with("TTS action missing 'text' field")
 
-        # Verify no frame was queued
+        # Verify TTS service was not called
+        self.mock_tts.say.assert_not_called()
+
+    @patch("loguru.logger.warning")
+    async def test_tts_action_no_service(self, mock_logger):
+        """Test TTS action when no TTS service is provided."""
+        action_manager = ActionManager(self.mock_task, None)
+        action = {"type": "tts_say", "text": "Hello"}
+
+        # Should log warning but not raise error
+        await action_manager.execute_actions([action])
+
+        # Verify warning was logged
+        mock_logger.assert_called_with("TTS action called but no TTS service provided")
+
+        # Verify no frames were queued
         self.mock_task.queue_frame.assert_not_called()
 
     async def test_end_conversation_action(self):
@@ -153,14 +177,10 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         ]
         await self.action_manager.execute_actions(actions)
 
-        # Verify frames were queued in correct order
-        self.assertEqual(self.mock_task.queue_frame.call_count, 2)
-
-        first_frame = self.mock_task.queue_frame.call_args_list[0][0][0]
-        self.assertEqual(first_frame.text, "First")
-
-        second_frame = self.mock_task.queue_frame.call_args_list[1][0][0]
-        self.assertEqual(second_frame.text, "Second")
+        # Verify TTS was called twice in correct order
+        self.assertEqual(self.mock_tts.say.call_count, 2)
+        expected_calls = [unittest.mock.call("First"), unittest.mock.call("Second")]
+        self.assertEqual(self.mock_tts.say.call_args_list, expected_calls)
 
     def test_register_invalid_handler(self):
         """Test registering invalid action handlers."""
@@ -179,34 +199,41 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         # Test None actions
         await self.action_manager.execute_actions(None)
         self.mock_task.queue_frame.assert_not_called()
+        self.mock_tts.say.assert_not_called()
 
         # Test empty list
         await self.action_manager.execute_actions([])
         self.mock_task.queue_frame.assert_not_called()
+        self.mock_tts.say.assert_not_called()
 
     @patch("loguru.logger.error")
     async def test_action_error_handling(self, mock_logger):
         """Test error handling during action execution."""
-        # Configure task mock to raise an error
-        self.mock_task.queue_frame.side_effect = Exception("Frame error")
+        # Configure TTS mock to raise an error
+        self.mock_tts.say.side_effect = Exception("TTS error")
 
         action = {"type": "tts_say", "text": "Hello"}
         await self.action_manager.execute_actions([action])
 
         # Verify error was logged
-        mock_logger.assert_called_with("TTS error: Frame error")
+        mock_logger.assert_called_with("TTS error: TTS error")
+
+        # Verify action was still marked as executed (doesn't raise)
+        self.mock_tts.say.assert_called_once()
 
     async def test_action_execution_error_handling(self):
         """Test error handling during action execution."""
+        action_manager = ActionManager(self.mock_task, self.mock_tts)
+
         # Test action with missing handler
         with self.assertRaises(ActionError):
-            await self.action_manager.execute_actions([{"type": "nonexistent_action"}])
+            await action_manager.execute_actions([{"type": "nonexistent_action"}])
 
         # Test action handler that raises an exception
         async def failing_handler(action):
             raise Exception("Handler error")
 
-        self.action_manager._register_action("failing_action", failing_handler)
+        action_manager._register_action("failing_action", failing_handler)
 
         with self.assertRaises(ActionError):
-            await self.action_manager.execute_actions([{"type": "failing_action"}])
+            await action_manager.execute_actions([{"type": "failing_action"}])
