@@ -109,12 +109,14 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
-                handler_signature = inspect.signature(handler)
-                if len(handler_signature.parameters) > 1 or any(
-                    param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
-                    for param in handler_signature.parameters.values()
-                ):
-                    # Conditionally pass self._flow_manager if handler can handle it
+                handler_positional_arg_count = handler.__code__.co_argcount
+                if inspect.ismethod(handler) and handler_positional_arg_count > 0:
+                    # account for `self` as the first arg
+                    handler_positional_arg_count -= 1
+                can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04 # *args
+
+                if can_handle_flow_manager_arg:
+                    # Conditionally pass self._flow_manager if handler can handle it (multiple or variable positional args)
                     if asyncio.iscoroutinefunction(handler):
                         await handler(action, self._flow_manager)
                     else:
