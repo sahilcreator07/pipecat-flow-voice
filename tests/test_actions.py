@@ -157,7 +157,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         await self.action_manager.execute_actions([action])
 
         # Verify handler was called with correct data
-        mock_handler.assert_called_once_with(action)
+        mock_handler.assert_called_once_with(action, self.mock_flow_manager)
 
     async def test_invalid_action(self):
         """Test handling invalid actions."""
