@@ -51,16 +51,18 @@ class ActionManager:
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, flow_manager: "FlowManager"):
+    def __init__(self, task: PipelineTask, flow_manager: "FlowManager", tts=None):
         """Initialize the action manager.
 
         Args:
             task: PipelineTask instance used to queue frames
             flow_manager: FlowManager instance that this ActionManager is part of
+            tts: Optional TTS service for voice actions
         """
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
         self._flow_manager = flow_manager
+        self.tts = tts
 
         # Register built-in actions
         self._register_action("tts_say", self._handle_tts_action)
@@ -127,7 +129,7 @@ class ActionManager:
         Args:
             action: Action configuration containing 'text' to speak
         """
-        if not self._flow_manager.tts:
+        if not self.tts:
             logger.warning("TTS action called but no TTS service provided")
             return
 
@@ -137,7 +139,7 @@ class ActionManager:
             return
 
         try:
-            await self._flow_manager.tts.say(text)
+            await self.tts.say(text)
             # TODO: Update to TTSSpeakFrame once Pipecat is fixed
             # await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
         except Exception as e:

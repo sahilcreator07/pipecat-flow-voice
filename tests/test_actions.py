@@ -66,7 +66,9 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.mock_tts = AsyncMock()
         self.mock_tts.say = AsyncMock()
 
-        self.action_manager = ActionManager(self.mock_task, self.mock_tts)
+        self.mock_flow_manager = AsyncMock()
+
+        self.action_manager = ActionManager(self.mock_task, self.mock_flow_manager, self.mock_tts)
 
     async def test_initialization(self):
         """Test ActionManager initialization and default handlers."""
@@ -75,7 +77,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn("end_conversation", self.action_manager.action_handlers)
 
         # Test initialization without TTS service
-        action_manager_no_tts = ActionManager(self.mock_task, None)
+        action_manager_no_tts = ActionManager(self.mock_task, self.mock_flow_manager, None)
         self.assertIsNone(action_manager_no_tts.tts)
 
     async def test_tts_action(self):
