@@ -109,14 +109,19 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
+                # Check if the handler can handle a second flow_manager arg (i.e. if it has multiple or variable positional args)
                 handler_positional_arg_count = handler.__code__.co_argcount
-                if inspect.ismethod(handler) and handler_positional_arg_count > 0:
-                    # account for `self` as the first arg
-                    handler_positional_arg_count -= 1
-                can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04 # *args
+                if not isinstance(handler_positional_arg_count, int):
+                    # (Here we deal with a bug in python 3.10's Mock class where arg count will be a Mock; assume handler can handle flow_manager arg)
+                    can_handle_flow_manager_arg = True
+                else:
+                    if inspect.ismethod(handler) and handler_positional_arg_count > 0:
+                        # adjust for `self` being the first arg
+                        handler_positional_arg_count -= 1
+                    can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04 # *args
 
+                # Invoke handler appropriately, with async and flow_manager arg as needed
                 if can_handle_flow_manager_arg:
-                    # Conditionally pass self._flow_manager if handler can handle it (multiple or variable positional args)
                     if asyncio.iscoroutinefunction(handler):
                         await handler(action, self._flow_manager)
                     else:
