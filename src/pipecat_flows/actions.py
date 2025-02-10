@@ -33,6 +33,7 @@ from pipecat.pipeline.task import PipelineTask
 
 from .exceptions import ActionError
 from .types import ActionConfig
+import inspect
 
 
 class ActionManager:
@@ -108,8 +109,12 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
-                if 'flow_manager' in handler.__code__.co_varnames:
-                # Conditionally pass self._flow_manager if handler can handle it
+                handler_signature = inspect.signature(handler)
+                if len(handler_signature.parameters) > 1 or any(
+                    param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+                    for param in handler_signature.parameters.values()
+                ):
+                    # Conditionally pass self._flow_manager if handler can handle it
                     if asyncio.iscoroutinefunction(handler):
                         await handler(action, self._flow_manager)
                     else:
