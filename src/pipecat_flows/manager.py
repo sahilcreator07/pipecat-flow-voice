@@ -109,7 +109,7 @@ class FlowManager:
         self.task = task
         self.llm = llm
         self.tts = tts
-        self.action_manager = ActionManager(task, flow_manager=self)
+        self.action_manager = ActionManager(task, flow_manager=self, tts=tts)
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
