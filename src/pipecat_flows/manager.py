@@ -37,6 +37,8 @@ from pipecat.frames.frames import (
     LLMSetToolsFrame,
 )
 from pipecat.pipeline.task import PipelineTask
+from pipecat.transports.base_transport import BaseTransport
+
 
 from .actions import ActionError, ActionManager
 from .adapters import create_adapter
@@ -87,6 +89,7 @@ class FlowManager:
         tts: Optional[Any] = None,
         flow_config: Optional[FlowConfig] = None,
         context_strategy: Optional[ContextStrategyConfig] = None,
+        transport: Optional[BaseTransport] = None,
     ):
         """Initialize the flow manager.
 
@@ -98,6 +101,7 @@ class FlowManager:
             flow_config: Optional static flow configuration. If provided,
                 operates in static mode with predefined nodes
             context_strategy: Optional context strategy configuration
+            transport: Optional transport
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
@@ -105,7 +109,7 @@ class FlowManager:
         self.task = task
         self.llm = llm
         self.tts = tts
-        self.action_manager = ActionManager(task, tts)
+        self.action_manager = ActionManager(task, flow_manager=self, tts=tts)
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator
@@ -113,6 +117,7 @@ class FlowManager:
         self._context_strategy = context_strategy or ContextStrategyConfig(
             strategy=ContextStrategy.APPEND
         )
+        self.transport = transport
 
         # Set up static or dynamic mode
         if flow_config:

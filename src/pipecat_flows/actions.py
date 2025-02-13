@@ -22,7 +22,8 @@ Actions are used to perform side effects during conversations, such as:
 """
 
 import asyncio
-from typing import Any, Callable, Dict, List, Optional
+import inspect
+from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -51,15 +52,17 @@ class ActionManager:
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, tts=None):
+    def __init__(self, task: PipelineTask, flow_manager: "FlowManager", tts=None):
         """Initialize the action manager.
 
         Args:
             task: PipelineTask instance used to queue frames
+            flow_manager: FlowManager instance that this ActionManager is part of
             tts: Optional TTS service for voice actions
         """
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
+        self._flow_manager = flow_manager
         self.tts = tts
 
         # Register built-in actions
@@ -106,10 +109,34 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(action)
+                # Determine if handler can accept flow_manager argument by inspecting its signature
+                # Handlers can either take (action) or (action, flow_manager)
+                try:
+                    handler_positional_arg_count = handler.__code__.co_argcount
+                    if inspect.ismethod(handler) and handler_positional_arg_count > 0:
+                        # adjust for `self` being the first arg
+                        handler_positional_arg_count -= 1
+                    can_handle_flow_manager_arg = (
+                        handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04
+                    )
+                except AttributeError:
+                    logger.warning(
+                        f"Unable to determine handler signature for action type '{action_type}', "
+                        "falling back to legacy single-parameter call"
+                    )
+                    can_handle_flow_manager_arg = False
+
+                # Invoke handler appropriately, with async and flow_manager arg as needed
+                if can_handle_flow_manager_arg:
+                    if asyncio.iscoroutinefunction(handler):
+                        await handler(action, self._flow_manager)
+                    else:
+                        handler(action, self._flow_manager)
                 else:
-                    handler(action)
+                    if asyncio.iscoroutinefunction(handler):
+                        await handler(action)
+                    else:
+                        handler(action)
                 logger.debug(f"Successfully executed action: {action_type}")
             except Exception as e:
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e

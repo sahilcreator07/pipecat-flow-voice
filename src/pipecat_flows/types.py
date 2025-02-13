@@ -18,7 +18,7 @@ and function interactions.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar, Union
 
 T = TypeVar("T")
 TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
@@ -59,6 +59,29 @@ Example:
     }
 """
 
+LegacyActionHandler = Callable[[Dict[str, Any]], Awaitable[None]]
+"""Legacy action handler type that only receives the action dictionary.
+
+Args:
+    action: Dictionary containing action configuration and parameters
+
+Example:
+    async def simple_handler(action: dict):
+        await notify(action["text"])
+"""
+
+FlowActionHandler = Callable[[Dict[str, Any], "FlowManager"], Awaitable[None]]
+"""Modern action handler type that receives both action and flow_manager.
+
+Args:
+    action: Dictionary containing action configuration and parameters
+    flow_manager: Reference to the FlowManager instance
+
+Example:
+    async def advanced_handler(action: dict, flow_manager: FlowManager):
+        await flow_manager.transport.notify(action["text"])
+"""
+
 
 class ActionConfigRequired(TypedDict):
     """Required fields for action configuration."""
@@ -78,7 +101,7 @@ class ActionConfig(ActionConfigRequired, total=False):
         Additional fields are allowed and passed to the handler
     """
 
-    handler: Callable[[Dict[str, Any]], Awaitable[None]]
+    handler: Union[LegacyActionHandler, FlowActionHandler]
     text: str
 
 

@@ -20,6 +20,7 @@ mocked dependencies for PipelineTask and TTS service.
 """
 
 import unittest
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from pipecat.frames.frames import EndFrame, TTSSpeakFrame
@@ -52,8 +53,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
     """
 
     def setUp(self):
-        """
-        Set up test fixtures before each test.
+        """Set up test fixtures before each test.
 
         Creates:
         - Mock PipelineTask for frame queueing
@@ -66,7 +66,9 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.mock_tts = AsyncMock()
         self.mock_tts.say = AsyncMock()
 
-        self.action_manager = ActionManager(self.mock_task, self.mock_tts)
+        self.mock_flow_manager = AsyncMock()
+
+        self.action_manager = ActionManager(self.mock_task, self.mock_flow_manager, self.mock_tts)
 
     async def test_initialization(self):
         """Test ActionManager initialization and default handlers."""
@@ -75,7 +77,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn("end_conversation", self.action_manager.action_handlers)
 
         # Test initialization without TTS service
-        action_manager_no_tts = ActionManager(self.mock_task, None)
+        action_manager_no_tts = ActionManager(self.mock_task, self.mock_flow_manager, None)
         self.assertIsNone(action_manager_no_tts.tts)
 
     async def test_tts_action(self):
@@ -142,20 +144,23 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         second_frame = self.mock_task.queue_frame.call_args_list[1][0][0]
         self.assertIsInstance(second_frame, EndFrame)
 
-    async def test_custom_action(self):
-        """Test registering and executing custom actions."""
-        mock_handler = AsyncMock()
-        self.action_manager._register_action("custom", mock_handler)
+    async def test_action_handler_signatures(self):
+        """Test both legacy and modern action handler signatures."""
 
-        # Verify handler was registered
-        self.assertIn("custom", self.action_manager.action_handlers)
+        # Test legacy single-parameter handler
+        async def legacy_handler(action: dict):
+            self.assertEqual(action["data"], "legacy")
 
-        # Execute custom action
-        action = {"type": "custom", "data": "test"}
-        await self.action_manager.execute_actions([action])
+        self.action_manager._register_action("legacy", legacy_handler)
+        await self.action_manager.execute_actions([{"type": "legacy", "data": "legacy"}])
 
-        # Verify handler was called with correct data
-        mock_handler.assert_called_once_with(action)
+        # Test modern two-parameter handler
+        async def modern_handler(action: dict, flow_manager: Any):
+            self.assertEqual(action["data"], "modern")
+            self.assertEqual(flow_manager, self.mock_flow_manager)
+
+        self.action_manager._register_action("modern", modern_handler)
+        await self.action_manager.execute_actions([{"type": "modern", "data": "modern"}])
 
     async def test_invalid_action(self):
         """Test handling invalid actions."""
