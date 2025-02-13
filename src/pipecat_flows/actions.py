@@ -109,16 +109,20 @@ class ActionManager:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
             try:
-                # Check if the handler can handle a second flow_manager arg (i.e. if it has multiple or variable positional args)
-                handler_positional_arg_count = handler.__code__.co_argcount
-                if not isinstance(handler_positional_arg_count, int):
-                    # (Here we deal with a bug in python 3.10's Mock class where arg count will be a Mock; assume handler can handle flow_manager arg)
-                    can_handle_flow_manager_arg = True
-                else:
+                # Determine if handler can accept flow_manager argument by inspecting its signature
+                # Handlers can either take (action) or (action, flow_manager)
+                try:
+                    handler_positional_arg_count = handler.__code__.co_argcount
                     if inspect.ismethod(handler) and handler_positional_arg_count > 0:
                         # adjust for `self` being the first arg
                         handler_positional_arg_count -= 1
-                    can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04 # *args
+                    can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04
+                except AttributeError:
+                    logger.warning(
+                        f"Unable to determine handler signature for action type '{action_type}', "
+                        "falling back to legacy single-parameter call"
+                    )
+                    can_handle_flow_manager_arg = False
 
                 # Invoke handler appropriately, with async and flow_manager arg as needed
                 if can_handle_flow_manager_arg:
