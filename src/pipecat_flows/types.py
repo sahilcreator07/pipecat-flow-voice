@@ -82,6 +82,7 @@ Example:
         await flow_manager.transport.notify(action["text"])
 """
 
+
 class ActionConfigRequired(TypedDict):
     """Required fields for action configuration."""
 

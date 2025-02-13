@@ -22,7 +22,8 @@ Actions are used to perform side effects during conversations, such as:
 """
 
 import asyncio
-from typing import Any, Callable, Dict, List, Optional
+import inspect
+from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
@@ -33,7 +34,6 @@ from pipecat.pipeline.task import PipelineTask
 
 from .exceptions import ActionError
 from .types import ActionConfig
-import inspect
 
 
 class ActionManager:
@@ -116,7 +116,9 @@ class ActionManager:
                     if inspect.ismethod(handler) and handler_positional_arg_count > 0:
                         # adjust for `self` being the first arg
                         handler_positional_arg_count -= 1
-                    can_handle_flow_manager_arg = handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04
+                    can_handle_flow_manager_arg = (
+                        handler_positional_arg_count > 1 or handler.__code__.co_flags & 0x04
+                    )
                 except AttributeError:
                     logger.warning(
                         f"Unable to determine handler signature for action type '{action_type}', "
