@@ -201,13 +201,13 @@ class TestLLMAdapters(unittest.TestCase):
     def test_adapter_factory(self):
         """Test adapter creation based on LLM service type."""
         # Test with valid LLM services
-        openai_llm = MagicMock(spec=OpenAILLMService)
+        openai_llm = OpenAILLMService(api_key="")
         self.assertIsInstance(create_adapter(openai_llm), OpenAIAdapter)
 
-        anthropic_llm = MagicMock(spec=AnthropicLLMService)
+        anthropic_llm = AnthropicLLMService(api_key="")
         self.assertIsInstance(create_adapter(anthropic_llm), AnthropicAdapter)
 
-        gemini_llm = MagicMock(spec=GoogleLLMService)
+        gemini_llm = GoogleLLMService(api_key="")
         self.assertIsInstance(create_adapter(gemini_llm), GeminiAdapter)
 
     def test_adapter_factory_error_cases(self):

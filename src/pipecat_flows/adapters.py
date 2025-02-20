@@ -540,8 +540,8 @@ class GeminiAdapter(LLMAdapter):
 def create_adapter(llm) -> LLMAdapter:
     """Create appropriate adapter based on LLM service type.
 
-    Uses lazy imports to avoid requiring all provider dependencies at runtime.
-    Only the dependency for the chosen provider needs to be installed.
+    Use "stringy" checks to check the LLM service type instead of trying to import each provider 
+    dependency, as those will produce scary errors on the console even when they're not needed.
 
     Args:
         llm: LLM service instance
@@ -552,35 +552,14 @@ def create_adapter(llm) -> LLMAdapter:
     Raises:
         ValueError: If LLM type is not supported or required dependency not installed
     """
-    # Try OpenAI
-    try:
-        from pipecat.services.openai import OpenAILLMService
+    if type(llm).__name__ == "OpenAILLMService":
+        return OpenAIAdapter()
 
-        if isinstance(llm, OpenAILLMService):
-            logger.debug("Creating OpenAI adapter")
-            return OpenAIAdapter()
-    except ImportError as e:
-        logger.debug(f"OpenAI import failed: {e}")
-
-    # Try Anthropic
-    try:
-        from pipecat.services.anthropic import AnthropicLLMService
-
-        if isinstance(llm, AnthropicLLMService):
-            logger.debug("Creating Anthropic adapter")
-            return AnthropicAdapter()
-    except ImportError as e:
-        logger.debug(f"Anthropic import failed: {e}")
-
-    # Try Google
-    try:
-        from pipecat.services.google import GoogleLLMService
-
-        if isinstance(llm, GoogleLLMService):
-            logger.debug("Creating Google adapter")
-            return GeminiAdapter()
-    except ImportError as e:
-        logger.debug(f"Google import failed: {e}")
+    if type(llm).__name__ == "AnthropicLLMService":
+        return AnthropicAdapter()
+    
+    if type(llm).__name__ == "GoogleLLMService":
+        return GeminiAdapter()
 
     # If we get here, either the LLM type is not supported or the required dependency is not installed
     llm_type = type(llm).__name__

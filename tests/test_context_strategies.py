@@ -42,7 +42,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         self.mock_task = AsyncMock()
 
         # Set up mock LLM with client
-        self.mock_llm = MagicMock(spec=OpenAILLMService)
+        self.mock_llm = OpenAILLMService(api_key="")
         self.mock_llm._client = MagicMock()
         self.mock_llm._client.chat = MagicMock()
         self.mock_llm._client.chat.completions = MagicMock()
@@ -195,7 +195,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         # Test OpenAI format
         flow_manager = FlowManager(
             task=self.mock_task,
-            llm=MagicMock(spec=OpenAILLMService),
+            llm=OpenAILLMService(api_key=""),
             context_aggregator=self.mock_context_aggregator,
         )
         openai_message = flow_manager.adapter.format_summary_message(summary)
@@ -204,7 +204,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         # Test Anthropic format
         flow_manager = FlowManager(
             task=self.mock_task,
-            llm=MagicMock(spec=AnthropicLLMService),
+            llm=AnthropicLLMService(api_key=""),
             context_aggregator=self.mock_context_aggregator,
         )
         anthropic_message = flow_manager.adapter.format_summary_message(summary)
@@ -213,7 +213,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         # Test Gemini format
         flow_manager = FlowManager(
             task=self.mock_task,
-            llm=MagicMock(spec=GoogleLLMService),
+            llm=GoogleLLMService(api_key=""),
             context_aggregator=self.mock_context_aggregator,
         )
         gemini_message = flow_manager.adapter.format_summary_message(summary)
