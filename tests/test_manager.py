@@ -45,7 +45,8 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up test fixtures before each test."""
         self.mock_task = AsyncMock()
-        self.mock_llm = MagicMock(spec=OpenAILLMService)
+        self.mock_llm = OpenAILLMService(api_key="")
+        self.mock_llm.register_function = MagicMock()
         self.mock_tts = AsyncMock()
 
         # Create mock context aggregator
