@@ -540,8 +540,7 @@ class GeminiAdapter(LLMAdapter):
 def create_adapter(llm) -> LLMAdapter:
     """Create appropriate adapter based on LLM service type.
 
-    Use "stringy" checks to check the LLM service type instead of trying to import each provider 
-    dependency, as those will produce scary errors on the console even when they're not needed.
+    Uses string-based type checking to avoid importing unnecessary dependencies.
 
     Args:
         llm: LLM service instance
@@ -552,13 +551,18 @@ def create_adapter(llm) -> LLMAdapter:
     Raises:
         ValueError: If LLM type is not supported or required dependency not installed
     """
-    if type(llm).__name__ == "OpenAILLMService":
+    llm_type = type(llm).__name__
+
+    if llm_type == "OpenAILLMService":
+        logger.debug("Creating OpenAI adapter")
         return OpenAIAdapter()
 
-    if type(llm).__name__ == "AnthropicLLMService":
+    if llm_type == "AnthropicLLMService":
+        logger.debug("Creating Anthropic adapter")
         return AnthropicAdapter()
     
-    if type(llm).__name__ == "GoogleLLMService":
+    if llm_type == "GoogleLLMService":
+        logger.debug("Creating Google adapter")
         return GeminiAdapter()
 
     # If we get here, either the LLM type is not supported or the required dependency is not installed
