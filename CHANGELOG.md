@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added support for function `start_callback` to provide immediate feedback
+  before function execution.
+
+Example usage:
+
+```python
+# Define a start callback
+async def before_check_availability(function_name: str, flow_manager: FlowManager) -> None:
+    """Provide user feedback during API calls."""
+    await flow_manager.llm.push_frame(TTSSpeakFrame("Let me check that for you..."))
+
+# Register in function configuration
+{
+    "type": "function",
+    "function": {
+        "name": "check_availability",
+        "handler": check_availability_handler,
+        "start_callback": before_check_availability,  # Add start callback
+        "description": "Check reservation availability",
+        "parameters": {...}
+    }
+}
+```
+
+### Other
+
+- Updated restaurant_reservation.py example to demonstrate the start callback
+  functionality.
+
 ## [0.0.15] - 2025-02-26
 
 ### Changed
