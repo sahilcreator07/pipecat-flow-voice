@@ -445,13 +445,28 @@ class FlowManager:
                     func_name = handler.split(":")[1]
                     handler = self._lookup_function(func_name)
 
+                # Create the wrapper for the start_callback that passes flow_manager
+                async def start_callback_wrapper(
+                    function_name: str, llm: Any, context: Any
+                ) -> None:
+                    if start_callback:
+                        try:
+                            # Pass flow_manager instead of llm and context
+                            await start_callback(function_name, self)
+                        except Exception as e:
+                            logger.error(f"Error in start callback for {name}: {str(e)}")
+
                 # Create transition function
                 transition_func = await self._create_transition_func(
                     name, handler, transition_to, transition_callback
                 )
 
                 # Register function with LLM, including start_callback if present
-                self.llm.register_function(name, transition_func, start_callback=start_callback)
+                self.llm.register_function(
+                    name,
+                    transition_func,
+                    start_callback=start_callback_wrapper if start_callback else None,
+                )
 
                 new_functions.add(name)
                 logger.debug(f"Registered function: {name}")

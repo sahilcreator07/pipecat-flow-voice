@@ -16,9 +16,9 @@ Example usage:
 
 ```python
 # Define a start callback
-async def before_check_availability(function_name: str, llm: Any, context: Any) -> None:
+async def before_check_availability(function_name: str, flow_manager: FlowManager) -> None:
     """Provide user feedback during API calls."""
-    await llm.push_frame(TTSSpeakFrame("Let me check that for you..."))
+    await flow_manager.llm.push_frame(TTSSpeakFrame("Let me check that for you..."))
 
 # Register in function configuration
 {

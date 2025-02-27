@@ -8,7 +8,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Dict
 
 import aiohttp
 from dotenv import load_dotenv
@@ -80,13 +80,13 @@ class TimeResult(FlowResult):
 
 
 # Start callback for availability check
-async def before_check_availability(function_name: str, llm: Any, context: Any) -> None:
+async def before_check_availability(function_name: str, flow_manager: FlowManager) -> None:
     """Provide feedback while checking availability.
 
     This is called before the availability check function executes.
     """
     logger.debug(f"Executing start callback for: {function_name}")
-    await llm.push_frame(TTSSpeakFrame("Let's see if we have an opening then..."))
+    await flow_manager.llm.push_frame(TTSSpeakFrame("Let's see if we have an opening then..."))
 
 
 # Function handlers
