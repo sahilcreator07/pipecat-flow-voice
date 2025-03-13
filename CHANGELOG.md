@@ -38,6 +38,9 @@ async def before_check_availability(function_name: str, flow_manager: FlowManage
 - Updated restaurant_reservation.py example to demonstrate the start callback
   functionality.
 
+- Updated examples to specify a `params` arg for `PipelineTask`, meeting the
+  Pipecat requirement starting 0.0.58.
+
 ## [0.0.15] - 2025-02-26
 
 ### Changed
