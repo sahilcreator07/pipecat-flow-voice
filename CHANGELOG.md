@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added a new "function" action type, which queues a function to run "inline"
+  in the pipeline (i.e. when the pipeline is done with all the work queued
+  before it).
+
+  This is useful for doing things at the end of the bot's turn.
+
+  Example usage:
+
+  ```python
+  async def after_the_fun_fact(action: dict, flow_manager: FlowManager):
+    print("Done telling the user a fun fact.")
+
+  def create_node() -> NodeConfig:
+    return NodeConfig(
+      task_messages=[
+        {
+          "role": "system",
+          "content": "Greet the user and tell them a fun fact."
+        },
+        post_actions=[
+          ActionConfig(
+            type="function",
+            handler=after_the_fun_fact
+          )
+        ]
+      ]
+    )
+  ```
+
 - Added support for `OpenAILLMService` subclasses in the adapter system. You
   can now use any Pipecat LLM service that inherits from `OpenAILLMService`
   such as `AzureLLMService`, `GrokLLMService`, `GroqLLMService`, and other
