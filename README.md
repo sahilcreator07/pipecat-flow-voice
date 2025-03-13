@@ -300,7 +300,7 @@ Dynamic flows follow the same pattern as static flows, but use `transition_callb
 
 ```python
 # Define handlers
-async def update_coverage(args: FlowArgs) -> FlowResult:
+async def update_coverage(args: FlowArgs, flow_manager: FlowManager) -> FlowResult:
     """Update coverage options; node function without a transition."""
     return {"coverage": args["coverage"]}
 

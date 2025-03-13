@@ -49,6 +49,7 @@ from .types import (
     FlowArgs,
     FlowConfig,
     FlowResult,
+    FunctionHandler,
     NodeConfig,
 )
 
@@ -222,20 +223,41 @@ class FlowManager:
                     "Provide handler in action config or register manually."
                 )
 
-    async def _call_handler(self, handler: Callable, args: FlowArgs) -> FlowResult:
-        """Call handler with or without args based on its signature.
+    async def _call_handler(self, handler: FunctionHandler, args: FlowArgs) -> FlowResult:
+        """Call handler with appropriate parameters based on its signature.
+
+        Detects whether the handler can accept a flow_manager parameter and
+        calls it accordingly to maintain backward compatibility with legacy handlers.
 
         Args:
-            handler: The function to call
-            args: Arguments dictionary
+            handler: The function handler to call (either legacy or modern format)
+            args: Arguments dictionary from the function call
 
         Returns:
-            Dict[str, Any]: Handler result
+            FlowResult: The result returned by the handler
         """
+        # Get the function signature
         sig = inspect.signature(handler)
-        if "args" in sig.parameters:
+
+        # Check if handler is a method (has self parameter)
+        is_method = inspect.ismethod(handler)
+
+        # Calculate effective parameter count (excluding 'self' if method)
+        if is_method:
+            effective_param_count = len(sig.parameters) - 1
+        else:
+            effective_param_count = len(sig.parameters)
+
+        # Handle different function signatures
+        if effective_param_count == 0:
+            # Function takes no args
+            return await handler()
+        elif effective_param_count == 1:
+            # Legacy handler with just args
             return await handler(args)
-        return await handler()
+        else:
+            # Modern handler with args and flow_manager
+            return await handler(args, self)
 
     async def _handle_static_transition(
         self,

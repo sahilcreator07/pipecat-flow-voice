@@ -33,6 +33,15 @@ async def before_check_availability(function_name: str, flow_manager: FlowManage
 }
 ```
 
+### Changed
+
+- Function handlers can now receive either `FlowArgs` only (legacy style) or
+  both `FlowArgs` and the `FlowManager` instance (modern style). Adding support
+  for the `FlowManager` provides access to conversation state, transport
+  methods, and other flow resources within function handlers. The framework
+  automatically detects which signature you're using and calls handlers
+  appropriately.
+
 ### Other
 
 - Updated restaurant_reservation.py example to demonstrate the start callback
