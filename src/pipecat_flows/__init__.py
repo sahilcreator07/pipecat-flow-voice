@@ -68,7 +68,9 @@ from .types import (
     ContextStrategyConfig,
     FlowArgs,
     FlowConfig,
+    FlowFunctionHandler,
     FlowResult,
+    LegacyFunctionHandler,
     NodeConfig,
 )
 
@@ -80,7 +82,9 @@ __all__ = [
     "ContextStrategyConfig",
     "FlowArgs",
     "FlowConfig",
+    "FlowFunctionHandler",
     "FlowResult",
+    "LegacyFunctionHandler",
     "NodeConfig",
     # Exceptions
     "FlowError",

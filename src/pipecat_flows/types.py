@@ -59,6 +59,31 @@ Example:
     }
 """
 
+LegacyFunctionHandler = Callable[[FlowArgs], Awaitable[FlowResult]]
+"""Legacy function handler that only receives arguments.
+
+Args:
+    args: Dictionary of arguments from the function call
+
+Returns:
+    FlowResult: Result of the function execution
+"""
+
+FlowFunctionHandler = Callable[[FlowArgs, "FlowManager"], Awaitable[FlowResult]]
+"""Modern function handler that receives both arguments and flow_manager.
+
+Args:
+    args: Dictionary of arguments from the function call
+    flow_manager: Reference to the FlowManager instance
+
+Returns:
+    FlowResult: Result of the function execution
+"""
+
+FunctionHandler = Union[LegacyFunctionHandler, FlowFunctionHandler]
+"""Union type for function handlers supporting both legacy and modern patterns."""
+
+
 LegacyActionHandler = Callable[[Dict[str, Any]], Awaitable[None]]
 """Legacy action handler type that only receives the action dictionary.
 
