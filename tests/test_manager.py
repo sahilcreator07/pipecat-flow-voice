@@ -1152,3 +1152,28 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(FlowError) as context:
             flow_manager.get_current_context()
         self.assertIn("No context aggregator available", str(context.exception))
+
+    async def test_handler_with_flow_manager(self):
+        """Test function handler that receives both args and flow_manager."""
+        flow_manager = FlowManager(
+            task=self.mock_task,
+            llm=self.mock_llm,
+            context_aggregator=self.mock_context_aggregator,
+        )
+        await flow_manager.initialize()
+
+        handler_called = False
+        correct_flow_manager = False
+
+        async def modern_handler(args: FlowArgs, flow_mgr: FlowManager) -> FlowResult:
+            nonlocal handler_called, correct_flow_manager
+            handler_called = True
+            correct_flow_manager = flow_mgr is flow_manager
+            return {"status": "success", "args_received": args, "has_flow_manager": True}
+
+        result = await flow_manager._call_handler(modern_handler, {"test": "value"})
+
+        self.assertTrue(handler_called)
+        self.assertTrue(correct_flow_manager)
+        self.assertEqual(result["args_received"]["test"], "value")
+        self.assertTrue(result["has_flow_manager"])
