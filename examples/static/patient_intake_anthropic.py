@@ -463,7 +463,7 @@ async def main():
             ]
         )
 
-        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+        task = PipelineTask(pipeline, params=PipelineParams(allow_interruptions=True))
 
         # Initialize flow manager with LLM
         flow_manager = FlowManager(
