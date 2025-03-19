@@ -444,7 +444,6 @@ class FlowManager:
         handler: Optional[Callable],
         transition_to: Optional[str] = None,
         transition_callback: Optional[Callable] = None,
-        start_callback: Optional[Callable] = None,
     ) -> None:
         """Register a function with the LLM if not already registered.
 
@@ -455,7 +454,6 @@ class FlowManager:
                     '__function__:', extracts the function name after the prefix
             transition_to: Optional node name to transition to after function execution
             transition_callback: Optional callback for dynamic transitions
-            start_callback: Optional callback to execute before function execution
 
         Raises:
             FlowError: If function registration fails or handler lookup fails
@@ -467,27 +465,15 @@ class FlowManager:
                     func_name = handler.split(":")[1]
                     handler = self._lookup_function(func_name)
 
-                # Create the wrapper for the start_callback that passes flow_manager
-                async def start_callback_wrapper(
-                    function_name: str, llm: Any, context: Any
-                ) -> None:
-                    if start_callback:
-                        try:
-                            # Pass flow_manager instead of llm and context
-                            await start_callback(function_name, self)
-                        except Exception as e:
-                            logger.error(f"Error in start callback for {name}: {str(e)}")
-
                 # Create transition function
                 transition_func = await self._create_transition_func(
                     name, handler, transition_to, transition_callback
                 )
 
-                # Register function with LLM, including start_callback if present
+                # Register function with LLM
                 self.llm.register_function(
                     name,
                     transition_func,
-                    start_callback=start_callback_wrapper if start_callback else None,
                 )
 
                 new_functions.add(name)
@@ -526,8 +512,6 @@ class FlowManager:
                 del tool_config["function"]["transition_to"]
             if "transition_callback" in tool_config["function"]:
                 del tool_config["function"]["transition_callback"]
-            if "start_callback" in tool_config["function"]:
-                del tool_config["function"]["start_callback"]
         elif "function_declarations" in tool_config:
             # Clean Gemini format
             for decl in tool_config["function_declarations"]:
@@ -535,16 +519,12 @@ class FlowManager:
                     del decl["transition_to"]
                 if "transition_callback" in decl:
                     del decl["transition_callback"]
-                if "start_callback" in decl:
-                    del decl["start_callback"]
         else:
             # Clean Anthropic format
             if "transition_to" in tool_config:
                 del tool_config["transition_to"]
             if "transition_callback" in tool_config:
                 del tool_config["transition_callback"]
-            if "start_callback" in tool_config:
-                del tool_config["start_callback"]
 
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
         """Set up a new conversation node and transition to it.
@@ -620,12 +600,10 @@ class FlowManager:
                         handler = func_config["function"].get("handler")
                         transition_to = func_config["function"].get("transition_to")
                         transition_callback = func_config["function"].get("transition_callback")
-                        start_callback = func_config["function"].get("start_callback")
                     else:
                         handler = func_config.get("handler")
                         transition_to = func_config.get("transition_to")
                         transition_callback = func_config.get("transition_callback")
-                        start_callback = func_config.get("start_callback")
 
                     await self._register_function(
                         name=name,
@@ -633,7 +611,6 @@ class FlowManager:
                         handler=handler,
                         transition_to=transition_to,
                         transition_callback=transition_callback,
-                        start_callback=start_callback,
                     )
 
                 # Create tool config (after removing handler and transition info)
