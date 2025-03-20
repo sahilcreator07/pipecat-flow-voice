@@ -14,7 +14,6 @@ import aiohttp
 from dotenv import load_dotenv
 from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import TTSSpeakFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -48,7 +47,7 @@ class MockReservationSystem:
     ) -> tuple[bool, list[str]]:
         """Check if a table is available for the given party size and time."""
         # Simulate API call delay
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(0.5)
 
         # Check if time is booked
         is_available = requested_time not in self.booked_times
@@ -77,16 +76,6 @@ class TimeResult(FlowResult):
     time: str
     available: bool
     alternative_times: list[str]
-
-
-# Start callback for availability check
-async def before_check_availability(function_name: str, flow_manager: FlowManager) -> None:
-    """Provide feedback while checking availability.
-
-    This is called before the availability check function executes.
-    """
-    logger.debug(f"Executing start callback for: {function_name}")
-    await flow_manager.llm.push_frame(TTSSpeakFrame("Let's see if we have an opening then..."))
 
 
 # Function handlers
@@ -192,7 +181,6 @@ def create_time_selection_node() -> NodeConfig:
                 "function": {
                     "name": "check_availability",
                     "handler": check_availability,
-                    "start_callback": before_check_availability,
                     "description": "Check availability for requested time",
                     "parameters": {
                         "type": "object",
@@ -256,7 +244,6 @@ def create_no_availability_node(alternative_times: list[str]) -> NodeConfig:
                 "function": {
                     "name": "check_availability",
                     "handler": check_availability,
-                    "start_callback": before_check_availability,
                     "description": "Check availability for new time",
                     "parameters": {
                         "type": "object",
@@ -320,7 +307,7 @@ async def main():
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = CartesiaTTSService(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",
+            voice_id="71a7ad14-091c-4e8e-a314-022ece01c121",
         )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
