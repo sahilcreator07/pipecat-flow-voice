@@ -24,12 +24,12 @@ The flow manager coordinates all aspects of a conversation, including:
 """
 
 import asyncio
-import copy
 import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.frames.frames import (
     FunctionCallResultProperties,
     LLMMessagesAppendFrame,
@@ -49,6 +49,7 @@ from .types import (
     FlowArgs,
     FlowConfig,
     FlowResult,
+    FlowsFunctionSchema,
     FunctionHandler,
     NodeConfig,
 )
@@ -482,50 +483,6 @@ class FlowManager:
                 logger.error(f"Failed to register function {name}: {str(e)}")
                 raise FlowError(f"Function registration failed: {str(e)}") from e
 
-    def _remove_handlers(self, tool_config: Dict[str, Any]) -> None:
-        """Remove handlers from tool configuration.
-
-        Args:
-            tool_config: Function configuration to clean
-        """
-        if "function" in tool_config and "handler" in tool_config["function"]:
-            del tool_config["function"]["handler"]
-        elif "handler" in tool_config:
-            del tool_config["handler"]
-        elif "function_declarations" in tool_config:
-            for decl in tool_config["function_declarations"]:
-                if "handler" in decl:
-                    del decl["handler"]
-
-    def _remove_transition_info(self, tool_config: Dict[str, Any]) -> None:
-        """Remove transition information from tool configuration.
-
-        Removes transition_to and transition_callback fields to prevent them from being
-        sent to the LLM provider.
-
-        Args:
-            tool_config: Function configuration to clean
-        """
-        if "function" in tool_config:
-            # Clean OpenAI format
-            if "transition_to" in tool_config["function"]:
-                del tool_config["function"]["transition_to"]
-            if "transition_callback" in tool_config["function"]:
-                del tool_config["function"]["transition_callback"]
-        elif "function_declarations" in tool_config:
-            # Clean Gemini format
-            for decl in tool_config["function_declarations"]:
-                if "transition_to" in decl:
-                    del decl["transition_to"]
-                if "transition_callback" in decl:
-                    del decl["transition_callback"]
-        else:
-            # Clean Anthropic format
-            if "transition_to" in tool_config:
-                del tool_config["transition_to"]
-            if "transition_callback" in tool_config:
-                del tool_config["transition_callback"]
-
     async def set_node(self, node_id: str, node_config: NodeConfig) -> None:
         """Set up a new conversation node and transition to it.
 
@@ -576,51 +533,113 @@ class FlowManager:
             new_functions: Set[str] = set()
 
             for func_config in node_config["functions"]:
-                # Handle Gemini's nested function declarations
-                if "function_declarations" in func_config:
-                    for declaration in func_config["function_declarations"]:
-                        name = declaration["name"]
-                        handler = declaration.get("handler")
-                        transition_to = declaration.get("transition_to")
-                        transition_callback = declaration.get("transition_callback")
-                        logger.debug(f"Processing function: {name}")
-                        await self._register_function(
-                            name=name,
-                            new_functions=new_functions,
-                            handler=handler,
-                            transition_to=transition_to,
-                            transition_callback=transition_callback,
-                        )
+                # Handle FlowsFunctionSchema objects
+                if isinstance(func_config, FlowsFunctionSchema):
+                    name = func_config.name
+                    handler = func_config.handler
+                    transition_to = func_config.transition_to
+                    transition_callback = func_config.transition_callback
+
+                    # Add to tools list
+                    tools.append(func_config)
                 else:
-                    name = self.adapter.get_function_name(func_config)
-                    logger.debug(f"Processing function: {name}")
+                    # Handle Gemini's nested function declarations
+                    if "function_declarations" in func_config:
+                        for declaration in func_config["function_declarations"]:
+                            name = declaration["name"]
+                            handler = declaration.get("handler")
+                            transition_to = declaration.get("transition_to")
+                            transition_callback = declaration.get("transition_callback")
+                            logger.debug(f"Processing function: {name}")
+                            await self._register_function(
+                                name=name,
+                                new_functions=new_functions,
+                                handler=handler,
+                                transition_to=transition_to,
+                                transition_callback=transition_callback,
+                            )
 
-                    # Extract handler and transition info based on format
-                    if "function" in func_config:
-                        handler = func_config["function"].get("handler")
-                        transition_to = func_config["function"].get("transition_to")
-                        transition_callback = func_config["function"].get("transition_callback")
+                        # We've handled all declarations, continue to next config
+                        continue
                     else:
-                        handler = func_config.get("handler")
-                        transition_to = func_config.get("transition_to")
-                        transition_callback = func_config.get("transition_callback")
+                        name = self.adapter.get_function_name(func_config)
+                        logger.debug(f"Processing function: {name}")
 
-                    await self._register_function(
-                        name=name,
-                        new_functions=new_functions,
-                        handler=handler,
-                        transition_to=transition_to,
-                        transition_callback=transition_callback,
-                    )
+                        # Extract handler and transition info based on format
+                        if "function" in func_config:
+                            handler = func_config["function"].get("handler")
+                            transition_to = func_config["function"].get("transition_to")
+                            transition_callback = func_config["function"].get("transition_callback")
+                        else:
+                            handler = func_config.get("handler")
+                            transition_to = func_config.get("transition_to")
+                            transition_callback = func_config.get("transition_callback")
 
-                # Create tool config (after removing handler and transition info)
-                tool_config = copy.deepcopy(func_config)
-                self._remove_handlers(tool_config)
-                self._remove_transition_info(tool_config)
-                tools.append(tool_config)
+                        # Convert dictionary to FlowsFunctionSchema through the adapter
+                        schema = self.adapter.convert_to_function_schema(func_config)
+                        tools.append(schema)
 
-            # Let adapter format tools for provider
-            formatted_tools = self.adapter.format_functions(tools)
+                # Register function with the LLM
+                await self._register_function(
+                    name=name,
+                    new_functions=new_functions,
+                    handler=handler,
+                    transition_to=transition_to,
+                    transition_callback=transition_callback,
+                )
+
+            # Create ToolsSchema with standard function schemas
+            standard_functions = []
+            for tool in tools:
+                # Convert FlowsFunctionSchema to standard FunctionSchema for the LLM
+                standard_functions.append(tool.to_function_schema())
+
+            # Create ToolsSchema with all standard functions
+            tools_schema = ToolsSchema(standard_tools=standard_functions)
+
+            # For Gemini, we need special handling to match exactly what the API expects
+            if type(self.llm).__name__ == "GoogleLLMService":
+                # Extract the functions directly from the node_config
+                gemini_functions = []
+                for func_config in node_config["functions"]:
+                    if isinstance(func_config, FlowsFunctionSchema):
+                        # Convert FlowsFunctionSchema to Gemini format
+                        gemini_functions.append(
+                            {
+                                "name": func_config.name,
+                                "description": func_config.description,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": func_config.properties,
+                                    "required": func_config.required,
+                                },
+                            }
+                        )
+                    elif "function_declarations" in func_config:
+                        # Already in Gemini format, use directly but remove handler/transition fields
+                        for decl in func_config["function_declarations"]:
+                            decl_copy = decl.copy()
+                            if "handler" in decl_copy:
+                                del decl_copy["handler"]
+                            if "transition_to" in decl_copy:
+                                del decl_copy["transition_to"]
+                            if "transition_callback" in decl_copy:
+                                del decl_copy["transition_callback"]
+                            gemini_functions.append(decl_copy)
+
+                # Format as Gemini expects
+                formatted_tools = [{"function_declarations": gemini_functions}]
+
+                # Log the actual formatted tools for debugging
+                logger.debug(f"Gemini formatted tools: {formatted_tools}")
+            else:
+                # For other providers, use the provider adapter
+                formatted_tools = self.adapter.provider_adapter.to_provider_tools_format(
+                    tools_schema
+                )
+
+            # Log the final formatted tools
+            logger.debug(f"Final formatted tools: {formatted_tools}")
 
             # Update LLM context
             await self._update_llm_context(
@@ -763,6 +782,10 @@ class FlowManager:
 
         # Validate each function configuration
         for func in config["functions"]:
+            # Skip validation for FlowsFunctionSchema objects - they have their own validation
+            if isinstance(func, FlowsFunctionSchema):
+                continue
+
             try:
                 name = self.adapter.get_function_name(func)
             except KeyError:

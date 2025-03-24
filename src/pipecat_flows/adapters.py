@@ -14,17 +14,23 @@ LLM providers (OpenAI, Anthropic, Gemini). It handles:
 - Provider-specific schema conversion
 
 The adapter system allows the flow manager to work with different LLM
-providers while maintaining a consistent internal format (based on OpenAI's
-function calling convention).
+providers while maintaining a consistent internal format.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from loguru import logger
+from pipecat.adapters.base_llm_adapter import BaseLLMAdapter
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.adapters.services.anthropic_adapter import AnthropicLLMAdapter
+from pipecat.adapters.services.gemini_adapter import GeminiLLMAdapter
+from pipecat.adapters.services.open_ai_adapter import OpenAILLMAdapter
+
+from .types import FlowsFunctionSchema
 
 
-class LLMAdapter(ABC):
+class LLMAdapter:
     """Base adapter for LLM-specific format handling.
 
     Adapters normalize differences between LLM providers:
@@ -37,41 +43,90 @@ class LLMAdapter(ABC):
     internally.
     """
 
-    @abstractmethod
-    def get_function_name(self, function_def: Dict[str, Any]) -> str:
-        """Extract function name from provider-specific function definition."""
-        pass
+    def __init__(self):
+        """Initialize the adapter."""
+        self.provider_adapter: Optional[BaseLLMAdapter] = None
 
-    @abstractmethod
-    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
-        """Extract function arguments from provider-specific function call."""
-        pass
-
-    @abstractmethod
-    def get_message_content(self, message: Dict[str, Any]) -> str:
-        """Extract message content from provider-specific format."""
-        pass
-
-    @abstractmethod
-    def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Format functions for provider-specific use."""
-        pass
-
-    @abstractmethod
-    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
-        """Get recent consecutive tool calls and results from message history.
-
-        Collects all consecutive tool call pairs working backwards from the end
-        of the message history until reaching a regular message interaction.
+    def get_function_name(
+        self, function_def: Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]
+    ) -> str:
+        """Extract function name from provider-specific function definition or schema.
 
         Args:
-            messages: List of messages in provider's format
+            function_def: Provider-specific function definition or schema
 
         Returns:
-            List[dict]: List of messages containing tool calls and results in
-                       chronological order, empty list if none found
+            Function name
         """
-        pass
+        if isinstance(function_def, (FunctionSchema, FlowsFunctionSchema)):
+            return function_def.name
+        return self._get_function_name_from_dict(function_def)
+
+    def _get_function_name_from_dict(self, function_def: Dict[str, Any]) -> str:
+        """Extract function name from provider-specific function definition.
+
+        Args:
+            function_def: Provider-specific function definition dictionary
+
+        Returns:
+            Function name
+        """
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
+        """Extract function arguments from provider-specific function call."""
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_message_content(self, message: Dict[str, Any]) -> str:
+        """Extract message content from provider-specific format."""
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def format_functions(
+        self, functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]]
+    ) -> List[Dict[str, Any]]:
+        """Format functions for provider-specific use.
+
+        Args:
+            functions: List of function definitions (dicts or schema objects)
+
+        Returns:
+            List of functions formatted for the provider
+        """
+        # Convert to standard FunctionSchema objects for the ToolsSchema
+        standard_functions = []
+
+        for func in functions:
+            if isinstance(func, FlowsFunctionSchema):
+                # Extract just the FunctionSchema part for the LLM
+                standard_functions.append(
+                    FunctionSchema(
+                        name=func.name,
+                        description=func.description,
+                        properties=func.properties,
+                        required=func.required,
+                    )
+                )
+            elif isinstance(func, FunctionSchema):
+                # Already a standard FunctionSchema
+                standard_functions.append(func)
+            else:
+                # Convert legacy dictionary format to FunctionSchema
+                flows_schema = self.convert_to_function_schema(func)
+                # Extract just the FunctionSchema part for the LLM
+                standard_functions.append(
+                    FunctionSchema(
+                        name=flows_schema.name,
+                        description=flows_schema.description,
+                        properties=flows_schema.properties,
+                        required=flows_schema.required,
+                    )
+                )
+
+        # Create ToolsSchema with all functions
+        tools_schema = ToolsSchema(standard_tools=standard_functions)
+
+        # Use the provider adapter to format the functions
+        return self.provider_adapter.to_provider_tools_format(tools_schema)
 
     def format_summary_message(self, summary: str) -> dict:
         """Format a summary as a message appropriate for this LLM provider.
@@ -82,7 +137,7 @@ class LLMAdapter(ABC):
         Returns:
             A properly formatted message for this provider
         """
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
     async def generate_summary(
         self, llm: Any, summary_prompt: str, messages: List[dict]
@@ -97,7 +152,18 @@ class LLMAdapter(ABC):
         Returns:
             Generated summary text, or None if generation fails
         """
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def convert_to_function_schema(self, function_def: Dict[str, Any]) -> FlowsFunctionSchema:
+        """Convert a provider-specific function definition to FlowsFunctionSchema.
+
+        Args:
+            function_def: Provider-specific function definition
+
+        Returns:
+            FlowsFunctionSchema equivalent
+        """
+        raise NotImplementedError("Subclasses must implement this method")
 
 
 class OpenAIAdapter(LLMAdapter):
@@ -107,7 +173,12 @@ class OpenAIAdapter(LLMAdapter):
     in the flow system.
     """
 
-    def get_function_name(self, function_def: Dict[str, Any]) -> str:
+    def __init__(self):
+        """Initialize the OpenAI adapter."""
+        super().__init__()
+        self.provider_adapter = OpenAILLMAdapter()
+
+    def _get_function_name_from_dict(self, function_def: Dict[str, Any]) -> str:
         """Extract function name from OpenAI function definition.
 
         Args:
@@ -139,58 +210,6 @@ class OpenAIAdapter(LLMAdapter):
             Message content as string
         """
         return message["content"]
-
-    def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Format functions for OpenAI use.
-
-        Args:
-            functions: List of function definitions
-
-        Returns:
-            Functions in OpenAI format (unchanged as this is our default format)
-        """
-        return functions
-
-    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
-        """Gets consecutive function call/response pairs from message history.
-
-        Processes messages in reverse order to find the most recent function
-        interactions. Stops at the first regular message to maintain
-        conversation context.
-
-        Args:
-        messages: List of messages in OpenAI format
-
-        Returns:
-        List of messages containing matched function call/response pairs
-        in chronological order.
-
-        Note:
-        Function calls must be from "assistant" role with tool_calls,
-        and responses must have "tool" role with matching tool_call_id.
-        """
-        tool_messages = []
-
-        for i in range(len(messages) - 1, -1, -1):
-            # If we hit a regular message, stop collecting
-            if (
-                messages[i].get("role") in ["user", "assistant"]
-                and not messages[i].get("tool_calls")
-                and not messages[i].get("role") == "tool"
-            ):
-                break
-
-            # Collect tool call pairs
-            if (
-                messages[i].get("role") == "tool"
-                and i > 0
-                and messages[i - 1].get("role") == "assistant"
-                and messages[i - 1].get("tool_calls")
-            ):
-                # Insert at beginning to maintain chronological order
-                tool_messages[0:0] = [messages[i - 1], messages[i]]
-
-        return tool_messages
 
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a system message for OpenAI."""
@@ -225,6 +244,37 @@ class OpenAIAdapter(LLMAdapter):
             logger.error(f"OpenAI summary generation failed: {e}", exc_info=True)
             return None
 
+    def convert_to_function_schema(self, function_def: Dict[str, Any]) -> FlowsFunctionSchema:
+        """Convert OpenAI function definition to FlowsFunctionSchema.
+
+        Args:
+            function_def: OpenAI function definition
+
+        Returns:
+            FlowsFunctionSchema equivalent with flow-specific fields
+        """
+        func_data = function_def["function"]
+        name = func_data["name"]
+        description = func_data.get("description", "")
+        parameters = func_data.get("parameters", {})
+        properties = parameters.get("properties", {})
+        required = parameters.get("required", [])
+
+        # Extract Flows-specific fields
+        handler = func_data.get("handler")
+        transition_to = func_data.get("transition_to")
+        transition_callback = func_data.get("transition_callback")
+
+        return FlowsFunctionSchema(
+            name=name,
+            description=description,
+            properties=properties,
+            required=required,
+            handler=handler,
+            transition_to=transition_to,
+            transition_callback=transition_callback,
+        )
+
 
 class AnthropicAdapter(LLMAdapter):
     """Format adapter for Anthropic.
@@ -233,7 +283,12 @@ class AnthropicAdapter(LLMAdapter):
     and Anthropic's as needed.
     """
 
-    def get_function_name(self, function_def: Dict[str, Any]) -> str:
+    def __init__(self):
+        """Initialize the Anthropic adapter."""
+        super().__init__()
+        self.provider_adapter = AnthropicLLMAdapter()
+
+    def _get_function_name_from_dict(self, function_def: Dict[str, Any]) -> str:
         """Extract function name from Anthropic function definition.
 
         Args:
@@ -270,79 +325,6 @@ class AnthropicAdapter(LLMAdapter):
             return " ".join(item["text"] for item in message["content"] if item["type"] == "text")
         return message.get("content", "")
 
-    def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Format functions for Anthropic use.
-
-        Converts from OpenAI format to Anthropic's native function format if needed.
-
-        Args:
-            functions: List of function definitions in OpenAI format
-
-        Returns:
-            Functions converted to Anthropic's format
-        """
-        formatted = []
-        for func in functions:
-            if "function" in func:
-                # Convert from OpenAI format
-                formatted.append(
-                    {
-                        "name": func["function"]["name"],
-                        "description": func["function"].get("description", ""),
-                        "input_schema": func["function"].get("parameters", {}),
-                    }
-                )
-            else:
-                # Already in Anthropic format
-                formatted.append(func)
-        return formatted
-
-    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
-        """Gets consecutive function call/response pairs from message history.
-
-        Processes messages in reverse order to find the most recent function
-        interactions. Stops at the first regular message to maintain
-        conversation context.
-
-        Args:
-        messages: List of messages in Anthropic format
-
-        Returns:
-        List of messages containing matched function call/response pairs
-        in chronological order.
-
-        Note:
-        Function calls must be from "assistant" role with tool_use content,
-        and responses must be from "user" role with tool_result content.
-        """
-        tool_messages = []
-
-        for i in range(len(messages) - 1, -1, -1):
-            content = messages[i].get("content", [])
-            # Handle both string and list content formats
-            content_list = (
-                content if isinstance(content, list) else [{"type": "text", "text": content}]
-            )
-
-            # If we hit a regular message, stop collecting
-            if all(item.get("type", "text") == "text" for item in content_list):
-                break
-
-            # Collect tool call pairs
-            if (
-                messages[i].get("role") == "user"
-                and any(item.get("type") == "tool_result" for item in content_list)
-                and i > 0
-                and messages[i - 1].get("role") == "assistant"
-                and isinstance(messages[i - 1].get("content"), list)
-                and any(
-                    item.get("type") == "tool_use" for item in messages[i - 1].get("content", [])
-                )
-            ):
-                tool_messages[0:0] = [messages[i - 1], messages[i]]
-
-        return tool_messages
-
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Anthropic."""
         return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
@@ -374,6 +356,36 @@ class AnthropicAdapter(LLMAdapter):
             logger.error(f"Anthropic summary generation failed: {e}", exc_info=True)
             return None
 
+    def convert_to_function_schema(self, function_def: Dict[str, Any]) -> FlowsFunctionSchema:
+        """Convert Anthropic function definition to FlowsFunctionSchema.
+
+        Args:
+            function_def: Anthropic function definition
+
+        Returns:
+            FlowsFunctionSchema equivalent with flow-specific fields
+        """
+        name = function_def["name"]
+        description = function_def.get("description", "")
+        input_schema = function_def.get("input_schema", {})
+        properties = input_schema.get("properties", {})
+        required = input_schema.get("required", [])
+
+        # Extract Flows-specific fields
+        handler = function_def.get("handler")
+        transition_to = function_def.get("transition_to")
+        transition_callback = function_def.get("transition_callback")
+
+        return FlowsFunctionSchema(
+            name=name,
+            description=description,
+            properties=properties,
+            required=required,
+            handler=handler,
+            transition_to=transition_to,
+            transition_callback=transition_callback,
+        )
+
 
 class GeminiAdapter(LLMAdapter):
     """Format adapter for Google's Gemini.
@@ -382,7 +394,12 @@ class GeminiAdapter(LLMAdapter):
     and Gemini's as needed.
     """
 
-    def get_function_name(self, function_def: Dict[str, Any]) -> str:
+    def __init__(self):
+        """Initialize the Gemini adapter."""
+        super().__init__()
+        self.provider_adapter = GeminiLLMAdapter()
+
+    def _get_function_name_from_dict(self, function_def: Dict[str, Any]) -> str:
         """Extract function name from Gemini function definition.
 
         Args:
@@ -420,96 +437,6 @@ class GeminiAdapter(LLMAdapter):
         """
         return message["content"]
 
-    def format_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Format functions for Gemini use.
-
-        Converts from OpenAI format to Gemini's function declarations format.
-
-        Args:
-            functions: List of function definitions in OpenAI format
-
-        Returns:
-            Functions converted to Gemini's format with declarations wrapper
-        """
-        all_declarations = []
-        for func in functions:
-            if "function_declarations" in func:
-                # Process each declaration separately
-                for decl in func["function_declarations"]:
-                    formatted_decl = {
-                        "name": decl["name"],
-                        "description": decl.get("description", ""),
-                        "parameters": decl.get("parameters", {"type": "object", "properties": {}}),
-                    }
-                    all_declarations.append(formatted_decl)
-            elif "function" in func:
-                all_declarations.append(
-                    {
-                        "name": func["function"]["name"],
-                        "description": func["function"].get("description", ""),
-                        "parameters": func["function"].get("parameters", {}),
-                    }
-                )
-        return [{"function_declarations": all_declarations}] if all_declarations else []
-
-    def get_recent_tool_call_pairs(self, messages: List[dict]) -> List[dict]:
-        """Gets consecutive function call/response pairs from message history.
-
-        Processes messages in reverse order to find the most recent function
-        interactions. Stops at the first regular text message to maintain
-        conversation context.
-
-        Args:
-            messages: List of messages in Gemini format
-
-        Returns:
-            List of messages containing matched function call/response pairs
-            in chronological order.
-
-        Note:
-            Function calls must be from "model" role and responses from "user" role.
-            Names must match between call and response.
-        """
-        tool_messages = []
-
-        # Process messages in reverse order
-        for i in range(len(messages) - 1, -1, -1):
-            current_message = messages[i]
-
-            # Stop at first regular text message
-            if len(current_message.parts) > 0 and str(current_message.parts[0]).startswith("text:"):
-                break
-
-            try:
-                part = current_message.parts[0]
-                # Check if current message is a function response
-                is_function_response = (
-                    current_message.role == "user"
-                    and len(current_message.parts) > 0
-                    and str(part).startswith("function_response {")
-                )
-
-                if is_function_response and i > 0:
-                    prev_message = messages[i - 1]
-                    prev_part = prev_message.parts[0]
-
-                    # Check if previous message is matching function call
-                    is_matching_function_call = (
-                        prev_message.role == "model"
-                        and len(prev_message.parts) > 0
-                        and str(prev_part).startswith("function_call {")
-                        and prev_part.function_call.name == part.function_response.name
-                    )
-
-                    # Add pair to start of list to maintain chronological order
-                    if is_matching_function_call:
-                        tool_messages[0:0] = [prev_message, current_message]
-
-            except Exception:
-                continue
-
-        return tool_messages
-
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Gemini."""
         return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
@@ -536,6 +463,45 @@ class GeminiAdapter(LLMAdapter):
             logger.error(f"Google summary generation failed: {e}", exc_info=True)
             return None
 
+    def convert_to_function_schema(self, function_def: Dict[str, Any]) -> FlowsFunctionSchema:
+        """Convert Gemini function definition to FlowsFunctionSchema.
+
+        Args:
+            function_def: Gemini function definition
+
+        Returns:
+            FlowsFunctionSchema equivalent with flow-specific fields
+        """
+        if "function_declarations" in function_def:
+            # Use first declaration if there are multiple
+            decl = function_def["function_declarations"][0]
+            # If we have function declarations, the handler might be in the declaration
+            handler = decl.get("handler")
+            transition_to = decl.get("transition_to")
+            transition_callback = decl.get("transition_callback")
+        else:
+            decl = function_def
+            # Otherwise, the handler might be at the top level
+            handler = function_def.get("handler")
+            transition_to = function_def.get("transition_to")
+            transition_callback = function_def.get("transition_callback")
+
+        name = decl["name"]
+        description = decl.get("description", "")
+        parameters = decl.get("parameters", {})
+        properties = parameters.get("properties", {})
+        required = parameters.get("required", [])
+
+        return FlowsFunctionSchema(
+            name=name,
+            description=description,
+            properties=properties,
+            required=required,
+            handler=handler,
+            transition_to=transition_to,
+            transition_callback=transition_callback,
+        )
+
 
 def create_adapter(llm) -> LLMAdapter:
     """Create appropriate adapter based on LLM service type.
@@ -560,7 +526,7 @@ def create_adapter(llm) -> LLMAdapter:
     if llm_type == "AnthropicLLMService":
         logger.debug("Creating Anthropic adapter")
         return AnthropicAdapter()
-    
+
     if llm_type == "GoogleLLMService":
         logger.debug("Creating Google adapter")
         return GeminiAdapter()
