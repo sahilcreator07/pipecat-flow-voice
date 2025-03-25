@@ -73,14 +73,6 @@ class LLMAdapter:
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
-        """Extract function arguments from provider-specific function call."""
-        raise NotImplementedError("Subclasses must implement this method")
-
-    def get_message_content(self, message: Dict[str, Any]) -> str:
-        """Extract message content from provider-specific format."""
-        raise NotImplementedError("Subclasses must implement this method")
-
     def format_functions(
         self,
         functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]],
@@ -192,28 +184,6 @@ class OpenAIAdapter(LLMAdapter):
         """
         return function_def["function"]["name"]
 
-    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
-        """Extract arguments from OpenAI function call.
-
-        Args:
-            function_call: OpenAI-formatted function call dictionary
-
-        Returns:
-            Dictionary of function arguments, empty if none provided
-        """
-        return function_call.get("arguments", {})
-
-    def get_message_content(self, message: Dict[str, Any]) -> str:
-        """Extract content from OpenAI message format.
-
-        Args:
-            message: OpenAI-formatted message dictionary
-
-        Returns:
-            Message content as string
-        """
-        return message["content"]
-
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a system message for OpenAI."""
         return {"role": "system", "content": f"Here's a summary of the conversation:\n{summary}"}
@@ -301,32 +271,6 @@ class AnthropicAdapter(LLMAdapter):
             Function name from the definition
         """
         return function_def["name"]
-
-    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
-        """Extract arguments from Anthropic function call.
-
-        Args:
-            function_call: Anthropic-formatted function call dictionary
-
-        Returns:
-            Dictionary of function arguments, empty if none provided
-        """
-        return function_call.get("arguments", {})
-
-    def get_message_content(self, message: Dict[str, Any]) -> str:
-        """Extract content from Anthropic message format.
-
-        Handles both string content and structured content arrays.
-
-        Args:
-            message: Anthropic-formatted message dictionary
-
-        Returns:
-            Message content as string, concatenated if from multiple parts
-        """
-        if isinstance(message.get("content"), list):
-            return " ".join(item["text"] for item in message["content"] if item["type"] == "text")
-        return message.get("content", "")
 
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Anthropic."""
@@ -417,28 +361,6 @@ class GeminiAdapter(LLMAdapter):
             if declarations and isinstance(declarations, list):
                 return declarations[0]["name"]
         return ""
-
-    def get_function_args(self, function_call: Dict[str, Any]) -> dict:
-        """Extract arguments from Gemini function call.
-
-        Args:
-            function_call: Gemini-formatted function call dictionary
-
-        Returns:
-            Dictionary of function arguments, empty if none provided
-        """
-        return function_call.get("args", {})
-
-    def get_message_content(self, message: Dict[str, Any]) -> str:
-        """Extract content from Gemini message format.
-
-        Args:
-            message: Gemini-formatted message dictionary
-
-        Returns:
-            Message content as string
-        """
-        return message["content"]
 
     def format_functions(
         self,

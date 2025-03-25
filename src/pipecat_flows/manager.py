@@ -29,7 +29,6 @@ import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.frames.frames import (
     FunctionCallResultProperties,
     LLMMessagesAppendFrame,
@@ -259,29 +258,6 @@ class FlowManager:
         else:
             # Modern handler with args and flow_manager
             return await handler(args, self)
-
-    async def _handle_static_transition(
-        self,
-        function_name: str,
-        args: Dict[str, Any],
-        flow_manager: "FlowManager",
-    ) -> None:
-        """Handle transitions for static flows.
-
-        Transitions to a new node in static flows by looking up the node
-        configuration and setting it as the current node. Logs a warning
-        if the target node is not found in the flow configuration.
-
-        Args:
-            function_name: Name of the target node to transition to
-            args: Arguments passed to the function that triggered the transition
-            flow_manager: Reference to the FlowManager instance
-        """
-        if function_name in self.nodes:
-            logger.debug(f"Static transition to node: {function_name}")
-            await self.set_node(function_name, self.nodes[function_name])
-        else:
-            logger.warning(f"Static transition failed: Node '{function_name}' not found")
 
     async def _create_transition_func(
         self,
@@ -532,63 +508,37 @@ class FlowManager:
             tools = []
             new_functions: Set[str] = set()
 
+            async def process_schema(schema):
+                """Helper to process a single FlowsFunctionSchema."""
+                tools.append(schema)
+                await self._register_function(
+                    name=schema.name,
+                    new_functions=new_functions,
+                    handler=schema.handler,
+                    transition_to=schema.transition_to,
+                    transition_callback=schema.transition_callback,
+                )
+
             for func_config in node_config["functions"]:
-                # Handle Gemini's nested function declarations separately to avoid duplicate processing
+                # Handle Gemini's nested function declarations as a special case
                 if (
                     not isinstance(func_config, FlowsFunctionSchema)
                     and "function_declarations" in func_config
                 ):
                     for declaration in func_config["function_declarations"]:
-                        name = declaration["name"]
-                        handler = declaration.get("handler")
-                        transition_to = declaration.get("transition_to")
-                        transition_callback = declaration.get("transition_callback")
-                        logger.debug(f"Processing function: {name}")
-                        await self._register_function(
-                            name=name,
-                            new_functions=new_functions,
-                            handler=handler,
-                            transition_to=transition_to,
-                            transition_callback=transition_callback,
+                        # Convert each declaration to FlowsFunctionSchema and process it
+                        schema = self.adapter.convert_to_function_schema(
+                            {"function_declarations": [declaration]}
                         )
-                    # Skip further processing of this config
-                    continue
-
-                # For FlowsFunctionSchema or regular dictionaries
-                if isinstance(func_config, FlowsFunctionSchema):
-                    name = func_config.name
-                    handler = func_config.handler
-                    transition_to = func_config.transition_to
-                    transition_callback = func_config.transition_callback
-                    # Add directly to tools list
-                    tools.append(func_config)
+                        await process_schema(schema)
                 else:
-                    # Extract info from regular dictionary format
-                    name = self.adapter.get_function_name(func_config)
-                    logger.debug(f"Processing function: {name}")
-
-                    # Extract handler and transition info based on format
-                    if "function" in func_config:
-                        handler = func_config["function"].get("handler")
-                        transition_to = func_config["function"].get("transition_to")
-                        transition_callback = func_config["function"].get("transition_callback")
-                    else:
-                        handler = func_config.get("handler")
-                        transition_to = func_config.get("transition_to")
-                        transition_callback = func_config.get("transition_callback")
-
-                    # Convert dictionary to FlowsFunctionSchema through the adapter
-                    schema = self.adapter.convert_to_function_schema(func_config)
-                    tools.append(schema)
-
-                # Register function with the LLM
-                await self._register_function(
-                    name=name,
-                    new_functions=new_functions,
-                    handler=handler,
-                    transition_to=transition_to,
-                    transition_callback=transition_callback,
-                )
+                    # Convert to FlowsFunctionSchema if needed and process it
+                    schema = (
+                        func_config
+                        if isinstance(func_config, FlowsFunctionSchema)
+                        else self.adapter.convert_to_function_schema(func_config)
+                    )
+                    await process_schema(schema)
 
             # Create ToolsSchema with standard function schemas
             standard_functions = []
@@ -723,9 +673,9 @@ class FlowManager:
         This method ensures that:
         1. Required fields (task_messages, functions) are present
         2. Functions have valid configurations based on their type:
-        - Node functions must have either a handler or transition_to
-        - Edge functions (matching node names) are allowed without handlers
-        3. Function configurations match the LLM provider's format
+        - FlowsFunctionSchema objects have proper handler/transition fields
+        - Dictionary format functions have valid handler/transition entries
+        3. Edge functions (matching node names) are allowed without handlers/transitions
 
         Args:
             node_id: Identifier for the node being validated
@@ -742,53 +692,47 @@ class FlowManager:
 
         # Validate each function configuration
         for func in config["functions"]:
-            # Skip validation for FlowsFunctionSchema objects - they have their own validation
-            if isinstance(func, FlowsFunctionSchema):
-                continue
-
+            # Extract function name using adapter (handles all formats)
             try:
                 name = self.adapter.get_function_name(func)
-            except KeyError:
-                raise ValueError(f"Function in node '{node_id}' missing name field")
+            except Exception as e:
+                raise ValueError(f"Function in node '{node_id}' has invalid format: {str(e)}")
 
             # Skip validation for edge functions (matching node names)
             if name in self.nodes:
                 continue
 
-            # Check for handler in provider-specific formats
-            has_handler = (
-                ("function" in func and "handler" in func["function"])  # OpenAI format
-                or "handler" in func  # Anthropic format
-                or (  # Gemini format
-                    "function_declarations" in func
-                    and func["function_declarations"]
-                    and "handler" in func["function_declarations"][0]
-                )
-            )
+            # Check for handler, transition_to, and transition_callback depending on format
+            if isinstance(func, FlowsFunctionSchema):
+                # For FlowsFunctionSchema, we can access the fields directly
+                has_handler = func.handler is not None
+                has_transition_to = func.transition_to is not None
+                has_transition_callback = func.transition_callback is not None
+            else:
+                # For dictionary formats, use the provider-specific format checks
+                # OpenAI format
+                if "function" in func:
+                    has_handler = "handler" in func["function"]
+                    has_transition_to = "transition_to" in func["function"]
+                    has_transition_callback = "transition_callback" in func["function"]
+                # Anthropic format
+                elif "name" in func and "input_schema" in func:
+                    has_handler = "handler" in func
+                    has_transition_to = "transition_to" in func
+                    has_transition_callback = "transition_callback" in func
+                # Gemini format
+                elif "function_declarations" in func and func["function_declarations"]:
+                    decl = func["function_declarations"][0]
+                    has_handler = "handler" in decl
+                    has_transition_to = "transition_to" in decl
+                    has_transition_callback = "transition_callback" in decl
+                else:
+                    # Unknown format, report error
+                    raise ValueError(
+                        f"Unknown function format for function '{name}' in node '{node_id}'"
+                    )
 
-            # Check for transition_to in provider-specific formats
-            has_transition_to = (
-                ("function" in func and "transition_to" in func["function"])
-                or "transition_to" in func
-                or (
-                    "function_declarations" in func
-                    and func["function_declarations"]
-                    and "transition_to" in func["function_declarations"][0]
-                )
-            )
-
-            # Check for transition_callback in provider-specific formats
-            has_transition_callback = (
-                ("function" in func and "transition_callback" in func["function"])
-                or "transition_callback" in func
-                or (
-                    "function_declarations" in func
-                    and func["function_declarations"]
-                    and "transition_callback" in func["function_declarations"][0]
-                )
-            )
-
-            # Warn if function has no handler or transitions
+            # Warn if the function has no handler or transitions
             if not has_handler and not has_transition_to and not has_transition_callback:
                 logger.warning(
                     f"Function '{name}' in node '{node_id}' has neither handler, transition_to, nor transition_callback"

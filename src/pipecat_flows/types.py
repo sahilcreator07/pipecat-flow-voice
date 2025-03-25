@@ -21,7 +21,6 @@ from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar, Union
 
 from pipecat.adapters.schemas.function_schema import FunctionSchema
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
 
 T = TypeVar("T")
 TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
@@ -207,14 +206,6 @@ class FlowsFunctionSchema:
             properties=self.properties,
             required=self.required,
         )
-
-
-# Define function definition types
-FunctionDefinition = Union[Dict[str, Any], FlowsFunctionSchema]
-"""Union type for function definitions, supporting both dict and FlowsFunctionSchema."""
-
-ToolsDefinition = Union[List[Dict[str, Any]], ToolsSchema]
-"""Union type for tools definitions, supporting both list of dicts and ToolsSchema."""
 
 
 class NodeConfigRequired(TypedDict):
