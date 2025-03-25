@@ -17,6 +17,7 @@ The adapter system allows the flow manager to work with different LLM
 providers while maintaining a consistent internal format.
 """
 
+import sys
 from typing import Any, Dict, List, Optional, Union
 
 from loguru import logger
@@ -493,9 +494,10 @@ class GeminiAdapter(LLMAdapter):
 
 
 def create_adapter(llm) -> LLMAdapter:
-    """Create appropriate adapter based on LLM service type.
+    """Create appropriate adapter based on LLM service type or inheritance.
 
-    Uses string-based type checking to avoid importing unnecessary dependencies.
+    Checks both direct class types and inheritance hierarchies to determine
+    the appropriate adapter for any LLM service.
 
     Args:
         llm: LLM service instance
@@ -507,6 +509,7 @@ def create_adapter(llm) -> LLMAdapter:
         ValueError: If LLM type is not supported or required dependency not installed
     """
     llm_type = type(llm).__name__
+    llm_class = type(llm)
 
     if llm_type == "OpenAILLMService":
         logger.debug("Creating OpenAI adapter")
@@ -520,9 +523,22 @@ def create_adapter(llm) -> LLMAdapter:
         logger.debug("Creating Google adapter")
         return GeminiAdapter()
 
-    # If we get here, either the LLM type is not supported or the required dependency is not installed
-    llm_type = type(llm).__name__
-    error_msg = f"Unsupported LLM type or missing dependency: {llm_type}\n"
+    # Try to find OpenAILLMService for inheritance check
+    try:
+        module = sys.modules.get("pipecat.services.openai")
+        if module:
+            openai_service = getattr(module, "OpenAILLMService", None)
+            if openai_service and issubclass(llm_class, openai_service):
+                logger.debug(f"Creating OpenAI adapter for {llm_type}")
+                return OpenAIAdapter()
+    except (TypeError, AttributeError) as e:
+        # Log but continue to error handling if issubclass check fails
+        logger.warning(f"Error checking inheritance for {llm_type}: {str(e)}")
+
+    # Error handling
+    error_msg = (
+        f"Unsupported LLM type or missing dependency: {llm_type} (module: {llm_class.__module__})\n"
+    )
     error_msg += "Make sure you have installed the required dependency:\n"
     error_msg += "- For OpenAI: pip install 'pipecat-ai[openai]'\n"
     error_msg += "- For Anthropic: pip install 'pipecat-ai[anthropic]'\n"

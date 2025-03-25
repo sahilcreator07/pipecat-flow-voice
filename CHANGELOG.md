@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added support for `OpenAILLMService` subclasses in the adapter system. You
+  can now use any Pipecat LLM service that inherits from `OpenAILLMService`
+  such as `AzureLLMService`, `GrokLLMService`, `GroqLLMService`, and other
+  without requiring adapter updates. See the Pipecat docs for
+  [supported LLM services](https://docs.pipecat.ai/server/services/supported-services#large-language-models).
+
 - Added a new `FlowsFunctionSchema` class, which allows you to specify function
   calls using a standard schema. This is effectively a subclass of Pipecat's
   `FunctionSchema`.
