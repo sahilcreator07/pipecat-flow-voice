@@ -51,6 +51,8 @@ node_config = {
 
 ### Other
 
+- Update restaurant_reservation.py to use `FlowsFunctionSchema`.
+
 - Updated examples to specify a `params` arg for `PipelineTask`, meeting the
   Pipecat requirement starting 0.0.58.
 
