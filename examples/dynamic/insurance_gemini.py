@@ -43,7 +43,7 @@ from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.google import GoogleLLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
-from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, FlowsFunctionSchema, NodeConfig
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -176,7 +176,7 @@ async def handle_end_quote(_: Dict, result: FlowResult, flow_manager: FlowManage
     await flow_manager.set_node("end", create_end_node())
 
 
-# Node configurations
+# Node configurations using FlowsFunctionSchema
 def create_initial_node() -> NodeConfig:
     """Create the initial node asking for age."""
     return {
@@ -198,21 +198,14 @@ def create_initial_node() -> NodeConfig:
             }
         ],
         "functions": [
-            {
-                "function_declarations": [
-                    {
-                        "name": "collect_age",
-                        "handler": collect_age,
-                        "description": "Record customer's age",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"age": {"type": "integer"}},
-                            "required": ["age"],
-                        },
-                        "transition_callback": handle_age_collection,
-                    }
-                ]
-            }
+            FlowsFunctionSchema(
+                name="collect_age",
+                description="Record customer's age",
+                properties={"age": {"type": "integer"}},
+                required=["age"],
+                handler=collect_age,
+                transition_callback=handle_age_collection,
+            )
         ],
     }
 
@@ -231,23 +224,14 @@ def create_marital_status_node() -> NodeConfig:
             }
         ],
         "functions": [
-            {
-                "function_declarations": [
-                    {
-                        "name": "collect_marital_status",
-                        "handler": collect_marital_status,
-                        "description": "Record marital status after customer provides it",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "marital_status": {"type": "string", "enum": ["single", "married"]}
-                            },
-                            "required": ["marital_status"],
-                        },
-                        "transition_callback": handle_marital_status_collection,
-                    }
-                ]
-            }
+            FlowsFunctionSchema(
+                name="collect_marital_status",
+                description="Record marital status after customer provides it",
+                properties={"marital_status": {"type": "string", "enum": ["single", "married"]}},
+                required=["marital_status"],
+                handler=collect_marital_status,
+                transition_callback=handle_marital_status_collection,
+            )
         ],
     }
 
@@ -266,24 +250,17 @@ def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
             }
         ],
         "functions": [
-            {
-                "function_declarations": [
-                    {
-                        "name": "calculate_quote",
-                        "handler": calculate_quote,
-                        "description": "Calculate initial insurance quote",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "age": {"type": "integer"},
-                                "marital_status": {"type": "string", "enum": ["single", "married"]},
-                            },
-                            "required": ["age", "marital_status"],
-                        },
-                        "transition_callback": handle_quote_calculation,
-                    }
-                ]
-            }
+            FlowsFunctionSchema(
+                name="calculate_quote",
+                description="Calculate initial insurance quote",
+                properties={
+                    "age": {"type": "integer"},
+                    "marital_status": {"type": "string", "enum": ["single", "married"]},
+                },
+                required=["age", "marital_status"],
+                handler=calculate_quote,
+                transition_callback=handle_quote_calculation,
+            )
         ],
     }
 
@@ -310,52 +287,25 @@ def create_quote_results_node(
             }
         ],
         "functions": [
-            {
-                "function_declarations": [
-                    {
-                        "name": "update_coverage",
-                        "handler": update_coverage,
-                        "description": "Recalculate quote with new coverage options",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "coverage_amount": {"type": "integer"},
-                                "deductible": {"type": "integer"},
-                            },
-                            "required": ["coverage_amount", "deductible"],
-                        },
-                    },
-                    {
-                        "name": "end_quote",
-                        "handler": end_quote,
-                        "description": "Complete the quote process when customer is satisfied",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"status": {"type": "string", "enum": ["completed"]}},
-                            "required": ["status"],
-                        },
-                        "transition_callback": handle_end_quote,
-                    },
-                ]
-            }
+            FlowsFunctionSchema(
+                name="update_coverage",
+                description="Recalculate quote with new coverage options",
+                properties={
+                    "coverage_amount": {"type": "integer"},
+                    "deductible": {"type": "integer"},
+                },
+                required=["coverage_amount", "deductible"],
+                handler=update_coverage,
+            ),
+            FlowsFunctionSchema(
+                name="end_quote",
+                description="Complete the quote process when customer is satisfied",
+                properties={"status": {"type": "string", "enum": ["completed"]}},
+                required=["status"],
+                handler=end_quote,
+                transition_callback=handle_end_quote,
+            ),
         ],
-    }
-
-
-def create_end_node() -> NodeConfig:
-    """Create the final node."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": (
-                    "Thank the customer for their time and end the conversation. "
-                    "Mention that a representative will contact them about the quote."
-                ),
-            }
-        ],
-        "functions": [],
-        "post_actions": [{"type": "end_conversation"}],
     }
 
 

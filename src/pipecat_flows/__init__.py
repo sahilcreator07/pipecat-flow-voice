@@ -70,6 +70,7 @@ from .types import (
     FlowConfig,
     FlowFunctionHandler,
     FlowResult,
+    FlowsFunctionSchema,
     LegacyFunctionHandler,
     NodeConfig,
 )
@@ -84,6 +85,7 @@ __all__ = [
     "FlowConfig",
     "FlowFunctionHandler",
     "FlowResult",
+    "FlowsFunctionSchema",
     "LegacyFunctionHandler",
     "NodeConfig",
     # Exceptions

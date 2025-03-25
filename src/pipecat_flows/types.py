@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar, Union
 
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+
 T = TypeVar("T")
 TransitionHandler = Callable[[Dict[str, T], "FlowManager"], Awaitable[None]]
 """Type for transition handler functions.
@@ -162,11 +164,55 @@ class ContextStrategyConfig:
             raise ValueError("summary_prompt is required when using RESET_WITH_SUMMARY strategy")
 
 
+@dataclass
+class FlowsFunctionSchema:
+    """Function schema with Flows-specific properties.
+
+    This class provides similar functionality to FunctionSchema with additional
+    fields for Pipecat Flows integration.
+
+    Attributes:
+        name: Name of the function
+        description: Description of the function
+        properties: Dictionary defining properties types and descriptions
+        required: List of required parameters
+        handler: Function handler to process the function call
+        transition_to: Target node to transition to after function execution
+        transition_callback: Callback function for dynamic transitions
+    """
+
+    name: str
+    description: str
+    properties: Dict[str, Any]
+    required: List[str]
+    handler: Optional[FunctionHandler] = None
+    transition_to: Optional[str] = None
+    transition_callback: Optional[Callable] = None
+
+    def __post_init__(self):
+        """Validate the schema configuration."""
+        if self.transition_to and self.transition_callback:
+            raise ValueError("Cannot specify both transition_to and transition_callback")
+
+    def to_function_schema(self) -> FunctionSchema:
+        """Convert to a standard FunctionSchema for use with LLMs.
+
+        Returns:
+            FunctionSchema without flow-specific fields
+        """
+        return FunctionSchema(
+            name=self.name,
+            description=self.description,
+            properties=self.properties,
+            required=self.required,
+        )
+
+
 class NodeConfigRequired(TypedDict):
     """Required fields for node configuration."""
 
     task_messages: List[dict]
-    functions: List[dict]
+    functions: List[Union[Dict[str, Any], FlowsFunctionSchema]]
 
 
 class NodeConfig(NodeConfigRequired, total=False):
@@ -174,7 +220,8 @@ class NodeConfig(NodeConfigRequired, total=False):
 
     Required fields:
         task_messages: List of message dicts defining the current node's objectives
-        functions: List of function definitions in provider-specific format
+        functions: List of function definitions in provider-specific format, FunctionSchema,
+                  or FlowsFunctionSchema
 
     Optional fields:
         role_messages: List of message dicts defining the bot's role/personality

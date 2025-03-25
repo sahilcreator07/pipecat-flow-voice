@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a new `FlowsFunctionSchema` class, which allows you to specify function
+  calls using a standard schema. This is effectively a subclass of Pipecat's
+  `FunctionSchema`.
+
+Example usage:
+
+```python
+# Define a function using FlowsFunctionSchema
+collect_name = FlowsFunctionSchema(
+    name="collect_name",
+    description="Record the user's name",
+    properties={
+        "name": {"type": "string", "description": "The user's name"}
+    },
+    required=["name"],
+    handler=collect_name_handler,
+    transition_to="next_node"
+)
+
+# Use in node configuration
+node_config = {
+    "task_messages": [...],
+    "functions": [collect_name]
+}
+```
+
 ### Changed
 
 - Function handlers can now receive either `FlowArgs` only (legacy style) or
@@ -16,7 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatically detects which signature you're using and calls handlers
   appropriately.
 
+### Dependencies
+
+- Updated minimum Pipecat version to 0.0.60 to use `FunctionSchema` and
+  provider-specific adapters.
+
 ### Other
+
+- Update restaurant_reservation.py and insurance_gemini.py to use
+  `FlowsFunctionSchema`.
 
 - Updated examples to specify a `params` arg for `PipelineTask`, meeting the
   Pipecat requirement starting 0.0.58.

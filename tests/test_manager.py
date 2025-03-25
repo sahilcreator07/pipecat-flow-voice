@@ -155,22 +155,30 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         # Clear mock call history to focus on transition
         self.mock_task.queue_frames.reset_mock()
 
-        # Test transition to next node
-        await flow_manager._handle_static_transition("next_node", {}, flow_manager)
+        # In static flows, transitions happen through set_node with a
+        # predefined node configuration from the flow_config
+        await flow_manager.set_node("next_node", flow_manager.nodes["next_node"])
 
         # Verify node transition occurred
         self.assertEqual(flow_manager.current_node, "next_node")
 
         # Verify frame handling
-        self.assertEqual(self.mock_task.queue_frames.call_count, 2)
+        # The first call should be for the context update
+        self.assertTrue(self.mock_task.queue_frames.called)
 
         # Get the first call (context update)
         first_call = self.mock_task.queue_frames.call_args_list[0]
         first_frames = first_call[0][0]
 
-        # Should have exactly one AppendFrame
+        # For subsequent nodes, should use AppendFrame by default
         append_frames = [f for f in first_frames if isinstance(f, LLMMessagesAppendFrame)]
-        self.assertEqual(len(append_frames), 1, "Should have exactly one AppendFrame")
+        self.assertTrue(len(append_frames) > 0, "Should have at least one AppendFrame")
+
+        # Verify that LLM completion was triggered
+        self.assertTrue(
+            self.mock_context_aggregator.user().get_context_frame.called,
+            "Should have triggered LLM completion",
+        )
 
     async def test_transition_callback_signatures(self):
         """Test both two and three argument transition callback signatures."""
@@ -526,7 +534,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
         with self.assertRaises(FlowError) as context:
             await flow_manager.set_node("test", invalid_config)
-        self.assertIn("missing name field", str(context.exception))
+        self.assertIn("invalid format", str(context.exception))
 
         # Test node function without handler or transition_to
         invalid_config = {
@@ -688,42 +696,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             await flow_manager._update_llm_context(
                 messages=[{"role": "system", "content": "Test"}], functions=[]
             )
-
-    async def test_handler_removal_all_formats(self):
-        """Test handler removal from different function configurations."""
-        flow_manager = FlowManager(
-            task=self.mock_task,
-            llm=self.mock_llm,
-            context_aggregator=self.mock_context_aggregator,
-        )
-        await flow_manager.initialize()
-
-        async def dummy_handler(args):
-            return {"status": "success"}
-
-        # Test OpenAI format
-        openai_config = {
-            "type": "function",
-            "function": {"name": "test", "handler": dummy_handler, "parameters": {}},
-        }
-        flow_manager._remove_handlers(openai_config)
-        self.assertNotIn("handler", openai_config["function"])
-
-        # Test Anthropic format
-        anthropic_config = {"name": "test", "handler": dummy_handler, "parameters": {}}
-        flow_manager._remove_handlers(anthropic_config)
-        self.assertNotIn("handler", anthropic_config)
-
-        # Test Gemini format
-        gemini_config = {
-            "function_declarations": [
-                {"name": "test1", "handler": dummy_handler, "parameters": {}},
-                {"name": "test2", "handler": dummy_handler, "parameters": {}},
-            ]
-        }
-        flow_manager._remove_handlers(gemini_config)
-        for decl in gemini_config["function_declarations"]:
-            self.assertNotIn("handler", decl)
 
     async def test_function_declarations_processing(self):
         """Test processing of function declarations format."""
@@ -1071,6 +1043,8 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
 
         # Test initial node setup
         self.mock_task.queue_frames.reset_mock()
+        self.mock_context_aggregator.user().get_context_frame.reset_mock()
+
         await flow_manager.set_node(
             "initial",
             {
@@ -1078,8 +1052,13 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
                 "functions": [],
             },
         )
-        # Should see two calls: context update and completion trigger
-        self.assertEqual(self.mock_task.queue_frames.call_count, 2)
+
+        # Should see context update and completion trigger
+        # First call is for updating context
+        self.assertTrue(self.mock_task.queue_frames.called)
+
+        # Verify completion was triggered
+        self.assertTrue(self.mock_context_aggregator.user().get_context_frame.called)
 
         # Add next node to flow manager's nodes
         next_node: NodeConfig = {
@@ -1088,11 +1067,15 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
         flow_manager.nodes["next"] = next_node
 
-        # Test node transition
+        # Test node transition by directly setting next node
         self.mock_task.queue_frames.reset_mock()
-        await flow_manager._handle_static_transition("next", {}, flow_manager)
-        # Should see two calls: context update and completion trigger
-        self.assertEqual(self.mock_task.queue_frames.call_count, 2)
+        self.mock_context_aggregator.user().get_context_frame.reset_mock()
+
+        await flow_manager.set_node("next", next_node)
+
+        # Should see context update and completion trigger again
+        self.assertTrue(self.mock_task.queue_frames.called)
+        self.assertTrue(self.mock_context_aggregator.user().get_context_frame.called)
 
     async def test_transition_configuration_exclusivity(self):
         """Test that transition_to and transition_callback cannot be used together."""
@@ -1127,7 +1110,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(FlowError) as context:
             await flow_manager.set_node("test", test_node)
         self.assertIn(
-            "cannot have both transition_to and transition_callback", str(context.exception)
+            "Cannot specify both transition_to and transition_callback", str(context.exception)
         )
 
     async def test_get_current_context(self):

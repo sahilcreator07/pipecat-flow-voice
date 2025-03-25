@@ -41,9 +41,41 @@ pip install "pipecat-ai[daily,google,deepgram,cartesia]"     # For Google
 Here's a basic example of setting up a static conversation flow:
 
 ```python
-from pipecat_flows import FlowManager
+from pipecat_flows import FlowManager, FlowsFunctionSchema
+
+# Define a function with FlowsFunctionSchema
+collect_name_schema = FlowsFunctionSchema(
+    name="collect_name",
+    description="Record user's name",
+    properties={"name": {"type": "string"}},
+    required=["name"],
+    handler=collect_name_handler,
+    transition_to="next_step"
+)
 
 # Initialize flow manager with static configuration
+flow_config = {
+    "initial_node": "greeting",
+    "nodes": {
+        "greeting": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant. Your responses will be converted to audio."
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Start by greeting the user and asking for their name."
+                }
+            ],
+            "functions": [collect_name_schema]
+        },
+        # Additional nodes...
+    }
+}
+
 flow_manager = FlowManager(
     task=task,
     llm=llm,
@@ -99,8 +131,23 @@ Role messages are typically defined in your initial node and inherited by subseq
 Functions come in two types:
 
 1. **Node Functions**: Execute operations within the current state
+2. **Edge Functions**: Create transitions between states
+
+Functions can be defined using either the new `FlowsFunctionSchema` class (recommended) or traditional dictionary format:
 
 ```python
+# Using FlowsFunctionSchema (recommended)
+from pipecat_flows import FlowsFunctionSchema
+
+select_size_schema = FlowsFunctionSchema(
+    name="select_size",
+    description="Select pizza size",
+    properties={"size": {"type": "string", "enum": ["small", "medium", "large"]}},
+    required=["size"],
+    handler=select_size_handler
+)
+
+# Traditional dictionary format
 {
     "type": "function",
     "function": {
@@ -117,11 +164,32 @@ Functions come in two types:
 }
 ```
 
-2. **Edge Functions**: Create transitions between states
+Functions behave differently based on their type:
 
-Static flows use `transition_to`:
+- Node Functions execute their handler and trigger an immediate LLM completion with the result
+- Edge Functions execute their handler (if provided) and transition to a new node, with the LLM completion occurring after both the function result and new node's messages are added to context
+
+Functions can:
+
+- Have a handler (for data processing)
+- Have a transition_to or transition callback (for state changes)
+- Have both (process data and transition)
+- Have neither (end node functions)
+
+For Static flows, use `transition_to`:
 
 ```python
+# Using FlowsFunctionSchema
+next_step_schema = FlowsFunctionSchema(
+    name="next_step",
+    description="Move to next state",
+    properties={},
+    required=[],
+    handler=select_size_handler,  # Optional handler
+    transition_to="target_node"   # Specify target node
+)
+
+# Using dictionary format
 {
     "type": "function",
     "function": {
@@ -134,9 +202,20 @@ Static flows use `transition_to`:
 }
 ```
 
-Dynamic flows use `transition_callback`:
+For Dynamic flows, use `transition_callback`:
 
 ```python
+# Using FlowsFunctionSchema
+collect_age_schema = FlowsFunctionSchema(
+    name="collect_age",
+    description="Record user's age",
+    properties={"age": {"type": "integer"}},
+    required=["age"],
+    handler=collect_age,
+    transition_callback=handle_age_collection
+)
+
+# Using dictionary format
 {
     "type": "function",
     "function": {
@@ -149,17 +228,7 @@ Dynamic flows use `transition_callback`:
 }
 ```
 
-Functions behave differently based on their type:
-
-- Node Functions execute their handler and trigger an immediate LLM completion with the result
-- Edge Functions execute their handler (if provided) and transition to a new node, with the LLM completion occurring after both the function result and new node's messages are added to context
-
-Functions can:
-
-- Have a handler (for data processing)
-- Have a transition_to or transition callback (for state changes)
-- Have both (process data and transition)
-- Have neither (end node functions)
+Pipecat Flows automatically handles format differences between LLM providers (OpenAI, Anthropic, and Google Gemini), so you can focus on your conversation logic rather than provider-specific implementations.
 
 #### Actions
 
@@ -205,45 +274,6 @@ async def check_status_handler(action: dict) -> None:
 ```
 
 Learn more about built-in actions and defining your own action in the docs.
-
-#### Provider-Specific Formats
-
-Pipecat Flows automatically handles format differences between LLM providers:
-
-**OpenAI Format**
-
-```python
-"functions": [{
-    "type": "function",
-    "function": {
-        "name": "function_name",
-        "description": "description",
-        "parameters": {...}
-    }
-}]
-```
-
-**Anthropic Format**
-
-```python
-"functions": [{
-    "name": "function_name",
-    "description": "description",
-    "input_schema": {...}
-}]
-```
-
-**Google (Gemini) Format**
-
-```python
-"functions": [{
-    "function_declarations": [{
-        "name": "function_name",
-        "description": "description",
-        "parameters": {...}
-    }]
-}]
-```
 
 ### Flow Management
 

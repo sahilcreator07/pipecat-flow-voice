@@ -23,7 +23,7 @@ from pipecat.services.deepgram import DeepgramSTTService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
-from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, FlowsFunctionSchema, NodeConfig
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -130,6 +130,41 @@ async def handle_end(_: Dict, result: FlowResult, flow_manager: FlowManager):
     await flow_manager.set_node("end", create_end_node())
 
 
+# Create function schemas
+party_size_schema = FlowsFunctionSchema(
+    name="collect_party_size",
+    description="Record the number of people in the party",
+    properties={"size": {"type": "integer", "minimum": 1, "maximum": 12}},
+    required=["size"],
+    handler=collect_party_size,
+    transition_callback=handle_party_size_collection,
+)
+
+availability_schema = FlowsFunctionSchema(
+    name="check_availability",
+    description="Check availability for requested time",
+    properties={
+        "time": {
+            "type": "string",
+            "pattern": "^([5-9]|10):00 PM$",  # Matches "5:00 PM" through "10:00 PM"
+            "description": "Reservation time (e.g., '6:00 PM')",
+        },
+        "party_size": {"type": "integer"},
+    },
+    required=["time", "party_size"],
+    handler=check_availability,
+    transition_callback=handle_availability_check,
+)
+
+end_conversation_schema = FlowsFunctionSchema(
+    name="end_conversation",
+    description="End the conversation",
+    properties={},
+    required=[],
+    transition_callback=handle_end,
+)
+
+
 # Node configurations
 def create_initial_node() -> NodeConfig:
     """Create initial node for party size collection."""
@@ -146,22 +181,7 @@ def create_initial_node() -> NodeConfig:
                 "content": "Warmly greet the customer and ask how many people are in their party.",
             }
         ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "collect_party_size",
-                    "handler": collect_party_size,
-                    "description": "Record the number of people in the party",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"size": {"type": "integer", "minimum": 1, "maximum": 12}},
-                        "required": ["size"],
-                    },
-                    "transition_callback": handle_party_size_collection,
-                },
-            }
-        ],
+        "functions": [party_size_schema],
     }
 
 
@@ -175,29 +195,7 @@ def create_time_selection_node() -> NodeConfig:
                 "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM.",
             }
         ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "check_availability",
-                    "handler": check_availability,
-                    "description": "Check availability for requested time",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "time": {
-                                "type": "string",
-                                "pattern": "^([5-9]|10):00 PM$",  # Matches "5:00 PM" through "10:00 PM"
-                                "description": "Reservation time (e.g., '6:00 PM')",
-                            },
-                            "party_size": {"type": "integer"},
-                        },
-                        "required": ["time", "party_size"],
-                    },
-                    "transition_callback": handle_availability_check,
-                },
-            }
-        ],
+        "functions": [availability_schema],
     }
 
 
@@ -210,17 +208,7 @@ def create_confirmation_node() -> NodeConfig:
                 "content": "Confirm the reservation details and ask if they need anything else.",
             }
         ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "end_conversation",
-                    "description": "End the conversation",
-                    "parameters": {"type": "object", "properties": {}},
-                    "transition_callback": handle_end,
-                },
-            }
-        ],
+        "functions": [end_conversation_schema],
     }
 
 
@@ -238,38 +226,7 @@ def create_no_availability_node(alternative_times: list[str]) -> NodeConfig:
                 ),
             }
         ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "check_availability",
-                    "handler": check_availability,
-                    "description": "Check availability for new time",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "time": {
-                                "type": "string",
-                                "pattern": "^([5-9]|10):00 PM$",
-                                "description": "Reservation time (e.g., '6:00 PM')",
-                            },
-                            "party_size": {"type": "integer"},
-                        },
-                        "required": ["time", "party_size"],
-                    },
-                    "transition_callback": handle_availability_check,
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "end_conversation",
-                    "description": "End the conversation",
-                    "parameters": {"type": "object", "properties": {}},
-                    "transition_callback": handle_end,
-                },
-            },
-        ],
+        "functions": [availability_schema, end_conversation_schema],
     }
 
 
