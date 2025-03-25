@@ -3,12 +3,12 @@
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-""" "Warm Handoff" Example using Pipecat Dynamic Flows with Google Gemini.
+""" "Warm Handoff" Example using Pipecat Dynamic Flows with OpenAI.
 
 This example demonstrates how to create a bot that transfers a customer to a human agent when the bot is unable to fulfill the customers's request.
 This example uses:
 - Pipecat Flows for conversation management
-- Google Gemini as the LLM
+- OpenAI gpt-4o as the LLM
 - Daily as the transport service
 
 The bot asks how they could be of assistance, and offers to provide information about store location and hours of operation, or begin placing an order.
@@ -30,7 +30,7 @@ The bot joins with a token with the following properties:
 Requirements:
 - Daily room URL
 - Daily API key
-- Google API key
+- OpenAI API key
 - Deepgram API key
 - Cartesia API key
 """
