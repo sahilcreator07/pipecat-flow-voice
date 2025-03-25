@@ -533,51 +533,53 @@ class FlowManager:
             new_functions: Set[str] = set()
 
             for func_config in node_config["functions"]:
-                # Handle FlowsFunctionSchema objects
+                # Handle Gemini's nested function declarations separately to avoid duplicate processing
+                if (
+                    not isinstance(func_config, FlowsFunctionSchema)
+                    and "function_declarations" in func_config
+                ):
+                    for declaration in func_config["function_declarations"]:
+                        name = declaration["name"]
+                        handler = declaration.get("handler")
+                        transition_to = declaration.get("transition_to")
+                        transition_callback = declaration.get("transition_callback")
+                        logger.debug(f"Processing function: {name}")
+                        await self._register_function(
+                            name=name,
+                            new_functions=new_functions,
+                            handler=handler,
+                            transition_to=transition_to,
+                            transition_callback=transition_callback,
+                        )
+                    # Skip further processing of this config
+                    continue
+
+                # For FlowsFunctionSchema or regular dictionaries
                 if isinstance(func_config, FlowsFunctionSchema):
                     name = func_config.name
                     handler = func_config.handler
                     transition_to = func_config.transition_to
                     transition_callback = func_config.transition_callback
-
-                    # Add to tools list
+                    # Add directly to tools list
                     tools.append(func_config)
                 else:
-                    # Handle Gemini's nested function declarations
-                    if "function_declarations" in func_config:
-                        for declaration in func_config["function_declarations"]:
-                            name = declaration["name"]
-                            handler = declaration.get("handler")
-                            transition_to = declaration.get("transition_to")
-                            transition_callback = declaration.get("transition_callback")
-                            logger.debug(f"Processing function: {name}")
-                            await self._register_function(
-                                name=name,
-                                new_functions=new_functions,
-                                handler=handler,
-                                transition_to=transition_to,
-                                transition_callback=transition_callback,
-                            )
+                    # Extract info from regular dictionary format
+                    name = self.adapter.get_function_name(func_config)
+                    logger.debug(f"Processing function: {name}")
 
-                        # We've handled all declarations, continue to next config
-                        continue
+                    # Extract handler and transition info based on format
+                    if "function" in func_config:
+                        handler = func_config["function"].get("handler")
+                        transition_to = func_config["function"].get("transition_to")
+                        transition_callback = func_config["function"].get("transition_callback")
                     else:
-                        name = self.adapter.get_function_name(func_config)
-                        logger.debug(f"Processing function: {name}")
+                        handler = func_config.get("handler")
+                        transition_to = func_config.get("transition_to")
+                        transition_callback = func_config.get("transition_callback")
 
-                        # Extract handler and transition info based on format
-                        if "function" in func_config:
-                            handler = func_config["function"].get("handler")
-                            transition_to = func_config["function"].get("transition_to")
-                            transition_callback = func_config["function"].get("transition_callback")
-                        else:
-                            handler = func_config.get("handler")
-                            transition_to = func_config.get("transition_to")
-                            transition_callback = func_config.get("transition_callback")
-
-                        # Convert dictionary to FlowsFunctionSchema through the adapter
-                        schema = self.adapter.convert_to_function_schema(func_config)
-                        tools.append(schema)
+                    # Convert dictionary to FlowsFunctionSchema through the adapter
+                    schema = self.adapter.convert_to_function_schema(func_config)
+                    tools.append(schema)
 
                 # Register function with the LLM
                 await self._register_function(
@@ -594,52 +596,10 @@ class FlowManager:
                 # Convert FlowsFunctionSchema to standard FunctionSchema for the LLM
                 standard_functions.append(tool.to_function_schema())
 
-            # Create ToolsSchema with all standard functions
-            tools_schema = ToolsSchema(standard_tools=standard_functions)
-
-            # For Gemini, we need special handling to match exactly what the API expects
-            if type(self.llm).__name__ == "GoogleLLMService":
-                # Extract the functions directly from the node_config
-                gemini_functions = []
-                for func_config in node_config["functions"]:
-                    if isinstance(func_config, FlowsFunctionSchema):
-                        # Convert FlowsFunctionSchema to Gemini format
-                        gemini_functions.append(
-                            {
-                                "name": func_config.name,
-                                "description": func_config.description,
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": func_config.properties,
-                                    "required": func_config.required,
-                                },
-                            }
-                        )
-                    elif "function_declarations" in func_config:
-                        # Already in Gemini format, use directly but remove handler/transition fields
-                        for decl in func_config["function_declarations"]:
-                            decl_copy = decl.copy()
-                            if "handler" in decl_copy:
-                                del decl_copy["handler"]
-                            if "transition_to" in decl_copy:
-                                del decl_copy["transition_to"]
-                            if "transition_callback" in decl_copy:
-                                del decl_copy["transition_callback"]
-                            gemini_functions.append(decl_copy)
-
-                # Format as Gemini expects
-                formatted_tools = [{"function_declarations": gemini_functions}]
-
-                # Log the actual formatted tools for debugging
-                logger.debug(f"Gemini formatted tools: {formatted_tools}")
-            else:
-                # For other providers, use the provider adapter
-                formatted_tools = self.adapter.provider_adapter.to_provider_tools_format(
-                    tools_schema
-                )
-
-            # Log the final formatted tools
-            logger.debug(f"Final formatted tools: {formatted_tools}")
+            # Use provider adapter to format tools, passing original configs for Gemini adapter
+            formatted_tools = self.adapter.format_functions(
+                standard_functions, original_configs=node_config["functions"]
+            )
 
             # Update LLM context
             await self._update_llm_context(

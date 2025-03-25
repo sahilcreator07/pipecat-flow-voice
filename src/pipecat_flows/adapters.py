@@ -82,12 +82,15 @@ class LLMAdapter:
         raise NotImplementedError("Subclasses must implement this method")
 
     def format_functions(
-        self, functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]]
+        self,
+        functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]],
+        original_configs: Optional[List] = None,
     ) -> List[Dict[str, Any]]:
         """Format functions for provider-specific use.
 
         Args:
             functions: List of function definitions (dicts or schema objects)
+            original_configs: Optional original node configs, used by some adapters
 
         Returns:
             List of functions formatted for the provider
@@ -436,6 +439,72 @@ class GeminiAdapter(LLMAdapter):
             Message content as string
         """
         return message["content"]
+
+    def format_functions(
+        self,
+        functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]],
+        original_configs: Optional[List] = None,
+    ) -> List[Dict[str, Any]]:
+        """Format functions for Gemini's specific use.
+
+        This special implementation processes both converted schemas and original configs
+        to ensure Gemini's specific format is preserved when possible.
+
+        Args:
+            functions: List of function definitions (dicts or schema objects)
+            original_configs: Optional original node configs, used to preserve native formats
+
+        Returns:
+            List of functions formatted for Gemini
+        """
+        gemini_functions = []
+
+        # If original_configs is provided, extract functions from it
+        if original_configs:
+            for func_config in original_configs:
+                if isinstance(func_config, FlowsFunctionSchema):
+                    # Convert FlowsFunctionSchema to Gemini format
+                    gemini_functions.append(
+                        {
+                            "name": func_config.name,
+                            "description": func_config.description,
+                            "parameters": {
+                                "type": "object",
+                                "properties": func_config.properties,
+                                "required": func_config.required,
+                            },
+                        }
+                    )
+                elif "function_declarations" in func_config:
+                    # Already in Gemini format, use directly but remove handler/transition fields
+                    for decl in func_config["function_declarations"]:
+                        decl_copy = decl.copy()
+                        if "handler" in decl_copy:
+                            del decl_copy["handler"]
+                        if "transition_to" in decl_copy:
+                            del decl_copy["transition_to"]
+                        if "transition_callback" in decl_copy:
+                            del decl_copy["transition_callback"]
+                        gemini_functions.append(decl_copy)
+        else:
+            # If no original configs, use the converted schemas
+            for func in functions:
+                if isinstance(func, (FunctionSchema, FlowsFunctionSchema)):
+                    # Convert to Gemini format
+                    gemini_functions.append(
+                        {
+                            "name": func.name,
+                            "description": func.description,
+                            "parameters": {
+                                "type": "object",
+                                "properties": func.properties,
+                                "required": func.required,
+                            },
+                        }
+                    )
+
+        # Format as Gemini expects - an array with a single object containing function_declarations
+        return [{"function_declarations": gemini_functions}]
 
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Gemini."""
