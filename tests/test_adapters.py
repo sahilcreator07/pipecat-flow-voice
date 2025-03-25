@@ -4,392 +4,378 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-"""Test suite for LLM adapter implementations.
+"""Tests for LLM provider adapters.
 
-This module tests the adapter system that normalizes interactions between
-different LLM providers (OpenAI, Anthropic, Gemini). Tests cover:
-- Abstract adapter interface enforcement
-- Provider-specific format handling
-- Function name and argument extraction
-- Message content processing
-- Schema validation
-- Error cases and edge conditions
+This module tests the adapter classes that normalize function formats between
+Pipecat Flows and different LLM providers (OpenAI, Anthropic, and Gemini).
 
-Each adapter is tested with its respective provider's format:
-- OpenAI: Function calling format
-- Anthropic: Native function format
-- Gemini: Function declarations format
+Tests:
+    - Native format handling for each provider
+    - FlowsFunctionSchema handling for each provider
+    - Function format conversions
+    - Flow-specific field management
 
-The tests use unittest and include comprehensive validation of:
-- Format conversions
-- Null/empty value handling
-- Special character processing
-- Schema validation
-- Factory pattern implementation
+Mocks:
+    - Provider-specific LLM adapters to avoid network calls
 """
 
-import unittest
-from unittest.mock import MagicMock
+import pytest
 
-from pipecat.services.anthropic import AnthropicLLMService
-from pipecat.services.google import GoogleLLMService
-from pipecat.services.openai import OpenAILLMService
-
-from pipecat_flows.adapters import (
-    AnthropicAdapter,
-    GeminiAdapter,
-    LLMAdapter,
-    OpenAIAdapter,
-    create_adapter,
-)
+from pipecat_flows.adapters import AnthropicAdapter, GeminiAdapter, OpenAIAdapter
+from pipecat_flows.types import FlowsFunctionSchema
 
 
-class TestLLMAdapter(unittest.TestCase):
-    """Test the abstract base LLMAdapter class."""
-
-    def test_abstract_methods(self):
-        """Verify that LLMAdapter cannot be instantiated without implementing all methods."""
-
-        class IncompleteAdapter(LLMAdapter):
-            # Missing implementation of abstract methods
-            pass
-
-        with self.assertRaises(TypeError):
-            IncompleteAdapter()
-
-        class PartialAdapter(LLMAdapter):
-            def get_function_name(self, function_def):
-                return "test"
-
-            # Still missing other required methods
-
-        with self.assertRaises(TypeError):
-            PartialAdapter()
+# Mock OpenAI's adapter to avoid actual network calls
+class MockOpenAILLMAdapter:
+    def to_provider_tools_format(self, tools_schema):
+        # Simple mock that returns standard tools as OpenAI expects them
+        return [
+            {"type": "function", "function": func.to_default_dict()}
+            for func in tools_schema.standard_tools
+        ]
 
 
-class TestLLMAdapters(unittest.TestCase):
-    """Test suite for concrete LLM adapter implementations.
+# Fixture for the adapter
+@pytest.fixture
+def openai_adapter():
+    adapter = OpenAIAdapter()
+    adapter.provider_adapter = MockOpenAILLMAdapter()
+    return adapter
 
-    Tests adapter functionality for each LLM provider:
-    - OpenAI: Function calling format
-    - Anthropic: Native function format
-    - Gemini: Function declarations format
 
-    Each adapter is tested for:
-    - Function name extraction
-    - Argument parsing
-    - Message content handling
-    - Format conversion
-    - Special character handling
-    - Null/empty value processing
-    - Schema validation
-
-    The setUp method provides standardized test fixtures for each provider's format,
-    allowing consistent testing across all adapters.
-    """
-
-    def setUp(self):
-        """Set up test cases with sample function definitions for each provider."""
-        # OpenAI format
-        self.openai_function = {
-            "type": "function",
-            "function": {
-                "name": "test_function",
-                "description": "Test function",
-                "parameters": {"type": "object", "properties": {"param1": {"type": "string"}}},
+def test_openai_adapter_native_format(openai_adapter):
+    """Test OpenAI adapter properly handles native OpenAI format."""
+    # Create a function in OpenAI's native format
+    openai_function = {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather in a location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"],
+                        "description": "The unit of temperature",
+                    },
+                },
+                "required": ["location"],
             },
-        }
+            "handler": lambda x: x,
+            "transition_to": "next_step",
+        },
+    }
 
-        self.openai_function_call = {"name": "test_function", "arguments": {"param1": "value1"}}
+    # Get function name from dictionary
+    function_name = openai_adapter.get_function_name(openai_function)
+    assert function_name == "get_weather"
 
-        # Anthropic format
-        self.anthropic_function = {
-            "name": "test_function",
-            "description": "Test function",
-            "input_schema": {"type": "object", "properties": {"param1": {"type": "string"}}},
-        }
+    # Convert to FlowsFunctionSchema
+    schema = openai_adapter.convert_to_function_schema(openai_function)
+    assert isinstance(schema, FlowsFunctionSchema)
+    assert schema.name == "get_weather"
+    assert schema.description == "Get the current weather in a location"
+    assert "location" in schema.properties
+    assert "unit" in schema.properties
+    assert schema.required == ["location"]
+    assert schema.handler is not None
+    assert schema.transition_to == "next_step"
+    assert schema.transition_callback is None
 
-        self.anthropic_function_call = {"name": "test_function", "arguments": {"param1": "value1"}}
+    # Format function for OpenAI
+    formatted = openai_adapter.format_functions([openai_function])
+    assert len(formatted) == 1
+    assert formatted[0]["type"] == "function"
+    assert formatted[0]["function"]["name"] == "get_weather"
 
-        # Gemini format
-        self.gemini_function = {
-            "function_declarations": [
-                {
-                    "name": "test_function",
-                    "description": "Test function",
-                    "parameters": {"type": "object", "properties": {"param1": {"type": "string"}}},
-                }
-            ]
-        }
 
-        self.gemini_function_call = {"name": "test_function", "args": {"param1": "value1"}}
+def test_openai_adapter_function_schema(openai_adapter):
+    """Test OpenAI adapter properly handles FlowsFunctionSchema."""
+    # Create a FlowsFunctionSchema
+    flows_schema = FlowsFunctionSchema(
+        name="get_weather",
+        description="Get the current weather in a location",
+        properties={
+            "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA",
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "The unit of temperature",
+            },
+        },
+        required=["location"],
+        handler=lambda x: x,
+        transition_to="next_step",
+    )
 
-        # Message formats
-        self.openai_message = {"role": "system", "content": "Test message"}
+    # Get function name from schema
+    function_name = openai_adapter.get_function_name(flows_schema)
+    assert function_name == "get_weather"
 
-        self.null_message = {"role": "system", "content": None}
+    # Format schema for OpenAI
+    formatted = openai_adapter.format_functions([flows_schema])
+    assert len(formatted) == 1
+    assert formatted[0]["type"] == "function"
+    assert formatted[0]["function"]["name"] == "get_weather"
+    assert formatted[0]["function"]["description"] == "Get the current weather in a location"
+    assert "location" in formatted[0]["function"]["parameters"]["properties"]
+    assert "unit" in formatted[0]["function"]["parameters"]["properties"]
+    assert formatted[0]["function"]["parameters"]["required"] == ["location"]
 
-        self.anthropic_message = {
-            "role": "user",
-            "content": [{"type": "text", "text": "Test message"}],
-        }
+    # Verify FlowsFunctionSchema is correctly converted to FunctionSchema
+    # by checking that handler and transition_to are not in the formatted output
+    assert "handler" not in formatted[0]["function"]
+    assert "transition_to" not in formatted[0]["function"]
 
-        self.gemini_message = {"role": "user", "content": "Test message"}
 
-    def test_openai_adapter(self):
-        """Test OpenAI format handling."""
-        adapter = OpenAIAdapter()
-
-        # Test function name extraction
-        self.assertEqual(adapter.get_function_name(self.openai_function), "test_function")
-
-        # Test function arguments extraction
-        args = adapter.get_function_args(self.openai_function_call)
-        self.assertEqual(args, {"param1": "value1"})
-
-        # Test message content extraction
-        self.assertEqual(adapter.get_message_content(self.openai_message), "Test message")
-
-        # Test null message content
-        # The implementation returns None for null content
-        self.assertIsNone(adapter.get_message_content(self.null_message))
-
-        # Test function formatting
-        formatted = adapter.format_functions([self.openai_function])
-        self.assertEqual(formatted, [self.openai_function])
-
-    def test_anthropic_adapter(self):
-        """Test Anthropic format handling."""
-        adapter = AnthropicAdapter()
-
-        # Test function name extraction
-        self.assertEqual(adapter.get_function_name(self.anthropic_function), "test_function")
-
-        # Test function arguments extraction
-        self.assertEqual(
-            adapter.get_function_args(self.anthropic_function_call), {"param1": "value1"}
-        )
-
-        # Test message content extraction
-        self.assertEqual(adapter.get_message_content(self.anthropic_message), "Test message")
-
-        # Test function formatting
-        formatted = adapter.format_functions([self.openai_function])
-        self.assertTrue("input_schema" in formatted[0])
-        self.assertEqual(formatted[0]["name"], "test_function")
-
-    def test_gemini_adapter(self):
-        """Test Gemini format handling."""
-        adapter = GeminiAdapter()
-
-        # Test function name extraction from function declarations
-        self.assertEqual(
-            adapter.get_function_name(self.gemini_function),  # Pass the full function object
-            "test_function",
-        )
-
-        # Test function arguments extraction
-        self.assertEqual(adapter.get_function_args(self.gemini_function_call), {"param1": "value1"})
-
-        # Test message content extraction
-        self.assertEqual(adapter.get_message_content(self.gemini_message), "Test message")
-
-        # Test function formatting
-        formatted = adapter.format_functions([self.openai_function])
-        self.assertTrue("function_declarations" in formatted[0])
-
-    def test_adapter_factory(self):
-        """Test adapter creation based on LLM service type."""
-        # Test with valid LLM services
-        openai_llm = OpenAILLMService(api_key="")
-        self.assertIsInstance(create_adapter(openai_llm), OpenAIAdapter)
-
-        anthropic_llm = AnthropicLLMService(api_key="")
-        self.assertIsInstance(create_adapter(anthropic_llm), AnthropicAdapter)
-
-        gemini_llm = GoogleLLMService(api_key="")
-        self.assertIsInstance(create_adapter(gemini_llm), GeminiAdapter)
-
-    def test_adapter_factory_error_cases(self):
-        """Test error cases in adapter creation."""
-        # Test with None
-        with self.assertRaises(ValueError) as context:
-            create_adapter(None)
-        self.assertIn("Unsupported LLM type", str(context.exception))
-
-        # Test with invalid service type
-        invalid_llm = MagicMock()
-        with self.assertRaises(ValueError) as context:
-            create_adapter(invalid_llm)
-        self.assertIn("Unsupported LLM type", str(context.exception))
-
-    def test_null_and_empty_values(self):
-        """Test handling of null and empty values."""
-        adapters = [OpenAIAdapter(), AnthropicAdapter(), GeminiAdapter()]
-
-        for adapter in adapters:
-            # Test empty function call
-            empty_call = {"name": "test"}
-            self.assertEqual(adapter.get_function_args(empty_call), {})
-
-            # Test empty message
-            empty_message = {"role": "user", "content": ""}
-            self.assertEqual(adapter.get_message_content(empty_message), "")
-
-    def test_special_characters_handling(self):
-        """Test handling of special characters in messages and function calls."""
-        special_chars = "!@#$%^&*()_+-=[]{}|;:'\",.<>?/~`"
-
-        # Test in message content
-        message_with_special = {"role": "user", "content": f"Test with {special_chars}"}
-
-        adapters = [OpenAIAdapter(), AnthropicAdapter(), GeminiAdapter()]
-        for adapter in adapters:
-            content = adapter.get_message_content(message_with_special)
-            self.assertEqual(content, f"Test with {special_chars}")
-
-        # Test in function arguments
-        # Each adapter might handle arguments differently, so test them separately
-
-        # OpenAI
-        openai_adapter = OpenAIAdapter()
-        openai_call = {"name": "test", "arguments": {"param1": special_chars}}
-        args = openai_adapter.get_function_args(openai_call)
-        self.assertEqual(args["param1"], special_chars)
-
-        # Anthropic
-        anthropic_adapter = AnthropicAdapter()
-        anthropic_call = {"name": "test", "arguments": {"param1": special_chars}}
-        args = anthropic_adapter.get_function_args(anthropic_call)
-        self.assertEqual(args["param1"], special_chars)
-
-        # Gemini
-        gemini_adapter = GeminiAdapter()
-        gemini_call = {
-            "name": "test",
-            "args": {"param1": special_chars},  # Note: Gemini uses 'args' instead of 'arguments'
-        }
-        args = gemini_adapter.get_function_args(gemini_call)
-        self.assertEqual(args["param1"], special_chars)
-
-    def test_function_schema_validation(self):
-        """Test validation of function schemas during conversion."""
-        adapters = [OpenAIAdapter(), AnthropicAdapter(), GeminiAdapter()]
-
-        # Test with minimal valid schema
-        minimal_function = {
-            "type": "function",
-            "function": {"name": "test", "parameters": {"type": "object", "properties": {}}},
-        }
-
-        for adapter in adapters:
-            formatted = adapter.format_functions([minimal_function])
-            self.assertTrue(len(formatted) > 0)
-
-    def test_abstract_methods_implementation(self):
-        """Test that abstract methods raise NotImplementedError."""
-
-        class TestAdapter(LLMAdapter):
-            pass  # No implementations
-
-        with self.assertRaises(TypeError):
-            TestAdapter()
-
-        # Test partial implementation
-        class PartialAdapter(LLMAdapter):
-            def get_function_name(self, function_def):
-                return ""
-
-            # Missing other methods
-
-        with self.assertRaises(TypeError):
-            PartialAdapter()
-
-    def test_anthropic_format_functions_passthrough(self):
-        """Test Anthropic adapter passing through already formatted functions."""
-        adapter = AnthropicAdapter()
-
-        # Test with already formatted Anthropic function
-        anthropic_formatted = {"name": "test", "description": "test", "input_schema": {}}
-
-        result = adapter.format_functions([anthropic_formatted])
-        self.assertEqual(result[0], anthropic_formatted)
-
-    def test_gemini_adapter_empty_declarations(self):
-        """Test Gemini adapter with empty or invalid declarations."""
-        adapter = GeminiAdapter()
-
-        # Test empty function declarations
-        empty_decl = {"function_declarations": []}
-        self.assertEqual(adapter.get_function_name(empty_decl), "")
-
-        # Test invalid function declarations
-        invalid_decl = {"function_declarations": None}
-        self.assertEqual(adapter.get_function_name(invalid_decl), "")
-
-        # Test missing function declarations
-        missing_decl = {}
-        self.assertEqual(adapter.get_function_name(missing_decl), "")
-
-    def test_gemini_format_functions_full_schema(self):
-        """Test Gemini adapter formatting with full schema."""
-        adapter = GeminiAdapter()
-
-        # Test with complete function declarations
-        functions = [
+# Mock Anthropic's adapter to avoid actual network calls
+class MockAnthropicLLMAdapter:
+    def to_provider_tools_format(self, tools_schema):
+        # Simple mock that returns standard tools as Anthropic expects them
+        return [
             {
-                "function_declarations": [
-                    {
-                        "name": "test1",
-                        "description": "Test function 1",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"param1": {"type": "string"}},
-                        },
-                    },
-                    {
-                        "name": "test2",
-                        "description": "Test function 2",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"param2": {"type": "number"}},
-                        },
-                    },
-                ]
+                "name": func.name,
+                "description": func.description,
+                "input_schema": {
+                    "type": "object",
+                    "properties": func.properties,
+                    "required": func.required,
+                },
             }
+            for func in tools_schema.standard_tools
         ]
 
-        formatted = adapter.format_functions(functions)
 
-        # Verify all declarations were formatted
-        declarations = formatted[0]["function_declarations"]
-        self.assertEqual(len(declarations), 2)
+# Fixture for the adapter
+@pytest.fixture
+def anthropic_adapter():
+    adapter = AnthropicAdapter()
+    adapter.provider_adapter = MockAnthropicLLMAdapter()
+    return adapter
 
-        # Verify first declaration
-        self.assertEqual(declarations[0]["name"], "test1")
-        self.assertEqual(declarations[0]["description"], "Test function 1")
-        self.assertIn("parameters", declarations[0])
 
-        # Verify second declaration
-        self.assertEqual(declarations[1]["name"], "test2")
-        self.assertEqual(declarations[1]["description"], "Test function 2")
-        self.assertIn("parameters", declarations[1])
+def test_anthropic_adapter_native_format(anthropic_adapter):
+    """Test Anthropic adapter properly handles native Anthropic format."""
+    # Create a function in Anthropic's native format
+    anthropic_function = {
+        "name": "get_weather",
+        "description": "Get the current weather in a location",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA",
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "The unit of temperature",
+                },
+            },
+            "required": ["location"],
+        },
+        "handler": lambda x: x,
+        "transition_callback": lambda x, y: None,
+    }
 
-        # Test with minimal declarations (missing optional fields)
-        minimal_functions = [
+    # Get function name from dictionary
+    function_name = anthropic_adapter.get_function_name(anthropic_function)
+    assert function_name == "get_weather"
+
+    # Convert to FlowsFunctionSchema
+    schema = anthropic_adapter.convert_to_function_schema(anthropic_function)
+    assert isinstance(schema, FlowsFunctionSchema)
+    assert schema.name == "get_weather"
+    assert schema.description == "Get the current weather in a location"
+    assert "location" in schema.properties
+    assert "unit" in schema.properties
+    assert schema.required == ["location"]
+    assert schema.handler is not None
+    assert schema.transition_to is None
+    assert schema.transition_callback is not None
+
+    # Format function for Anthropic
+    formatted = anthropic_adapter.format_functions([anthropic_function])
+    assert len(formatted) == 1
+    assert formatted[0]["name"] == "get_weather"
+    assert formatted[0]["description"] == "Get the current weather in a location"
+    assert "location" in formatted[0]["input_schema"]["properties"]
+
+    # Verify flow-specific fields not in formatted output
+    assert "handler" not in formatted[0]
+    assert "transition_callback" not in formatted[0]
+
+
+def test_anthropic_adapter_function_schema(anthropic_adapter):
+    """Test Anthropic adapter properly handles FlowsFunctionSchema."""
+    # Create a FlowsFunctionSchema
+    flows_schema = FlowsFunctionSchema(
+        name="get_weather",
+        description="Get the current weather in a location",
+        properties={
+            "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA",
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "The unit of temperature",
+            },
+        },
+        required=["location"],
+        handler=lambda x: x,
+        transition_callback=lambda x, y: None,
+    )
+
+    # Get function name from schema
+    function_name = anthropic_adapter.get_function_name(flows_schema)
+    assert function_name == "get_weather"
+
+    # Format schema for Anthropic
+    formatted = anthropic_adapter.format_functions([flows_schema])
+    assert len(formatted) == 1
+    assert formatted[0]["name"] == "get_weather"
+    assert formatted[0]["description"] == "Get the current weather in a location"
+    assert "location" in formatted[0]["input_schema"]["properties"]
+    assert "unit" in formatted[0]["input_schema"]["properties"]
+    assert formatted[0]["input_schema"]["required"] == ["location"]
+
+    # Verify flow-specific fields not in formatted output
+    assert "handler" not in formatted[0]
+    assert "transition_callback" not in formatted[0]
+
+
+# Mock Gemini's adapter to avoid actual network calls
+class MockGeminiLLMAdapter:
+    def to_provider_tools_format(self, tools_schema):
+        # Simple mock that returns standard tools as Gemini expects them
+        function_declarations = [
             {
-                "function_declarations": [
-                    {
-                        "name": "test",
-                        # Missing description and parameters
-                    }
-                ]
+                "name": func.name,
+                "description": func.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": func.properties,
+                    "required": func.required,
+                },
+            }
+            for func in tools_schema.standard_tools
+        ]
+        return [{"function_declarations": function_declarations}]
+
+
+# Fixture for the adapter
+@pytest.fixture
+def gemini_adapter():
+    adapter = GeminiAdapter()
+    adapter.provider_adapter = MockGeminiLLMAdapter()
+    return adapter
+
+
+def test_gemini_adapter_native_format(gemini_adapter):
+    """Test Gemini adapter properly handles native Gemini format."""
+    # Create a function in Gemini's native format
+    gemini_function = {
+        "function_declarations": [
+            {
+                "name": "get_weather",
+                "description": "Get the current weather in a location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "unit": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                            "description": "The unit of temperature",
+                        },
+                    },
+                    "required": ["location"],
+                },
+                "handler": lambda x: x,
+                "transition_to": "next_step",
             }
         ]
+    }
 
-        minimal_formatted = adapter.format_functions(minimal_functions)
-        minimal_decl = minimal_formatted[0]["function_declarations"][0]
+    # Get function name from dictionary
+    function_name = gemini_adapter.get_function_name(gemini_function)
+    assert function_name == "get_weather"
 
-        # Verify defaults for missing fields
-        self.assertEqual(minimal_decl["description"], "")
-        self.assertEqual(minimal_decl["parameters"], {"type": "object", "properties": {}})
+    # Convert to FlowsFunctionSchema
+    schema = gemini_adapter.convert_to_function_schema(gemini_function)
+    assert isinstance(schema, FlowsFunctionSchema)
+    assert schema.name == "get_weather"
+    assert schema.description == "Get the current weather in a location"
+    assert "location" in schema.properties
+    assert "unit" in schema.properties
+    assert schema.required == ["location"]
+    assert schema.handler is not None
+    assert schema.transition_to == "next_step"
+    assert schema.transition_callback is None
+
+    # Format function for Gemini - using the specific format_functions implementation
+    formatted = gemini_adapter.format_functions([gemini_function], [gemini_function])
+    assert len(formatted) == 1
+    assert "function_declarations" in formatted[0]
+    assert len(formatted[0]["function_declarations"]) == 1
+    assert formatted[0]["function_declarations"][0]["name"] == "get_weather"
+
+    # Verify flow-specific fields not in formatted output
+    assert "handler" not in formatted[0]["function_declarations"][0]
+    assert "transition_to" not in formatted[0]["function_declarations"][0]
+
+
+def test_gemini_adapter_function_schema(gemini_adapter):
+    """Test Gemini adapter properly handles FlowsFunctionSchema."""
+    # Create a FlowsFunctionSchema
+    flows_schema = FlowsFunctionSchema(
+        name="get_weather",
+        description="Get the current weather in a location",
+        properties={
+            "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA",
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "The unit of temperature",
+            },
+        },
+        required=["location"],
+        handler=lambda x: x,
+        transition_to="next_step",
+    )
+
+    # Get function name from schema
+    function_name = gemini_adapter.get_function_name(flows_schema)
+    assert function_name == "get_weather"
+
+    # Format schema for Gemini
+    formatted = gemini_adapter.format_functions([flows_schema])
+    assert len(formatted) == 1
+    assert "function_declarations" in formatted[0]
+    assert len(formatted[0]["function_declarations"]) == 1
+    assert formatted[0]["function_declarations"][0]["name"] == "get_weather"
+    assert (
+        formatted[0]["function_declarations"][0]["description"]
+        == "Get the current weather in a location"
+    )
+
+    # Verify flow-specific fields not in formatted output
+    assert "handler" not in formatted[0]["function_declarations"][0]
+    assert "transition_to" not in formatted[0]["function_declarations"][0]
