@@ -47,9 +47,7 @@ class LLMAdapter:
         """Initialize the adapter."""
         self.provider_adapter: Optional[BaseLLMAdapter] = None
 
-    def get_function_name(
-        self, function_def: Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]
-    ) -> str:
+    def get_function_name(self, function_def: Union[Dict[str, Any], FlowsFunctionSchema]) -> str:
         """Extract function name from provider-specific function definition or schema.
 
         Args:
@@ -58,7 +56,7 @@ class LLMAdapter:
         Returns:
             Function name
         """
-        if isinstance(function_def, (FunctionSchema, FlowsFunctionSchema)):
+        if isinstance(function_def, (FlowsFunctionSchema)):
             return function_def.name
         return self._get_function_name_from_dict(function_def)
 

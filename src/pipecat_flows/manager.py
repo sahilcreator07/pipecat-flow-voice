@@ -508,8 +508,8 @@ class FlowManager:
             tools = []
             new_functions: Set[str] = set()
 
-            async def process_schema(schema):
-                """Helper to process a single FlowsFunctionSchema."""
+            async def register_function_schema(schema):
+                """Helper to register a single FlowsFunctionSchema."""
                 tools.append(schema)
                 await self._register_function(
                     name=schema.name,
@@ -530,7 +530,7 @@ class FlowManager:
                         schema = self.adapter.convert_to_function_schema(
                             {"function_declarations": [declaration]}
                         )
-                        await process_schema(schema)
+                        await register_function_schema(schema)
                 else:
                     # Convert to FlowsFunctionSchema if needed and process it
                     schema = (
@@ -538,7 +538,7 @@ class FlowManager:
                         if isinstance(func_config, FlowsFunctionSchema)
                         else self.adapter.convert_to_function_schema(func_config)
                     )
-                    await process_schema(schema)
+                    await register_function_schema(schema)
 
             # Create ToolsSchema with standard function schemas
             standard_functions = []
