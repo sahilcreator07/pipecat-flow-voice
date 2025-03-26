@@ -228,7 +228,7 @@ class OpenAIAdapter(LLMAdapter):
         func_data = function_def["function"]
         name = func_data["name"]
         description = func_data.get("description", "")
-        parameters = func_data.get("parameters", {})
+        parameters = func_data.get("parameters", {}) or {}
         properties = parameters.get("properties", {})
         required = parameters.get("required", [])
 
@@ -478,7 +478,7 @@ class GeminiAdapter(LLMAdapter):
 
         name = decl["name"]
         description = decl.get("description", "")
-        parameters = decl.get("parameters", {})
+        parameters = decl.get("parameters", {}) or {}
         properties = parameters.get("properties", {})
         required = parameters.get("required", [])
 
