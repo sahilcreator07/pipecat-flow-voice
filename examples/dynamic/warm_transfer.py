@@ -60,7 +60,7 @@ from pipecat.transports.services.helpers.daily_rest import (
 )
 
 from pipecat_flows import ContextStrategyConfig, FlowManager, FlowResult, NodeConfig
-from pipecat_flows.types import ActionConfig, ContextStrategy
+from pipecat_flows.types import ActionConfig, ContextStrategy, FlowsFunctionSchema
 
 sys.path.append(str(Path(__file__).parent.parent))
 from runner import configure
@@ -283,32 +283,29 @@ def create_initial_customer_interaction_node() -> NodeConfig:
             }
         ],
         functions=[
-            {
-                "type": "function",
-                "function": {
-                    "name": "check_store_location_and_hours_of_operation",
-                    "description": "Check store location and hours of operation",
-                    "handler": check_store_location_and_hours_of_operation,
-                    "transition_callback": transition_after_customer_task,
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "start_order",
-                    "description": "Start placing an order",
-                    "handler": start_order,
-                    "transition_callback": transition_after_customer_task,
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "end_customer_conversation",
-                    "description": "End the conversation",
-                    "transition_callback": end_customer_conversation,
-                },
-            },
+            FlowsFunctionSchema(
+                name="check_store_location_and_hours_of_operation",
+                description="Check store location and hours of operation",
+                handler=check_store_location_and_hours_of_operation,
+                transition_callback=transition_after_customer_task,
+                properties={},
+                required=[],
+            ),
+            FlowsFunctionSchema(
+                name="start_order",
+                description="Start placing an order",
+                handler=start_order,
+                transition_callback=transition_after_customer_task,
+                properties={},
+                required=[],
+            ),
+            FlowsFunctionSchema(
+                name="end_customer_conversation",
+                description="End the conversation",
+                transition_callback=end_customer_conversation,
+                properties={},
+                required=[],
+            ),
         ],
     )
 
@@ -333,32 +330,29 @@ def create_continued_customer_interaction_node() -> NodeConfig:
             }
         ],
         functions=[
-            {
-                "type": "function",
-                "function": {
-                    "name": "check_store_location_and_hours_of_operation",
-                    "description": "Check store location and hours of operation",
-                    "handler": check_store_location_and_hours_of_operation,
-                    "transition_callback": transition_after_customer_task,
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "start_order",
-                    "description": "Start placing an order",
-                    "handler": start_order,
-                    "transition_callback": transition_after_customer_task,
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "end_customer_conversation",
-                    "description": "End the conversation",
-                    "transition_callback": end_customer_conversation,
-                },
-            },
+            FlowsFunctionSchema(
+                name="check_store_location_and_hours_of_operation",
+                description="Check store location and hours of operation",
+                handler=check_store_location_and_hours_of_operation,
+                transition_callback=transition_after_customer_task,
+                properties={},
+                required=[],
+            ),
+            FlowsFunctionSchema(
+                name="start_order",
+                description="Start placing an order",
+                handler=start_order,
+                transition_callback=transition_after_customer_task,
+                properties={},
+                required=[],
+            ),
+            FlowsFunctionSchema(
+                name="end_customer_conversation",
+                description="End the conversation",
+                transition_callback=end_customer_conversation,
+                properties={},
+                required=[],
+            ),
         ],
     )
 
@@ -407,14 +401,13 @@ def create_human_agent_interaction_node() -> NodeConfig:
             ),
         ),
         functions=[
-            {
-                "type": "function",
-                "function": {
-                    "name": "end_human_agent_conversation",
-                    "description": "Connect the human agent to the customer",
-                    "transition_callback": end_human_agent_conversation,
-                },
-            }
+            FlowsFunctionSchema(
+                name="connect_human_agent_and_customer",
+                description="Connect the human agent to the customer",
+                transition_callback=end_human_agent_conversation,
+                properties={},
+                required=[],
+            )
         ],
     )
 
