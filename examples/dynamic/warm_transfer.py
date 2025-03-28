@@ -290,7 +290,6 @@ def create_initial_customer_interaction_node() -> NodeConfig:
                     "description": "Check store location and hours of operation",
                     "handler": check_store_location_and_hours_of_operation,
                     "transition_callback": transition_after_customer_task,
-                    "parameters": None,
                 },
             },
             {
@@ -300,7 +299,6 @@ def create_initial_customer_interaction_node() -> NodeConfig:
                     "description": "Start placing an order",
                     "handler": start_order,
                     "transition_callback": transition_after_customer_task,
-                    "parameters": None,
                 },
             },
             {
@@ -308,7 +306,6 @@ def create_initial_customer_interaction_node() -> NodeConfig:
                 "function": {
                     "name": "end_customer_conversation",
                     "description": "End the conversation",
-                    "parameters": None,
                     "transition_callback": end_customer_conversation,
                 },
             },
@@ -343,7 +340,6 @@ def create_continued_customer_interaction_node() -> NodeConfig:
                     "description": "Check store location and hours of operation",
                     "handler": check_store_location_and_hours_of_operation,
                     "transition_callback": transition_after_customer_task,
-                    "parameters": None,
                 },
             },
             {
@@ -353,7 +349,6 @@ def create_continued_customer_interaction_node() -> NodeConfig:
                     "description": "Start placing an order",
                     "handler": start_order,
                     "transition_callback": transition_after_customer_task,
-                    "parameters": None,
                 },
             },
             {
@@ -361,7 +356,6 @@ def create_continued_customer_interaction_node() -> NodeConfig:
                 "function": {
                     "name": "end_customer_conversation",
                     "description": "End the conversation",
-                    "parameters": None,
                     "transition_callback": end_customer_conversation,
                 },
             },
@@ -418,7 +412,6 @@ def create_human_agent_interaction_node() -> NodeConfig:
                 "function": {
                     "name": "end_human_agent_conversation",
                     "description": "Connect the human agent to the customer",
-                    "parameters": None,
                     "transition_callback": end_human_agent_conversation,
                 },
             }
