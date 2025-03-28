@@ -575,7 +575,7 @@ async def main():
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
         tts = CartesiaTTSService(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice_id="820a3788-2b37-4d21-847a-b65d8a68c99a",  # Salesman
+            voice_id="d46abd1d-2d02-43e8-819f-51fb652c1c61",  # Newsman
         )
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
 
