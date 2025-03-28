@@ -627,7 +627,8 @@ async def main():
         async def on_participant_left(
             transport: DailyTransport, participant: Dict[str, Any], reason: str
         ):
-            # TODO: update this logic so that if the customer participant has left early while on hold, inform the human agent; will require a new node?
+            # NOTE: an opportunity for refinement here is to handle the customer leaving while on
+            # hold, informing the human agent if needed
             """If all non-bot participants have left, stop the bot"""
             non_bot_participants = {
                 k: v for k, v in transport.participants().items() if not v["info"]["isLocal"]
