@@ -181,6 +181,11 @@ async def post_transferring_to_human_agent(action: dict, flow_manager: FlowManag
             }
         )
 
+    # Print URL for joining as human agent
+    logger.info(
+        f"\n\nJOIN AS AGENT:\n{flow_manager.state["human_agent_join_url"]}\n"
+    )
+
 
 # NOTE: this isn't a "real" post-action because it needs to run after the "I'm patching you through
 # to the customer" speech is actually spoken, not just after sending the LLM the instruction to do
@@ -638,7 +643,7 @@ async def main():
             if not non_bot_participants:
                 await task.cancel()
 
-        # Print URLs for joining as customer and human agent
+        # Print URL for joining as customer, and store URL for joining as human agent, to be printed later
         key = os.getenv("DAILY_API_KEY")
         daily_rest_helper = DailyRESTHelper(
             daily_api_key=key,
@@ -652,11 +657,9 @@ async def main():
             daily_rest_helper=daily_rest_helper, room_url=room_url
         )
         logger.info(
-            f"TO JOIN AS CUSTOMER: {room_url}{'?' if '?' not in room_url else '&'}t={customer_token}"
+            f"\n\nJOIN AS CUSTOMER:\n{room_url}{'?' if '?' not in room_url else '&'}t={customer_token}\n"
         )
-        logger.info(
-            f"TO JOIN AS AGENT: {room_url}{'?' if '?' not in room_url else '&'}t={human_agent_token}"
-        )
+        flow_manager.state["human_agent_join_url"] = f"{room_url}{'?' if '?' not in room_url else '&'}t={human_agent_token}"
 
         # Run the pipeline
         runner = PipelineRunner()
