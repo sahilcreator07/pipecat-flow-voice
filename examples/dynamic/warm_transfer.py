@@ -135,13 +135,14 @@ async def start_order() -> StartOrderResult:
 
 
 # Action handlers
-async def pre_transferring_to_human_agent(action: dict, flow_manager: FlowManager):
-    """Pre-action before starting transferring to the human agent."""
+async def mute_customer(action: dict, flow_manager: FlowManager):
+    """Mute the customer.
+
+    Do it by revoking their canSnd permission, which both mutes them and ensures that they can't unmute.
+    """
     transport: DailyTransport = flow_manager.transport
     customer_participant_id = get_customer_participant_id(transport=transport)
 
-    # Update the customer:
-    # - Revoke their canSend permission, causing their mic to mute
     if customer_participant_id:
         await transport.update_remote_participants(
             remote_participants={
@@ -154,16 +155,14 @@ async def pre_transferring_to_human_agent(action: dict, flow_manager: FlowManage
         )
 
 
-# NOTE: this isn't a "real" post-action because it needs to run after the "transferring you to a
-# human agent" speech is actually spoken, not just after sending the LLM the instruction to do so.
-async def post_transferring_to_human_agent(action: dict, flow_manager: FlowManager):
-    """Post-action after starting transferring to the human agent."""
+async def make_customer_hear_only_hold_music(action: dict, flow_manager: FlowManager):
+    """Make it so the customer only hears hold music.
+
+    We don't want them hearing the bot and the human agent talking.
+    """
     transport: DailyTransport = flow_manager.transport
     customer_participant_id = get_customer_participant_id(transport=transport)
 
-    # Update the customer:
-    # - Update their canReceive permission to only be able to hear the bot's hold music; we don't
-    #   want them hearing the bot and the human agent talking
     if customer_participant_id:
         await transport.update_remote_participants(
             remote_participants={
@@ -181,25 +180,17 @@ async def post_transferring_to_human_agent(action: dict, flow_manager: FlowManag
             }
         )
 
-    # Print URL for joining as human agent
-    logger.info(
-        f"\n\nJOIN AS AGENT:\n{flow_manager.state["human_agent_join_url"]}\n"
-    )
+
+async def print_human_agent_join_url(action: dict, flow_manager: FlowManager):
+    """Print the URL for joining as a human agent."""
+    logger.info(f"\n\nJOIN AS AGENT:\n{flow_manager.state['human_agent_join_url']}\n")
 
 
-# NOTE: this isn't a "real" post-action because it needs to run after the "I'm patching you through
-# to the customer" speech is actually spoken, not just after sending the LLM the instruction to do
-# so.
-async def post_end_human_agent_conversation(action: dict, flow_manager: FlowManager):
-    """Post-action after starting to end the conversation with the human agent, when the agent is being patched through to the customer."""
+async def unmute_customer_and_make_them_hear_human_agent(action: dict, flow_manager: FlowManager):
+    """Unmute the customer and make it so they can hear the human agent."""
     transport: DailyTransport = flow_manager.transport
     customer_participant_id = get_customer_participant_id(transport=transport)
-    agent_participant_id = get_human_agent_participant_id(transport=transport)
 
-    # Update the customer:
-    # - Restore their canSend permission, allowing their mic to be unmuted
-    # - Update their canReceive permission, allowing them to hear the human agent
-    # - Unmute their mic
     if customer_participant_id:
         await transport.update_remote_participants(
             remote_participants={
@@ -213,8 +204,12 @@ async def post_end_human_agent_conversation(action: dict, flow_manager: FlowMana
             }
         )
 
-    # Update the human agent:
-    # - Update their canReceive permission so they can hear the customer
+
+async def make_human_agent_hear_customer(action: dict, flow_manager: FlowManager):
+    """Make it so the human agent can hear the customer."""
+    transport: DailyTransport = flow_manager.transport
+    agent_participant_id = get_human_agent_participant_id(transport=transport)
+
     if agent_participant_id:
         await transport.update_remote_participants(
             remote_participants={
@@ -387,9 +382,12 @@ def create_transferring_to_human_agent_node() -> NodeConfig:
         ],
         functions=[],
         pre_actions=[
-            ActionConfig(type="function", handler=pre_transferring_to_human_agent),
+            ActionConfig(type="function", handler=mute_customer),
         ],
-        post_actions=[ActionConfig(type="function", handler=post_transferring_to_human_agent)],
+        post_actions=[
+            ActionConfig(type="function", handler=make_customer_hear_only_hold_music),
+            ActionConfig(type="function", handler=print_human_agent_join_url),
+        ],
     )
 
 
@@ -418,7 +416,7 @@ def create_human_agent_interaction_node() -> NodeConfig:
             {
                 "type": "function",
                 "function": {
-                    "name": "connect_human_agent_and_customer",
+                    "name": "end_human_agent_conversation",
                     "description": "Connect the human agent to the customer",
                     "parameters": None,
                     "transition_callback": end_human_agent_conversation,
@@ -456,7 +454,8 @@ def create_end_human_agent_conversation_node() -> NodeConfig:
         ],
         functions=[],
         post_actions=[
-            ActionConfig(type="function", handler=post_end_human_agent_conversation),
+            ActionConfig(type="function", handler=unmute_customer_and_make_them_hear_human_agent),
+            ActionConfig(type="function", handler=make_human_agent_hear_customer),
             ActionConfig(type="end_conversation"),
         ],
     )
@@ -659,7 +658,9 @@ async def main():
         logger.info(
             f"\n\nJOIN AS CUSTOMER:\n{room_url}{'?' if '?' not in room_url else '&'}t={customer_token}\n"
         )
-        flow_manager.state["human_agent_join_url"] = f"{room_url}{'?' if '?' not in room_url else '&'}t={human_agent_token}"
+        flow_manager.state["human_agent_join_url"] = (
+            f"{room_url}{'?' if '?' not in room_url else '&'}t={human_agent_token}"
+        )
 
         # Run the pipeline
         runner = PipelineRunner()
