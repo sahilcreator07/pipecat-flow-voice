@@ -193,10 +193,11 @@ async def print_human_agent_join_url(action: dict, flow_manager: FlowManager):
     logger.info(f"\n\nJOIN AS AGENT:\n{flow_manager.state['human_agent_join_url']}\n")
 
 
-async def unmute_customer_and_make_them_hear_human_agent(action: dict, flow_manager: FlowManager):
-    """Unmute the customer and make it so they can hear the human agent."""
+async def unmute_customer_and_make_humans_hear_each_other(action: dict, flow_manager: FlowManager):
+    """Unmute the customer and make it so the customer and human agent can hear each other."""
     transport: DailyTransport = flow_manager.transport
     customer_participant_id = get_customer_participant_id(transport=transport)
+    agent_participant_id = get_human_agent_participant_id(transport=transport)
 
     if customer_participant_id:
         await transport.update_remote_participants(
@@ -207,22 +208,10 @@ async def unmute_customer_and_make_them_hear_human_agent(action: dict, flow_mana
                         "canReceive": {"byUserId": {"agent": True}},
                     },
                     "inputsEnabled": {"microphone": True},
-                }
-            }
-        )
-
-
-async def make_human_agent_hear_customer(action: dict, flow_manager: FlowManager):
-    """Make it so the human agent can hear the customer."""
-    transport: DailyTransport = flow_manager.transport
-    agent_participant_id = get_human_agent_participant_id(transport=transport)
-
-    if agent_participant_id:
-        await transport.update_remote_participants(
-            remote_participants={
+                },
                 agent_participant_id: {
                     "permissions": {"canReceive": {"byUserId": {"customer": True}}}
-                }
+                },
             }
         )
 
@@ -448,8 +437,7 @@ def create_end_human_agent_conversation_node() -> NodeConfig:
         ],
         functions=[],
         post_actions=[
-            ActionConfig(type="function", handler=unmute_customer_and_make_them_hear_human_agent),
-            ActionConfig(type="function", handler=make_human_agent_hear_customer),
+            ActionConfig(type="function", handler=unmute_customer_and_make_humans_hear_each_other),
             ActionConfig(type="end_conversation"),
         ],
     )
