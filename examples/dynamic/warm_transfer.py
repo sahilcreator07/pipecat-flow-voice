@@ -470,6 +470,7 @@ async def get_customer_token(daily_rest_helper: DailyRESTHelper, room_url: str) 
     """Gets a Daily token for the customer, configured with properties:
     {
         user_id: "customer",
+        user_name: "Customer",
         permissions: {
             canReceive: {
                 base: false,
@@ -492,6 +493,7 @@ async def get_customer_token(daily_rest_helper: DailyRESTHelper, room_url: str) 
         },
         daily_rest_helper=daily_rest_helper,
         room_url=room_url,
+        user_name="Customer",
     )
 
 
@@ -499,6 +501,7 @@ async def get_human_agent_token(daily_rest_helper: DailyRESTHelper, room_url: st
     """Gets a Daily token for the human agent, configured with properties:
     {
         user_id: "agent",
+        user_name: "Agent",
         permissions: {
             canReceive: {
                 base: false,
@@ -521,27 +524,40 @@ async def get_human_agent_token(daily_rest_helper: DailyRESTHelper, room_url: st
         },
         daily_rest_helper=daily_rest_helper,
         room_url=room_url,
+        user_name="Agent",
     )
 
 
 async def get_hold_music_player_token(daily_rest_helper: DailyRESTHelper, room_url: str) -> str:
-    """Gets a Daily token for the hold music player"""
+    """Gets a Daily token for the hold music player, configured with properrties:
+    {
+        user_id: "hold-music",
+        user_name: "Hold music"
+    }
+    """
     return await get_token(
         user_id="hold-music",
         permissions={},
         daily_rest_helper=daily_rest_helper,
         room_url=room_url,
+        user_name="Hold music",
     )
 
 
 async def get_token(
-    user_id: str, permissions: dict, daily_rest_helper: DailyRESTHelper, room_url: str
+    user_id: str,
+    permissions: dict,
+    daily_rest_helper: DailyRESTHelper,
+    room_url: str,
+    user_name: str = None,
 ) -> str:
     return await daily_rest_helper.get_token(
         room_url=room_url,
         owner=False,
         params=DailyMeetingTokenParams(
-            properties=DailyMeetingTokenProperties(user_id=user_id, permissions=permissions)
+            properties=DailyMeetingTokenProperties(
+                user_id=user_id, user_name=user_name, permissions=permissions
+            )
         ),
     )
 
