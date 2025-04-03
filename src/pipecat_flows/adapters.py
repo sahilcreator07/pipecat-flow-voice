@@ -520,7 +520,7 @@ class BedrockAdapter(LLMAdapter):
 
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Bedrock models."""
-        return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
+        return {"role": "user", "content": [{"text": f"Here's a summary of the conversation:\n{summary}"}]}
 
     async def generate_summary(
         self, llm: Any, summary_prompt: str, messages: List[dict]
@@ -536,7 +536,7 @@ class BedrockAdapter(LLMAdapter):
                 "messages": [
                     {
                         "role": "user",
-                        "content": f"Conversation history: {messages}",
+                        "content": [{"text": f"Conversation history: {messages}"}],
                     },
                 ],
                 "inferenceConfig": {
@@ -552,11 +552,11 @@ class BedrockAdapter(LLMAdapter):
             response = llm._client.converse(**request_params)
             
             # Extract the response text
-            if "message" in response and "content" in response["message"]:
-                content = response["message"]["content"]
+            if "output" in response and "message" in response["output"] and "content" in response["output"]["message"]:
+                content = response["output"]["message"]["content"]
                 if isinstance(content, list):
                     for item in content:
-                        if item["type"] == "text":
+                        if item.get("text"):
                             return item["text"]
                 elif isinstance(content, str):
                     return content
