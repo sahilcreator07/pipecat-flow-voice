@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-""" "Warm Handoff" Example using Pipecat Dynamic Flows with OpenAI.
+"""'Warm Handoff' Example using Pipecat Dynamic Flows with OpenAI.
 
 This example demonstrates how to create a bot that transfers a customer to a human agent when the bot is unable to fulfill the customers's request.
 This example uses:
@@ -50,9 +50,9 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.cartesia import CartesiaHttpTTSService
-from pipecat.services.deepgram import DeepgramSTTService
-from pipecat.services.openai import OpenAILLMService
+from pipecat.services.cartesia.tts import CartesiaHttpTTSService
+from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.transports.services.helpers.daily_rest import (
     DailyMeetingTokenParams,
@@ -412,7 +412,8 @@ def create_human_agent_interaction_node() -> NodeConfig:
 def create_end_customer_conversation_node() -> NodeConfig:
     """Create the "end_customer_conversation" node.
     This is the node where the bot says goodbye to the customer and ends the conversation.
-    This is how a conversation ends when a human agent did not need to be brought in."""
+    This is how a conversation ends when a human agent did not need to be brought in.
+    """
     return NodeConfig(
         task_messages=[
             {
@@ -427,7 +428,8 @@ def create_end_customer_conversation_node() -> NodeConfig:
 
 def create_end_human_agent_conversation_node() -> NodeConfig:
     """Create the "end_human_agent_conversation" node.
-    This is the node where the bot tells the agent that they're being patched through to the customer and ends the conversation (leaving the customer and agent in the room talking to each other)."""
+    This is the node where the bot tells the agent that they're being patched through to the customer and ends the conversation (leaving the customer and agent in the room talking to each other).
+    """
     return NodeConfig(
         task_messages=[
             {
@@ -564,7 +566,6 @@ async def get_token(
 
 async def main():
     """Main function to set up and run the bot."""
-
     async with aiohttp.ClientSession() as session:
         (room_url, token) = await configure(session)
 

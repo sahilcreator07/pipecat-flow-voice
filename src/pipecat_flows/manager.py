@@ -54,9 +54,9 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from pipecat.services.anthropic import AnthropicLLMService
-    from pipecat.services.google import GoogleLLMService
-    from pipecat.services.openai import OpenAILLMService
+    from pipecat.services.anthropic.llm import AnthropicLLMService
+    from pipecat.services.google.llm import GoogleLLMService
+    from pipecat.services.openai.llm import OpenAILLMService
 
     LLMService = Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]
 else:
