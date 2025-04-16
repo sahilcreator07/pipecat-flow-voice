@@ -23,7 +23,7 @@ from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame
-from pipecat.services.openai import OpenAILLMService
+from pipecat.services.openai.llm import OpenAILLMService
 
 from pipecat_flows.exceptions import FlowError, FlowInitializationError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
