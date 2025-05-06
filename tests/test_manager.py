@@ -23,9 +23,10 @@ from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame
+from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
 
-from pipecat_flows.exceptions import FlowError, FlowInitializationError, FlowTransitionError
+from pipecat_flows.exceptions import FlowError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
 from pipecat_flows.types import FlowArgs, FlowResult
 
@@ -46,6 +47,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures before each test."""
         self.mock_task = AsyncMock()
         self.mock_task.event_handler = Mock()
+        self.mock_task.set_reached_downstream_filter = Mock()
         self.mock_llm = OpenAILLMService(api_key="")
         self.mock_llm.register_function = MagicMock()
         self.mock_tts = AsyncMock()
@@ -241,7 +243,16 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
                 context_updated_callback = properties.on_context_updated
 
         # Call function and get context_updated callback
-        await func("old_style_function", "id", {}, None, None, result_callback)
+        params = FunctionCallParams(
+            function_name="old_style_function",
+            tool_call_id="id",
+            arguments={},
+            llm=None,
+            context=None,
+            result_callback=result_callback,
+        )
+
+        await func(params)
 
         # Execute the context_updated callback
         self.assertIsNotNone(context_updated_callback, "Context updated callback not set")
@@ -275,7 +286,15 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         context_updated_callback = None
 
         # Call function and get context_updated callback
-        await func("new_style_function", "id", {}, None, None, result_callback)
+        params = FunctionCallParams(
+            function_name="new_style_function",
+            tool_call_id="id",
+            arguments={},
+            llm=None,
+            context=None,
+            result_callback=result_callback,
+        )
+        await func(params)
 
         # Execute the context_updated callback
         self.assertIsNotNone(context_updated_callback, "Context updated callback not set")
@@ -516,7 +535,15 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Test error", result["error"])
 
         # The transition function should catch the error and pass it to the callback
-        await transition_func("test", "id", {}, None, None, result_callback)
+        params = FunctionCallParams(
+            function_name="test",
+            tool_call_id="id",
+            arguments={},
+            llm=None,
+            context=None,
+            result_callback=result_callback,
+        )
+        await transition_func(params)
         self.assertTrue(callback_called, "Result callback was not called")
 
     async def test_node_validation_edge_cases(self):
@@ -606,21 +633,23 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         context_updated_callback = None
         final_results = []
 
-        async def mock_result_callback(result, properties=None):
+        async def result_callback(result, properties=None):
             nonlocal context_updated_callback
             final_results.append(result)
             if properties and properties.on_context_updated:
                 context_updated_callback = properties.on_context_updated
 
-        # Call function
-        await transition_func(
-            "test_function",
-            "test_id",
-            {},
-            self.mock_llm,
-            {},
-            mock_result_callback,
+        params = FunctionCallParams(
+            function_name="test_function",
+            tool_call_id="test_id",
+            arguments={},
+            llm=self.mock_llm,
+            context={},
+            result_callback=result_callback,
         )
+
+        # Call function
+        await transition_func(params)
 
         # Execute the context updated callback which should trigger the error
         self.assertIsNotNone(context_updated_callback, "Context updated callback not set")
@@ -854,11 +883,22 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             # Get the registered function and test it
             name, func = self.mock_llm.register_function.call_args[0]
 
-            async def callback(result, properties=None):
+            async def result_callback(result, properties=None):
                 self.assertEqual(result["status"], "success")
                 self.assertEqual(result["args"], {"test": "value"})
 
-            await func("test_function", "id", {"test": "value"}, None, None, callback)
+            test_args = {"test": "value"}
+
+            params = FunctionCallParams(
+                function_name="test_function",
+                tool_call_id="id",
+                arguments=test_args,
+                llm=None,
+                context=None,
+                result_callback=result_callback,
+            )
+
+            await func(params)
             self.assertTrue(test_called)
 
         finally:
@@ -1015,7 +1055,16 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             node_result = result
             node_properties = properties
 
-        await node_func("node_function", "id1", {}, None, None, node_callback)
+        params = FunctionCallParams(
+            function_name="node_function",
+            tool_call_id="id1",
+            arguments={},
+            llm=None,
+            context=None,
+            result_callback=node_callback,
+        )
+
+        await node_func(params)
         # Node function should not set run_llm=False
         self.assertTrue(node_properties is None or node_properties.run_llm is not False)
 
@@ -1029,7 +1078,16 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             edge_result = result
             edge_properties = properties
 
-        await edge_func("edge_function", "id2", {}, None, None, edge_callback)
+        params = FunctionCallParams(
+            function_name="edge_function",
+            tool_call_id="id2",
+            arguments={},
+            llm=None,
+            context=None,
+            result_callback=edge_callback,
+        )
+
+        await edge_func(params)
         # Edge function should set run_llm=False
         self.assertTrue(edge_properties is not None and edge_properties.run_llm is False)
 
