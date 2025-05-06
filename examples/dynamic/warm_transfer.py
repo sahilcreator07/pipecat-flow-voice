@@ -575,10 +575,9 @@ async def main():
             token=token,
             bot_name="ABC Widget Company Bot",
             params=DailyParams(
+                audio_in_enabled=True,
                 audio_out_enabled=True,
-                vad_enabled=True,
                 vad_analyzer=SileroVADAnalyzer(),
-                vad_audio_passthrough=True,
             ),
         )
         stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
