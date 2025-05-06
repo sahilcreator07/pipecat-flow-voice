@@ -36,6 +36,7 @@ from pipecat.frames.frames import (
     LLMSetToolsFrame,
 )
 from pipecat.pipeline.task import PipelineTask
+from pipecat.services.llm_service import FunctionCallParams
 from pipecat.transports.base_transport import BaseTransport
 
 from .actions import ActionError, ActionManager
@@ -341,14 +342,7 @@ class FlowManager:
             """Handle context updates for node functions without transitions."""
             decrease_pending_function_calls()
 
-        async def transition_func(
-            function_name: str,
-            tool_call_id: str,
-            args: Dict[str, Any],
-            llm: Any,
-            context: Any,
-            result_callback: Callable,
-        ) -> None:
+        async def transition_func(params: FunctionCallParams) -> None:
             """Inner function that handles the actual tool invocation."""
             try:
                 # Track pending function call
@@ -359,7 +353,7 @@ class FlowManager:
 
                 # Execute handler if present
                 if handler:
-                    result = await self._call_handler(handler, args)
+                    result = await self._call_handler(handler, params.arguments)
                     logger.debug(f"Handler completed for {name}")
                 else:
                     result = {"status": "acknowledged"}
@@ -369,7 +363,9 @@ class FlowManager:
                 # For node functions, allow immediate completion (run_llm=True)
                 async def on_context_updated() -> None:
                     if is_edge_function:
-                        await on_context_updated_edge(args, result, result_callback)
+                        await on_context_updated_edge(
+                            params.arguments, result, params.result_callback
+                        )
                     else:
                         await on_context_updated_node()
 
@@ -377,13 +373,13 @@ class FlowManager:
                     run_llm=not is_edge_function,
                     on_context_updated=on_context_updated,
                 )
-                await result_callback(result, properties=properties)
+                await params.result_callback(result, properties=properties)
 
             except Exception as e:
                 logger.error(f"Error in transition function {name}: {str(e)}")
                 self._pending_function_calls = 0
                 error_result = {"status": "error", "error": str(e)}
-                await result_callback(error_result)
+                await params.result_callback(error_result)
 
         return transition_func
 

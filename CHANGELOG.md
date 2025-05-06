@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated to use `FunctionCallParams` as args for the function handler.
+
 - Updated imports to use the new .stt, .llm, and .tts paths.
+
+### Other
+
+- Updated examples to `audio_in_enabled=True` and remove `vad_enabled` and
+  `vad_audio_passthrough` to align with the latest Pipecat `TransportParams`.
 
 ## [0.0.16] - 2025-03-26
 
