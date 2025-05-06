@@ -41,6 +41,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures before each test."""
         self.mock_task = AsyncMock()
         self.mock_task.event_handler = Mock()
+        self.mock_task.set_reached_downstream_filter = Mock()
 
         # Set up mock LLM with client
         self.mock_llm = OpenAILLMService(api_key="")

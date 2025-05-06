@@ -63,6 +63,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         self.mock_task = AsyncMock()
         self.mock_task.queue_frame = AsyncMock()
         self.mock_task.event_handler = Mock()
+        self.mock_task.set_reached_downstream_filter = Mock()
 
         self.mock_tts = AsyncMock()
         self.mock_tts.say = AsyncMock()
