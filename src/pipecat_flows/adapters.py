@@ -27,7 +27,7 @@ from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.adapters.services.anthropic_adapter import AnthropicLLMAdapter
 from pipecat.adapters.services.gemini_adapter import GeminiLLMAdapter
 from pipecat.adapters.services.open_ai_adapter import OpenAILLMAdapter
-from pipecat.adapters.services.bedrock_adapter import AWSBedrockLLMAdapter
+from pipecat.adapters.services.bedrock_adapter import BedrockLLMAdapter
 
 from .types import FlowsFunctionSchema
 
@@ -504,7 +504,7 @@ class BedrockAdapter(LLMAdapter):
     def __init__(self):
         """Initialize the Bedrock adapter."""
         super().__init__()
-        self.provider_adapter = AWSBedrockLLMAdapter()
+        self.provider_adapter = BedrockLLMAdapter()
 
     def _get_function_name_from_dict(self, function_def: Dict[str, Any]) -> str:
         """Extract function name from Bedrock function definition.
@@ -655,7 +655,7 @@ def create_adapter(llm) -> LLMAdapter:
         logger.debug("Creating Google adapter")
         return GeminiAdapter()
 
-    if llm_type == "AWSBedrockLLMService":
+    if llm_type == "BedrockLLMService":
         logger.debug("Creating Bedrock adapter")
         return BedrockAdapter()
 
