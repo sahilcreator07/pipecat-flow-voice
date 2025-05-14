@@ -9,9 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Added `respond_immediately` to `NodeConfig`. Setting it to `False` has the effect of making the
-  bot wait, after the node is activated, for the user to speak before responding.
-
 - Updated to use `FunctionCallParams` as args for the function handler.
 
 - Updated imports to use the new .stt, .llm, and .tts paths.
