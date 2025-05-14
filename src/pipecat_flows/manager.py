@@ -558,7 +558,7 @@ class FlowManager:
             self.current_functions = new_functions
 
             # Trigger completion with new context
-            if self._context_aggregator and node_config.get("respond_immediately", True):
+            if self._context_aggregator:
                 await self.task.queue_frames([self._context_aggregator.user().get_context_frame()])
 
             # Execute post-actions if any
