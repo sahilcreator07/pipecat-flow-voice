@@ -22,17 +22,17 @@ Actions are used to perform side effects during conversations, such as:
 """
 
 import asyncio
-from dataclasses import dataclass
 import inspect
+from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
+    ControlFrame,
     EndFrame,
     TTSSpeakFrame,
 )
 from pipecat.pipeline.task import PipelineTask
-from pipecat.frames.frames import ControlFrame
 
 from .exceptions import ActionError
 from .types import ActionConfig, FlowActionHandler
@@ -81,6 +81,7 @@ class ActionManager:
 
         # Wire up function actions
         task.set_reached_downstream_filter((FunctionActionFrame,))
+
         @task.event_handler("on_frame_reached_downstream")
         async def on_frame_reached_downstream(task, frame):
             if isinstance(frame, FunctionActionFrame):
@@ -209,7 +210,7 @@ class ActionManager:
         if not handler:
             logger.error("Function action missing 'handler' field")
             return
-        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in 
+        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in
         # post_actions
         await self.task.queue_frame(FunctionActionFrame(action=action, function=handler))
         await self.function_finished_event.wait()

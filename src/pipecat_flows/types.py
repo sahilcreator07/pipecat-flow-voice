@@ -228,6 +228,7 @@ class NodeConfig(NodeConfigRequired, total=False):
         pre_actions: Actions to execute before LLM inference
         post_actions: Actions to execute after LLM inference
         context_strategy: Strategy for updating context during transitions
+        respond_immediately: Whether to run LLM inference as soon as the node is set (default: True)
 
     Example:
         {
@@ -254,6 +255,7 @@ class NodeConfig(NodeConfigRequired, total=False):
     pre_actions: List[ActionConfig]
     post_actions: List[ActionConfig]
     context_strategy: ContextStrategyConfig
+    respond_immediately: bool
 
 
 class FlowConfig(TypedDict):
