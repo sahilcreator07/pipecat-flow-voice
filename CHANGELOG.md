@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped the minimum required `pipecat-ai` version to 0.0.67 to align with AWS
+  Bedrock additions in Pipecat. This also adds support for `FunctionCallParams`
+  which were added in 0.0.66.
+
 - Updated to use `FunctionCallParams` as args for the function handler.
 
 - Updated imports to use the new .stt, .llm, and .tts paths.
