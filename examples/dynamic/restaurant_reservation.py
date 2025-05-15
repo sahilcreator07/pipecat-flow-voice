@@ -180,7 +180,7 @@ def create_initial_node(wait_for_user: bool) -> NodeConfig:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Warmly greet the customer and ask how many people are in their party. This is your only job for now; if the customer has asked for something else, politely remind them you can't do it.",
+                "content": "Warmly greet the customer and ask how many people are in their party. This is your only job for now; if the customer asks for something else, politely remind them you can't do it.",
             }
         ],
         "functions": [party_size_schema],
