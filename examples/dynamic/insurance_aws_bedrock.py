@@ -3,11 +3,11 @@
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-"""Insurance Quote Example using Pipecat Dynamic Flows with Google Gemini.
+"""Insurance Quote Example using Pipecat Dynamic Flows with AWS Bedrock.
 
 This example demonstrates how to create a conversational insurance quote bot using:
 - Dynamic flow management for flexible conversation paths
-- Google Gemini for natural language understanding
+- AWS Bedrock for natural language understanding
 - Simple function handlers for processing user input
 - Node configurations for different conversation states
 - Pre/post actions for user feedback
@@ -39,9 +39,9 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.deepgram.stt import DeepgramSTTService
-from pipecat.services.deepgram.tts import DeepgramTTSService
-from pipecat.services.google.llm import GoogleLLMService
+from pipecat.services.aws.llm import AWSBedrockLLMService
+from pipecat.services.aws.stt import AWSTranscribeSTTService
+from pipecat.services.aws.tts import AWSPollyTTSService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 
 from pipecat_flows import FlowArgs, FlowManager, FlowResult, FlowsFunctionSchema, NodeConfig
@@ -194,7 +194,7 @@ def create_initial_node() -> NodeConfig:
         ],
         "task_messages": [
             {
-                "role": "system",
+                "role": "user",
                 "content": "Start by asking for the customer's age.",
             }
         ],
@@ -216,7 +216,7 @@ def create_marital_status_node() -> NodeConfig:
     return {
         "task_messages": [
             {
-                "role": "system",
+                "role": "user",
                 "content": (
                     "Ask about the customer's marital status (single or married). "
                     "Wait for their response before calling collect_marital_status. "
@@ -242,7 +242,7 @@ def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
     return {
         "task_messages": [
             {
-                "role": "system",
+                "role": "user",
                 "content": (
                     f"Calculate a quote for {age} year old {marital_status} customer. "
                     "Call calculate_quote with their information. "
@@ -273,7 +273,7 @@ def create_quote_results_node(
     return {
         "task_messages": [
             {
-                "role": "system",
+                "role": "user",
                 "content": (
                     f"Quote details:\n"
                     f"Monthly Premium: ${quote['monthly_premium']:.2f}\n"
@@ -315,7 +315,7 @@ def create_end_node() -> NodeConfig:
     return {
         "task_messages": [
             {
-                "role": "system",
+                "role": "user",
                 "content": (
                     "Thank the customer for their time and end the conversation. "
                     "Mention that a representative will contact them about the quote."
@@ -353,9 +353,17 @@ async def main():
             ),
         )
 
-        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
-        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
-        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-2.0-flash-exp")
+        stt = AWSTranscribeSTTService()
+        tts = AWSPollyTTSService(
+            region="us-west-2",
+            voice_id="Joanna",
+            params=AWSPollyTTSService.InputParams(engine="generative", rate="1.1"),
+        )
+        llm = AWSBedrockLLMService(
+            aws_region="us-west-2",
+            model="us.anthropic.claude-3-5-haiku-20241022-v1:0",
+            params=AWSBedrockLLMService.InputParams(temperature=0.8, latency="optimized"),
+        )
 
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
