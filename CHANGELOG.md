@@ -5,7 +5,7 @@ All notable changes to **Pipecat Flows** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.17] - 2025-05-16
 
 ### Added
 
@@ -13,8 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Added `respond_immediately` to `NodeConfig`. Setting it to `False` has the effect of making the
-  bot wait, after the node is activated, for the user to speak before responding.
+- Added `respond_immediately` to `NodeConfig`. Setting it to `False` has the
+  effect of making the bot wait, after the node is activated, for the user to
+  speak before responding. This can be used for the initial node, if you want
+  the user to speak first.
 
 - Bumped the minimum required `pipecat-ai` version to 0.0.67 to align with AWS
   Bedrock additions in Pipecat. This also adds support for `FunctionCallParams`
