@@ -22,17 +22,18 @@ Actions are used to perform side effects during conversations, such as:
 """
 
 import asyncio
-from dataclasses import dataclass
 import inspect
+from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from pipecat.frames.frames import (
+    BotStoppedSpeakingFrame,
+    ControlFrame,
     EndFrame,
     TTSSpeakFrame,
 )
 from pipecat.pipeline.task import PipelineTask
-from pipecat.frames.frames import ControlFrame
 
 from .exceptions import ActionError
 from .types import ActionConfig, FlowActionHandler
@@ -73,6 +74,7 @@ class ActionManager:
         self._flow_manager = flow_manager
         self.tts = tts
         self.function_finished_event = asyncio.Event()
+        self._deferred_post_actions: List[ActionConfig] = []
 
         # Register built-in actions
         self._register_action("tts_say", self._handle_tts_action)
@@ -80,12 +82,15 @@ class ActionManager:
         self._register_action("function", self._handle_function_action)
 
         # Wire up function actions
-        task.set_reached_downstream_filter((FunctionActionFrame,))
+        task.set_reached_downstream_filter((FunctionActionFrame, BotStoppedSpeakingFrame))
+
         @task.event_handler("on_frame_reached_downstream")
         async def on_frame_reached_downstream(task, frame):
             if isinstance(frame, FunctionActionFrame):
                 await frame.function(frame.action, flow_manager)
                 self.function_finished_event.set()
+            elif isinstance(frame, BotStoppedSpeakingFrame):
+                await self._execute_deferred_post_actions()
 
     def _register_action(self, action_type: str, handler: Callable) -> None:
         """Register a handler for a specific action type.
@@ -159,6 +164,25 @@ class ActionManager:
             except Exception as e:
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
 
+    def schedule_deferred_post_actions(self, post_actions: List[ActionConfig]) -> None:
+        """Schedule "deferred" post-actions to be executed after next LLM completion.
+
+        Args:
+            post_actions: List of actions to execute
+        """
+        self._deferred_post_actions = post_actions
+
+    def clear_deferred_post_actions(self) -> None:
+        """Clear any scheduled deferred post-actions."""
+        self._deferred_post_actions = []
+
+    async def _execute_deferred_post_actions(self) -> None:
+        """Execute deferred post-actions."""
+        actions = self._deferred_post_actions
+        self._deferred_post_actions = []
+        if actions:
+            await self.execute_actions(actions)
+
     async def _handle_tts_action(self, action: dict) -> None:
         """Built-in handler for TTS actions.
 
@@ -209,7 +233,7 @@ class ActionManager:
         if not handler:
             logger.error("Function action missing 'handler' field")
             return
-        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in 
+        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in
         # post_actions
         await self.task.queue_frame(FunctionActionFrame(action=action, function=handler))
         await self.function_finished_event.wait()

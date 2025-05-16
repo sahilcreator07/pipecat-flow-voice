@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added `respond_immediately` to `NodeConfig`. Setting it to `False` has the effect of making the
+  bot wait, after the node is activated, for the user to speak before responding.
+
 - Bumped the minimum required `pipecat-ai` version to 0.0.67 to align with AWS
   Bedrock additions in Pipecat. This also adds support for `FunctionCallParams`
   which were added in 0.0.66.

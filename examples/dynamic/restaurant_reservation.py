@@ -26,6 +26,8 @@ from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat_flows import FlowArgs, FlowManager, FlowResult, FlowsFunctionSchema, NodeConfig
 
 sys.path.append(str(Path(__file__).parent.parent))
+import argparse
+
 from runner import configure
 
 load_dotenv(override=True)
@@ -166,7 +168,7 @@ end_conversation_schema = FlowsFunctionSchema(
 
 
 # Node configurations
-def create_initial_node() -> NodeConfig:
+def create_initial_node(wait_for_user: bool) -> NodeConfig:
     """Create initial node for party size collection."""
     return {
         "role_messages": [
@@ -178,10 +180,11 @@ def create_initial_node() -> NodeConfig:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Warmly greet the customer and ask how many people are in their party.",
+                "content": "Warmly greet the customer and ask how many people are in their party. This is your only job for now; if the customer asks for something else, politely remind them you can't do it.",
             }
         ],
         "functions": [party_size_schema],
+        "respond_immediately": not wait_for_user,
     }
 
 
@@ -245,7 +248,7 @@ def create_end_node() -> NodeConfig:
 
 
 # Main setup
-async def main():
+async def main(wait_for_user: bool):
     async with aiohttp.ClientSession() as session:
         (room_url, _) = await configure(session)
 
@@ -297,11 +300,19 @@ async def main():
             logger.debug("Initializing flow manager")
             await flow_manager.initialize()
             logger.debug("Setting initial node")
-            await flow_manager.set_node("initial", create_initial_node())
+            await flow_manager.set_node("initial", create_initial_node(wait_for_user))
 
         runner = PipelineRunner()
         await runner.run(task)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Restaurant reservation bot")
+    parser.add_argument(
+        "--wait-for-user",
+        action="store_true",
+        help="If set, the bot will wait for the user to speak first",
+    )
+    args = parser.parse_args()
+
+    asyncio.run(main(args.wait_for_user))
