@@ -171,6 +171,9 @@ class OpenAIAdapter(LLMAdapter):
 
     Handles OpenAI's function calling format, which is used as the default format
     in the flow system.
+
+    Note: OpenAI doesn't require a no_op function call, as it accepts the NOT_GIVEN
+    value for empty function calls, which is provided by Pipecat.
     """
 
     def __init__(self):
