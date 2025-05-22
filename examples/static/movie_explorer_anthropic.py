@@ -412,7 +412,6 @@ After showing details or recommendations, ask if they'd like to explore another 
                     ],
                 }
             ],
-            "functions": [],
             "post_actions": [{"type": "end_conversation"}],
         },
     },

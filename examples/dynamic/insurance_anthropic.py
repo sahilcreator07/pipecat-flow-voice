@@ -364,7 +364,6 @@ def create_end_node() -> NodeConfig:
                 ],
             }
         ],
-        "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
 

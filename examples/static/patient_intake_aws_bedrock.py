@@ -343,7 +343,6 @@ Be thorough in reviewing all details and wait for explicit confirmation.""",
             "task_messages": [
                 {"role": "user", "content": "Thank them for their time and end the conversation."}
             ],
-            "functions": [],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
