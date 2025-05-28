@@ -87,6 +87,10 @@ class LLMAdapter:
         Returns:
             List of functions formatted for the provider
         """
+        # Return empty list if no functions
+        if not functions:
+            return []
+
         # Convert to standard FunctionSchema objects for the ToolsSchema
         standard_functions = []
 
@@ -116,6 +120,10 @@ class LLMAdapter:
                         required=flows_schema.required,
                     )
                 )
+
+        # Return empty list if no valid functions were processed
+        if not standard_functions:
+            return []
 
         # Create ToolsSchema with all functions
         tools_schema = ToolsSchema(standard_tools=standard_functions)
@@ -424,6 +432,9 @@ class GeminiAdapter(LLMAdapter):
                             },
                         }
                     )
+        # Return empty list if no functions
+        if not gemini_functions:
+            return []
 
         # Format as Gemini expects - an array with a single object containing function_declarations
         return [{"function_declarations": gemini_functions}]

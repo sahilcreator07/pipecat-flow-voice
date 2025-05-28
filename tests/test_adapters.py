@@ -551,3 +551,35 @@ def test_bedrock_adapter_toolspec_format(bedrock_adapter):
     assert schema.handler is not None
     assert schema.transition_to == "next_step"
     assert schema.transition_callback is None
+
+
+def test_openai_adapter_empty_functions(openai_adapter):
+    """Test OpenAI adapter properly handles empty function arrays."""
+    # Format empty list for OpenAI
+    formatted = openai_adapter.format_functions([])
+    # OpenAI supports empty function arrays
+    assert formatted == []
+
+
+def test_anthropic_adapter_empty_functions(anthropic_adapter):
+    """Test Anthropic adapter properly handles empty function arrays."""
+    # Format empty list for Anthropic
+    formatted = anthropic_adapter.format_functions([])
+    # OpenAI supports empty function arrays
+    assert formatted == []
+
+
+def test_gemini_adapter_empty_functions(gemini_adapter):
+    """Test Gemini adapter properly handles empty function arrays."""
+    # Format empty list for Gemini
+    formatted = gemini_adapter.format_functions([])
+    # OpenAI supports empty function arrays
+    assert formatted == []
+
+
+def test_bedrock_adapter_empty_functions(bedrock_adapter):
+    """Test AWS Bedrock adapter properly handles empty function arrays."""
+    # Format empty list for Bedrock
+    formatted = bedrock_adapter.format_functions([])
+    # OpenAI supports empty function arrays
+    assert formatted == []
