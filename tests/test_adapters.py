@@ -565,32 +565,21 @@ def test_anthropic_adapter_empty_functions(anthropic_adapter):
     """Test Anthropic adapter properly handles empty function arrays."""
     # Format empty list for Anthropic
     formatted = anthropic_adapter.format_functions([])
-    # Anthropic should provide a placeholder no_op function
-    assert len(formatted) == 1
-    assert formatted[0]["name"] == "no_op"
-    assert "description" in formatted[0]
-    assert "input_schema" in formatted[0]
+    # OpenAI supports empty function arrays
+    assert formatted == []
 
 
 def test_gemini_adapter_empty_functions(gemini_adapter):
     """Test Gemini adapter properly handles empty function arrays."""
     # Format empty list for Gemini
     formatted = gemini_adapter.format_functions([])
-    # Gemini should provide a placeholder no_op function
-    assert len(formatted) == 1
-    assert "function_declarations" in formatted[0]
-    assert len(formatted[0]["function_declarations"]) == 1
-    assert formatted[0]["function_declarations"][0]["name"] == "no_op"
-    assert "description" in formatted[0]["function_declarations"][0]
-    assert "parameters" in formatted[0]["function_declarations"][0]
+    # OpenAI supports empty function arrays
+    assert formatted == []
 
 
 def test_bedrock_adapter_empty_functions(bedrock_adapter):
     """Test AWS Bedrock adapter properly handles empty function arrays."""
     # Format empty list for Bedrock
     formatted = bedrock_adapter.format_functions([])
-    # Bedrock should provide a placeholder no_op function
-    assert len(formatted) == 1
-    assert formatted[0]["name"] == "no_op"
-    assert "description" in formatted[0]
-    assert "input_schema" in formatted[0]
+    # OpenAI supports empty function arrays
+    assert formatted == []

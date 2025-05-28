@@ -87,9 +87,8 @@ class LLMAdapter:
         Returns:
             List of functions formatted for the provider
         """
-        # If functions list is empty, return an empty list for providers that support it
+        # Return empty list if no functions
         if not functions:
-            # For providers that support empty tools array (like OpenAI)
             return []
 
         # Convert to standard FunctionSchema objects for the ToolsSchema
@@ -121,6 +120,10 @@ class LLMAdapter:
                         required=flows_schema.required,
                     )
                 )
+
+        # Return empty list if no valid functions were processed
+        if not standard_functions:
+            return []
 
         # Create ToolsSchema with all functions
         tools_schema = ToolsSchema(standard_tools=standard_functions)
@@ -171,9 +174,6 @@ class OpenAIAdapter(LLMAdapter):
 
     Handles OpenAI's function calling format, which is used as the default format
     in the flow system.
-
-    Note: OpenAI doesn't require a no_op function call, as it accepts the NOT_GIVEN
-    value for empty function calls, which is provided by Pipecat.
     """
 
     def __init__(self):
@@ -280,37 +280,6 @@ class AnthropicAdapter(LLMAdapter):
         """
         return function_def["name"]
 
-    def format_functions(
-        self,
-        functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]],
-        original_configs: Optional[List] = None,
-    ) -> List[Dict[str, Any]]:
-        """Format functions for Anthropic's specific use.
-
-        Handles empty function arrays by providing a minimal placeholder function,
-        since Anthropic requires at least one tool.
-
-        Args:
-            functions: List of function definitions (dicts or schema objects)
-            original_configs: Optional original node configs, used by some adapters
-
-        Returns:
-            List of functions formatted for Anthropic
-        """
-        # If functions list is empty, provide a minimal placeholder function for Anthropic
-        if not functions:
-            placeholder_function = FunctionSchema(
-                name="no_op",
-                description="This function does nothing and should not be called.",
-                properties={},
-                required=[],
-            )
-            tools_schema = ToolsSchema(standard_tools=[placeholder_function])
-            return self.provider_adapter.to_provider_tools_format(tools_schema)
-
-        # Default implementation for non-empty function lists
-        return super().format_functions(functions, original_configs)
-
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Anthropic."""
         return {"role": "user", "content": f"Here's a summary of the conversation:\n{summary}"}
@@ -409,9 +378,7 @@ class GeminiAdapter(LLMAdapter):
         """Format functions for Gemini's specific use.
 
         This special implementation processes both converted schemas and original configs
-        to ensure Gemini's specific format is preserved when possible. It also handles
-        the case where an empty functions list is provided by returning a minimal
-        placeholder function.
+        to ensure Gemini's specific format is preserved when possible.
 
         Args:
             functions: List of function definitions (dicts or schema objects)
@@ -420,20 +387,6 @@ class GeminiAdapter(LLMAdapter):
         Returns:
             List of functions formatted for Gemini
         """
-        # If functions list is empty, provide a minimal placeholder function for Gemini
-        # since Gemini doesn't support empty function arrays
-        if not functions and not original_configs:
-            placeholder_function = {
-                "name": "no_op",
-                "description": "This function does nothing and should not be called.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
-            }
-            return [{"function_declarations": [placeholder_function]}]
-
         gemini_functions = []
 
         # If original_configs is provided, extract functions from it
@@ -479,6 +432,9 @@ class GeminiAdapter(LLMAdapter):
                             },
                         }
                     )
+        # Return empty list if no functions
+        if not gemini_functions:
+            return []
 
         # Format as Gemini expects - an array with a single object containing function_declarations
         return [{"function_declarations": gemini_functions}]
@@ -572,37 +528,6 @@ class AWSBedrockAdapter(LLMAdapter):
         """
         # Bedrock uses the same format as Anthropic for tools
         return function_def["name"]
-
-    def format_functions(
-        self,
-        functions: List[Union[Dict[str, Any], FunctionSchema, FlowsFunctionSchema]],
-        original_configs: Optional[List] = None,
-    ) -> List[Dict[str, Any]]:
-        """Format functions for AWS Bedrock's specific use.
-
-        Handles empty function arrays by providing a minimal placeholder function,
-        since Bedrock requires at least one tool.
-
-        Args:
-            functions: List of function definitions (dicts or schema objects)
-            original_configs: Optional original node configs, used by some adapters
-
-        Returns:
-            List of functions formatted for Bedrock
-        """
-        # If functions list is empty, provide a minimal placeholder function for Bedrock
-        if not functions:
-            placeholder_function = FunctionSchema(
-                name="no_op",
-                description="This function does nothing and should not be called.",
-                properties={},
-                required=[],
-            )
-            tools_schema = ToolsSchema(standard_tools=[placeholder_function])
-            return self.provider_adapter.to_provider_tools_format(tools_schema)
-
-        # Default implementation for non-empty function lists
-        return super().format_functions(functions, original_configs)
 
     def format_summary_message(self, summary: str) -> dict:
         """Format summary as a user message for Bedrock models."""
