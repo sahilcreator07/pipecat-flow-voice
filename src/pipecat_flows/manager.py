@@ -61,7 +61,7 @@ from .types import (
     FunctionHandler,
     NamedNode,
     NodeConfig,
-    UnifiedFunctionResult,
+    ConsolidatedFunctionResult,
 )
 
 if TYPE_CHECKING:
@@ -245,7 +245,7 @@ class FlowManager:
 
     async def _call_handler(
         self, handler: FunctionHandler, args: FlowArgs
-    ) -> FlowResult | UnifiedFunctionResult:
+    ) -> FlowResult | ConsolidatedFunctionResult:
         """Call handler with appropriate parameters based on its signature.
 
         Detects whether the handler can accept a flow_manager parameter and
@@ -402,7 +402,7 @@ class FlowManager:
                         handler_response = await handler.invoke(params.arguments, self)
                     else:
                         handler_response = await self._call_handler(handler, params.arguments)
-                    # Support both "unified" handlers that return (result, next_node) and handlers
+                    # Support both "consolidated" handlers that return (result, next_node) and handlers
                     # that return just the result.
                     if isinstance(handler_response, tuple):
                         result, next_node = handler_response
@@ -412,7 +412,7 @@ class FlowManager:
                     else:
                         result = handler_response
                         next_node = None
-                        # FlowsDirectFunctions should always be "unified" functions that return a tuple
+                        # FlowsDirectFunctions should always be "consolidated" functions that return a tuple
                         if isinstance(handler, FlowsDirectFunction):
                             raise InvalidFunctionError(
                                 f"Direct function {name} expected to return a tuple (result, next_node) but got {type(result)}"
@@ -421,7 +421,6 @@ class FlowManager:
                     result = acknowledged_result
                     next_node = None
                     is_transition_only_function = True
-                # TODO: test transition-only and non-transition-only functions using both transitional and unified functions
                 logger.debug(
                     f"{'Transition-only function called for' if is_transition_only_function else 'Function handler completed for'} {name}"
                 )
