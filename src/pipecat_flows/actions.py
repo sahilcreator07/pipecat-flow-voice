@@ -99,6 +99,7 @@ class ActionManager:
             if isinstance(frame, FunctionActionFrame):
                 # Run function action
                 await frame.function(frame.action, flow_manager)
+                self._decrement_ongoing_actions_count()
             elif isinstance(frame, BotStoppedSpeakingFrame):
                 # Execute deferred post-actions if the bot's turn is over.
                 # A BotStoppedSpeakingFrame only indicates that the bot's turn is over if there are
@@ -107,9 +108,7 @@ class ActionManager:
                     await self._execute_deferred_post_actions()
             elif isinstance(frame, ActionFinishedFrame):
                 # Handle action finished
-                self._ongoing_actions_count = max(0, self._ongoing_actions_count - 1)
-                if self._ongoing_actions_count == 0:
-                    self._ongoing_actions_finished_event.set()
+                self._decrement_ongoing_actions_count()
 
     def _register_action(self, action_type: str, handler: Callable) -> None:
         """Register a handler for a specific action type.
@@ -276,7 +275,14 @@ class ActionManager:
             return
 
         try:
-            await self._queue_action_frame(TTSSpeakFrame(text=action["text"]))
+            # Mark that we're starting the action
+            self._increment_ongoing_actions_count()
+
+            # Queue the action frame
+            await self.task.queue_frame(TTSSpeakFrame(text=text))
+
+            # Queue a frame marking the end of the action
+            await self.task.queue_frame(ActionFinishedFrame())
         except Exception as e:
             logger.error(f"TTS error: {e}")
 
@@ -290,9 +296,16 @@ class ActionManager:
             action: Dictionary containing the action configuration.
                 Optional 'text' key for a goodbye message.
         """
+        # Mark that we're starting the action
+        self._increment_ongoing_actions_count()
+
+        # Queue the action frames
         if action.get("text"):  # Optional goodbye message
             await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
-        await self._queue_action_frame(EndFrame())
+        await self.task.queue_frame(EndFrame())
+
+        # Queue a frame marking the end of the action
+        await self.task.queue_frame(ActionFinishedFrame())
 
     async def _handle_function_action(self, action: dict) -> None:
         """Built-in handler for queuing functions to run "inline" in the pipeline (i.e. when the pipeline is done with all the work queued before it).
@@ -308,16 +321,25 @@ class ActionManager:
         if not handler:
             logger.error("Function action missing 'handler' field")
             return
-        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in
-        # post_actions
-        await self._queue_action_frame(FunctionActionFrame(action=action, function=handler))
+        
+        # Mark that we're starting the action
+        self._increment_ongoing_actions_count()
 
-    async def _queue_action_frame(self, frame: Frame) -> None:
-        """Queue a frame in the pipeline, along with an ActionFinishedFrame to signal completion."""
-        await self.task.queue_frame(frame)
-        await self.task.queue_frame(ActionFinishedFrame())
+        # Queue the action frame (we're queueing rather than running it here to ensure it happens
+        # at the appropriate time in the pipeline, like when the bot's turn is over, for example).
+        await self.task.queue_frame(FunctionActionFrame(action=action, function=handler))
 
-        # Increment ongoing actions count and reset the finished event if this is the first action
+        # NOTE: we do NOT queue an ActionFinishedFrame here; instead, we will decrement the ongoing 
+        # actions count when the function has finished executing (the function may take some time)
+
+    def _increment_ongoing_actions_count(self) -> None:
+        """Increment the count of ongoing actions and reset the finished event if this is the first action."""
         self._ongoing_actions_count += 1
         if self._ongoing_actions_count == 1:
             self._ongoing_actions_finished_event.clear()
+
+    def _decrement_ongoing_actions_count(self) -> None:
+        """Decrement the count of ongoing actions and set the finished event if this was the last action."""
+        self._ongoing_actions_count = max(0, self._ongoing_actions_count - 1)
+        if self._ongoing_actions_count == 0:
+            self._ongoing_actions_finished_event.set()
