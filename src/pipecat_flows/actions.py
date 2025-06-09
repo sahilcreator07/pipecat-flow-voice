@@ -192,8 +192,8 @@ class ActionManager:
                 logger.debug(f"Successfully executed action: {action_type}")
             except Exception as e:
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
-            
-        # Based on the type of the last action, we may need to wait for ongoing actions to finish 
+
+        # Based on the type of the last action, we may need to wait for ongoing actions to finish
         # before considering this set of actions complete.
         await self._maybe_wait_for_ongoing_actions_to_finish(previous_action_type, None)
 
@@ -245,9 +245,9 @@ class ActionManager:
         elif previous_action_type == "end_conversation":
             # "end_conversation" enqueues an EndFrame, which has an effect at the end of the
             # pipeline.
-            # This is a special case where we wait no matter what the upcoming action is, even if we
-            # strictly don't need to, because we know the conversation will stop.
-            needs_wait = True
+            # We don't wait here because we can't really detect when it's done (the pipeline never
+            # delivers the ActionFinishedFrame for it). If we waited, we'd end up waiting forever.
+            pass
         elif previous_action_type == "function":
             # "function" enqueues a FunctionActionFrame, which has an effect at the end of the
             # pipeline.
@@ -313,8 +313,8 @@ class ActionManager:
             await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
         await self.task.queue_frame(EndFrame())
 
-        # Queue a frame marking the end of the action
-        await self.task.queue_frame(ActionFinishedFrame())
+        # NOTE: there's no point queueing an ActionFinishedFrame here, since the previously-queued
+        # EndFrame ensures that it'll never get delivered to our observer
 
     async def _handle_function_action(self, action: dict) -> None:
         """Built-in handler for queuing functions to run "inline" in the pipeline (i.e. when the pipeline is done with all the work queued before it).
