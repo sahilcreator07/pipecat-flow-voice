@@ -238,15 +238,18 @@ class ActionManager:
             # - "tts_say": no need to wait (effect happens at the same point)
             # - "end_conversation": no need to wait (effect happens at the end of the pipeline)
             # - "function": no need to wait (effect happens at the end of the pipeline)
-            #  - None: no need to wait (we're finished with the current set of actions)
+            #  - None: wait (we're done with this set of actions; the next thing to occur may be a
+            #    node change/LLM context update, which has an effect earlier in the pipeline)
             # - custom action: wait (we don't know what it will do)
-            if upcoming_action_type not in ["tts_say", "end_conversation", "function", None]:
-                needs_wait = True
+            if upcoming_action_type not in ["tts_say", "end_conversation", "function"]:
+                needs_wait = True  # None or custom action
         elif previous_action_type == "end_conversation":
             # "end_conversation" enqueues an EndFrame, which has an effect at the end of the
             # pipeline.
-            # We don't wait here because we can't really detect when it's done (the pipeline never
-            # delivers the ActionFinishedFrame for it). If we waited, we'd end up waiting forever.
+            # Although we *should* wait here (we don't want other actions to sneak ahead of
+            # "end_conversation"), we don't, because we can't really detect when it's done (the
+            # stopped pipeline never delivers the ActionFinishedFrame). If we waited, we'd end up
+            # waiting forever.
             pass
         elif previous_action_type == "function":
             # "function" enqueues a FunctionActionFrame, which has an effect at the end of the
