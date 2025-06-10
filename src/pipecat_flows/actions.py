@@ -150,6 +150,7 @@ class ActionManager:
             if not handler:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
+            ongoing_actions_count = self._ongoing_actions_count
             try:
                 # Based on the type of the previous action and the one coming up, we can determine
                 # if we need to wait for ongoing actions to finish before proceeding with this next
@@ -191,6 +192,9 @@ class ActionManager:
                 previous_action_type = action_type
                 logger.debug(f"Successfully executed action: {action_type}")
             except Exception as e:
+                # Undo any increment of ongoing actions count that happened during this action
+                if self._ongoing_actions_count > ongoing_actions_count:
+                    self._decrement_ongoing_actions_count()  # Assumption: on increment per action
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
 
         # Based on the type of the last action, we may need to wait for ongoing actions to finish
@@ -296,6 +300,7 @@ class ActionManager:
             # Queue a frame marking the end of the action
             await self.task.queue_frame(ActionFinishedFrame())
         except Exception as e:
+            self._decrement_ongoing_actions_count()
             logger.error(f"TTS error: {e}")
 
     async def _handle_end_action(self, action: dict) -> None:

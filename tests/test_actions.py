@@ -62,9 +62,26 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         - ActionManager instance with mocked dependencies
         """
         self.mock_task = AsyncMock()
-        self.mock_task.queue_frame = AsyncMock()
+
+        async def queue_frame(frame):
+            # Call the on_frame_reached_downstream handler if it exists
+            handler = getattr(self.mock_task, "on_frame_reached_downstream", None)
+            if handler:
+                await handler(self.mock_task, frame)
+
+        self.mock_task.queue_frame = AsyncMock(side_effect=queue_frame)
         self.mock_task.event_handler = Mock()
         self.mock_task.set_reached_downstream_filter = Mock()
+
+        # Patch the @task.event_handler decorator to register the handler function as an attribute
+        def mock_event_handler(event_name):
+            def decorator(func):
+                setattr(self.mock_task, event_name, func)
+                return func
+
+            return decorator
+
+        self.mock_task.event_handler = mock_event_handler
 
         self.mock_tts = AsyncMock()
         self.mock_tts.say = AsyncMock()
@@ -177,7 +194,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
     async def test_action_error_handling(self, mock_logger):
         """Test error handling during action execution."""
         # Configure task mock to raise an error
-        self.mock_task.queue_frame.side_effect = Exception("Frame error")
+        self.mock_task.queue_frame = AsyncMock(side_effect=Exception("Frame error"))
 
         action = {"type": "tts_say", "text": "Hello"}
         await self.action_manager.execute_actions([action])
