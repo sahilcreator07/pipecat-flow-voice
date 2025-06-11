@@ -68,7 +68,7 @@ class ActionManager:
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, flow_manager: "FlowManager", tts=None):
+    def __init__(self, task: PipelineTask, flow_manager: "FlowManager"):
         """Initialize the action manager.
 
         Args:
@@ -79,7 +79,6 @@ class ActionManager:
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
         self._flow_manager = flow_manager
-        self.tts = tts
         self._ongoing_actions_count = 0
         self._ongoing_actions_finished_event = asyncio.Event()
         self._deferred_post_actions: List[ActionConfig] = []
@@ -281,10 +280,6 @@ class ActionManager:
         Args:
             action: Action configuration containing 'text' to speak
         """
-        if not self.tts:
-            logger.warning("TTS action called but no TTS service provided")
-            return
-
         text = action.get("text")
         if not text:
             logger.error("TTS action missing 'text' field")

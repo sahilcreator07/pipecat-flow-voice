@@ -26,6 +26,7 @@ The flow manager coordinates all aspects of a conversation, including:
 import asyncio
 import inspect
 import sys
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from loguru import logger
@@ -106,11 +107,20 @@ class FlowManager:
 
         Raises:
             ValueError: If any transition handler is not a valid async callable
+
+        Deprecated:
+            0.0.18: The `tts` parameter is deprecated and will be removed in a future version.
         """
+        if tts is not None:
+            warnings.warn(
+                "The 'tts' parameter is deprecated and will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.task = task
         self.llm = llm
-        self.tts = tts
-        self.action_manager = ActionManager(task, flow_manager=self, tts=tts)
+        self.action_manager = ActionManager(task, flow_manager=self)
         self.adapter = create_adapter(llm)
         self.initialized = False
         self._context_aggregator = context_aggregator

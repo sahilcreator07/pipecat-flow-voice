@@ -20,13 +20,12 @@ include mocked dependencies for PipelineTask, LLM services, and TTS.
 
 import unittest
 from typing import Dict
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from pipecat.frames.frames import (
     LLMMessagesAppendFrame,
     LLMMessagesUpdateFrame,
     LLMSetToolsFrame,
-    TTSSpeakFrame,
 )
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
@@ -54,7 +53,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         self.mock_task = make_mock_task()
         self.mock_llm = OpenAILLMService(api_key="")
         self.mock_llm.register_function = MagicMock()
-        self.mock_tts = AsyncMock()
 
         # Create mock context aggregator
         self.mock_context_aggregator = MagicMock()
@@ -98,7 +96,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -117,7 +114,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
 
         # Create test node with transition callback
@@ -151,7 +147,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -193,7 +188,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -357,7 +351,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -607,7 +600,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
