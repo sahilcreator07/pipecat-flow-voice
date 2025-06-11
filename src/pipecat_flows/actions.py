@@ -190,6 +190,12 @@ class ActionManager:
                 # Record the type of the action we just executed
                 previous_action_type = action_type
                 logger.debug(f"Successfully executed action: {action_type}")
+
+                # If action was end_conversation, break
+                # (If we didn't, we could end up waiting for the next actions to finish, and...they
+                # never would)
+                if action_type == "end_conversation":
+                    break
             except Exception as e:
                 # Undo any increment of ongoing actions count that happened during this action
                 if self._ongoing_actions_count > ongoing_actions_count:
@@ -246,14 +252,6 @@ class ActionManager:
             # - custom action: wait (we don't know what it will do)
             if upcoming_action_type not in ["tts_say", "end_conversation", "function"]:
                 needs_wait = True  # None or custom action
-        elif previous_action_type == "end_conversation":
-            # "end_conversation" enqueues an EndFrame, which has an effect at the end of the
-            # pipeline.
-            # Although we *should* wait here (we don't want other actions to sneak ahead of
-            # "end_conversation"), we don't, because we can't really detect when it's done (the
-            # stopped pipeline never delivers the ActionFinishedFrame). If we waited, we'd end up
-            # waiting forever.
-            pass
         elif previous_action_type == "function":
             # "function" enqueues a FunctionActionFrame, which has an effect at the end of the
             # pipeline.
@@ -270,6 +268,8 @@ class ActionManager:
             #   tell us when the action is done. But let's hold off on doing that since we're
             #   de-emphasizing custom actions in favor of "function" actions, which should meet most
             #   needs.
+            # Note that it should not be possible for the previous action to be "end_conversation",
+            # since we stop processing actions after that one.
             pass
 
         if needs_wait:
