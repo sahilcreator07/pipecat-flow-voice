@@ -19,6 +19,7 @@ The tests use unittest.IsolatedAsyncioTestCase for async support and include
 mocked dependencies for PipelineTask.
 """
 
+import asyncio
 import unittest
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -96,6 +97,32 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
 
         # Verify EndFrame
         assert_end_frame_queued(self.mock_task)
+
+    async def test_function_actions(self):
+        """Test executing function actions."""
+        results = []
+
+        async def first_function(action, flow_manager):
+            results.append("first_start")
+            await asyncio.sleep(0.25)
+            results.append("first_end")
+
+        async def second_function(action, flow_manager):
+            results.append("second_start")
+            results.append("second_end")
+
+        actions = [
+            {"type": "function", "handler": first_function},
+            {"type": "function", "handler": second_function},
+        ]
+
+        await self.action_manager.execute_actions(actions)
+
+        # Validate the order
+        self.assertEqual(
+            results,
+            ["first_start", "first_end", "second_start", "second_end"],
+        )
 
     async def test_action_handler_signatures(self):
         """Test both legacy and modern action handler signatures."""
