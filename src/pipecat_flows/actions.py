@@ -264,11 +264,12 @@ class ActionManager:
         else:
             # Either previous action was:
             # - None (the upcoming action is the first one), so there's nothing to wait for.
-            # - A fully custom action, where we don't know if it enqueued a ActionFinishedFrame that
-            #   we could even wait for, so we assume it didn't (legacy behavior). The reason we
-            #   can't know here whether it enqueued an ActionFinishedFrame is that any pipeline
-            #   observer we might use to track that would not have been notified yet.
-            # In either case, we don't wait.
+            # - A fully custom action, where we don't wait, like we've always done. Note that we
+            #   could, in the future, add new API affordances for users to tell us to wait for the
+            #   the action to finish before moving on to the next one along with a way for them to
+            #   tell us when the action is done. But let's hold off on doing that since we're
+            #   de-emphasizing custom actions in favor of "function" actions, which should meet most
+            #   needs.
             pass
 
         if needs_wait:
