@@ -27,7 +27,11 @@ from pipecat.frames.frames import EndFrame, TTSSpeakFrame
 
 from pipecat_flows.actions import ActionManager
 from pipecat_flows.exceptions import ActionError
-from tests.test_helpers import assert_end_frame_queued, assert_tts_speak_frames_queued
+from tests.test_helpers import (
+    assert_end_frame_queued,
+    assert_tts_speak_frames_queued,
+    make_mock_task,
+)
 
 
 class TestActionManager(unittest.IsolatedAsyncioTestCase):
@@ -61,27 +65,7 @@ class TestActionManager(unittest.IsolatedAsyncioTestCase):
         - Mock TTS service for speech synthesis
         - ActionManager instance with mocked dependencies
         """
-        self.mock_task = AsyncMock()
-
-        async def queue_frame(frame):
-            # Call the on_frame_reached_downstream handler if it exists
-            handler = getattr(self.mock_task, "on_frame_reached_downstream", None)
-            if handler:
-                await handler(self.mock_task, frame)
-
-        self.mock_task.queue_frame = AsyncMock(side_effect=queue_frame)
-        self.mock_task.event_handler = Mock()
-        self.mock_task.set_reached_downstream_filter = Mock()
-
-        # Patch the @task.event_handler decorator to register the handler function as an attribute
-        def mock_event_handler(event_name):
-            def decorator(func):
-                setattr(self.mock_task, event_name, func)
-                return func
-
-            return decorator
-
-        self.mock_task.event_handler = mock_event_handler
+        self.mock_task = make_mock_task()
 
         self.mock_tts = AsyncMock()
         self.mock_tts.say = AsyncMock()

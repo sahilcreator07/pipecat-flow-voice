@@ -34,7 +34,7 @@ from pipecat.services.openai.llm import OpenAILLMService
 from pipecat_flows.exceptions import FlowError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
 from pipecat_flows.types import FlowArgs, FlowResult
-from tests.test_helpers import assert_tts_speak_frames_queued
+from tests.test_helpers import assert_tts_speak_frames_queued, make_mock_task
 
 
 class TestFlowManager(unittest.IsolatedAsyncioTestCase):
@@ -51,10 +51,7 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         """Set up test fixtures before each test."""
-        self.mock_task = AsyncMock()
-        self.mock_task.queue_frame = AsyncMock()
-        self.mock_task.event_handler = Mock()
-        self.mock_task.set_reached_downstream_filter = Mock()
+        self.mock_task = make_mock_task()
         self.mock_llm = OpenAILLMService(api_key="")
         self.mock_llm.register_function = MagicMock()
         self.mock_tts = AsyncMock()
