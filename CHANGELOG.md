@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   be removed in a future version. The `tts_say` action now pushes a
   `TTSSpeakFrame`.
 
+### Fixed
+
+- Overhauled `pre_actions` and `post_actions` timing logic, making their timing more predictable and
+  eliminating some bugs. For example, now `tts_say` actions will always run after the bot response,
+  when used in `post_actions`.
+
 ## [0.0.17] - 2025-05-16
 
 ### Added
