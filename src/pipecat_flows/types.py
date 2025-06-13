@@ -291,10 +291,22 @@ class FlowsDirectFunction:
     async def invoke(
         self, args: Mapping[str, Any], flow_manager: "FlowManager"
     ) -> ConsolidatedFunctionResult:
+        """
+        Invoke the direct function with the given arguments and flow manager.
+
+        Args:
+            args: Dictionary of arguments to pass to the function
+            flow_manager: Reference to the FlowManager instance
+
+        Returns:
+            ConsolidatedFunctionResult: Result of the function execution, which can include both a
+                FlowResult and the next node to transition to.
+        """
         return await self.function(flow_manager=flow_manager, **args)
 
     def to_function_schema(self) -> FunctionSchema:
-        """Convert to a standard FunctionSchema for use with LLMs.
+        """
+        Convert to a standard FunctionSchema for use with LLMs.
 
         Returns:
             FunctionSchema without flow-specific fields
@@ -331,6 +343,7 @@ class FlowsDirectFunction:
 
         Args:
             func: Function to get parameters from
+            docstring_params: List of parameters extracted from the function's docstring
 
         Returns:
             A tuple containing:
@@ -376,7 +389,7 @@ class FlowsDirectFunction:
         Convert a Python type hint to a JSON Schema.
 
         Args:
-            hint: A Python type hint
+            type_hint: A Python type hint
 
         Returns:
             A dictionary representing the JSON Schema
