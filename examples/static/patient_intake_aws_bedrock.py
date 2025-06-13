@@ -83,40 +83,55 @@ class VisitReasonRecordResult(FlowResult):
 
 
 # Function handlers
-async def verify_birthday(args: FlowArgs) -> BirthdayVerificationResult:
+async def verify_birthday(args: FlowArgs) -> tuple[BirthdayVerificationResult, str]:
     """Handler for birthday verification."""
     birthday = args["birthday"]
     # In a real app, this would verify against patient records
     is_valid = birthday == "1983-01-01"
-    return BirthdayVerificationResult(verified=is_valid)
+    return BirthdayVerificationResult(verified=is_valid), "get_prescriptions"
 
 
-async def record_prescriptions(args: FlowArgs) -> PrescriptionRecordResult:
+async def record_prescriptions(args: FlowArgs) -> tuple[PrescriptionRecordResult, str]:
     """Handler for recording prescriptions."""
     prescriptions: List[Prescription] = args["prescriptions"]
     # In a real app, this would store in patient records
-    return PrescriptionRecordResult(count=len(prescriptions))
+    return PrescriptionRecordResult(count=len(prescriptions)), "get_allergies"
 
 
-async def record_allergies(args: FlowArgs) -> AllergyRecordResult:
+async def record_allergies(args: FlowArgs) -> tuple[AllergyRecordResult, str]:
     """Handler for recording allergies."""
     allergies: List[Allergy] = args["allergies"]
     # In a real app, this would store in patient records
-    return AllergyRecordResult(count=len(allergies))
+    return AllergyRecordResult(count=len(allergies)), "get_conditions"
 
 
-async def record_conditions(args: FlowArgs) -> ConditionRecordResult:
+async def record_conditions(args: FlowArgs) -> tuple[ConditionRecordResult, str]:
     """Handler for recording medical conditions."""
     conditions: List[Condition] = args["conditions"]
     # In a real app, this would store in patient records
-    return ConditionRecordResult(count=len(conditions))
+    return ConditionRecordResult(count=len(conditions)), "get_visit_reasons"
 
 
-async def record_visit_reasons(args: FlowArgs) -> VisitReasonRecordResult:
+async def record_visit_reasons(args: FlowArgs) -> tuple[VisitReasonRecordResult, str]:
     """Handler for recording visit reasons."""
     visit_reasons: List[VisitReason] = args["visit_reasons"]
     # In a real app, this would store in patient records
-    return VisitReasonRecordResult(count=len(visit_reasons))
+    return VisitReasonRecordResult(count=len(visit_reasons)), "verify"
+
+
+async def revise_information(args: FlowArgs) -> tuple[None, str]:
+    """Handler to restart the information-gathering process."""
+    return None, "get_prescriptions"
+
+
+async def confirm_information(args: FlowArgs) -> tuple[None, str]:
+    """Handler to confirm all collected information."""
+    return None, "confirm"
+
+
+async def complete_intake(args: FlowArgs) -> tuple[None, str]:
+    """Handler to complete the intake process."""
+    return None, "end"
 
 
 # Define the flow configuration with FlowsFunctionSchema
@@ -148,7 +163,6 @@ flow_config: FlowConfig = {
                     },
                     required=["birthday"],
                     handler=verify_birthday,
-                    transition_to="get_prescriptions",
                 )
             ],
         },
@@ -185,7 +199,6 @@ flow_config: FlowConfig = {
                     },
                     required=["prescriptions"],
                     handler=record_prescriptions,
-                    transition_to="get_allergies",
                 )
             ],
         },
@@ -217,7 +230,6 @@ flow_config: FlowConfig = {
                     },
                     required=["allergies"],
                     handler=record_allergies,
-                    transition_to="get_conditions",
                 )
             ],
         },
@@ -249,7 +261,6 @@ flow_config: FlowConfig = {
                     },
                     required=["conditions"],
                     handler=record_conditions,
-                    transition_to="get_visit_reasons",
                 )
             ],
         },
@@ -281,7 +292,6 @@ flow_config: FlowConfig = {
                     },
                     required=["visit_reasons"],
                     handler=record_visit_reasons,
-                    transition_to="verify",
                 )
             ],
         },
@@ -311,14 +321,14 @@ Be thorough in reviewing all details and wait for explicit confirmation.""",
                     description="Return to prescriptions to revise information",
                     properties={},
                     required=[],
-                    transition_to="get_prescriptions",
+                    handler=revise_information,
                 ),
                 FlowsFunctionSchema(
                     name="confirm_information",
                     description="Proceed with confirmed information",
                     properties={},
                     required=[],
-                    transition_to="confirm",
+                    handler=confirm_information,
                 ),
             ],
         },
@@ -335,7 +345,7 @@ Be thorough in reviewing all details and wait for explicit confirmation.""",
                     description="Complete the intake process",
                     properties={},
                     required=[],
-                    transition_to="end",
+                    handler=complete_intake,
                 )
             ],
         },

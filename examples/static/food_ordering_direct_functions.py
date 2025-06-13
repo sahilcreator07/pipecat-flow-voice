@@ -84,54 +84,71 @@ class SushiOrderResult(FlowResult):
     price: float
 
 
-# Function handlers
+# Actions
 async def check_kitchen_status(action: dict) -> None:
     """Check if kitchen is open and log status."""
     logger.info("Checking kitchen status")
 
 
-async def select_pizza_order(args: FlowArgs) -> tuple[PizzaOrderResult, str]:
-    """Handle pizza size and type selection."""
-    size = args["size"]
-    pizza_type = args["type"]
+# Functions
+async def choose_pizza(flow_manager: FlowManager) -> tuple[None, str]:
+    """
+    User wants to order pizza. Let's get that order started.
+    """
+    return None, "choose_pizza"
 
+
+async def choose_sushi(flow_manager: FlowManager) -> tuple[None, str]:
+    """
+    User wants to order sushi. Let's get that order started.
+    """
+    return None, "choose_sushi"
+
+
+async def select_pizza_order(
+    flow_manager: FlowManager, size: str, pizza_type: str
+) -> tuple[PizzaOrderResult, str]:
+    """
+    Record the pizza order details.
+
+    Args:
+        size (str): Size of the pizza. Must be one of "small", "medium", or "large".
+        pizza_type (str): Type of pizza. Must be one of "pepperoni", "cheese", "supreme", or "vegetarian".
+    """
     # Simple pricing
     base_price = {"small": 10.00, "medium": 15.00, "large": 20.00}
     price = base_price[size]
 
-    result = {"size": size, "type": pizza_type, "price": price}
-    return result, "confirm"
+    return {"size": size, "type": pizza_type, "price": price}, "confirm"
 
 
-async def select_sushi_order(args: FlowArgs) -> tuple[SushiOrderResult, str]:
-    """Handle sushi roll count and type selection."""
-    count = args["count"]
-    roll_type = args["type"]
+async def select_sushi_order(
+    flow_manager: FlowManager, count: int, roll_type: str
+) -> tuple[SushiOrderResult, str]:
+    """
+    Record the sushi order details.
 
+    Args:
+        count (int): Number of sushi rolls to order. Must be between 1 and 10.
+        roll_type (str): Type of sushi roll. Must be one of "california", "spicy tuna", "rainbow", or "dragon".
+    """
     # Simple pricing: $8 per roll
     price = count * 8.00
 
-    result = {"count": count, "type": roll_type, "price": price}
-    return result, "confirm"
+    return {"count": count, "type": roll_type, "price": price}, "confirm"
 
 
-async def choose_pizza() -> tuple[None, str]:
-    """Transition to pizza order selection."""
-    return None, "choose_pizza"
-
-
-async def choose_sushi() -> tuple[None, str]:
-    """Transition to sushi order selection."""
-    return None, "choose_sushi"
-
-
-async def complete_order() -> tuple[None, str]:
-    """Transition to end state."""
+async def complete_order(flow_manager: FlowManager) -> tuple[None, str]:
+    """
+    User confirms the order is correct.
+    """
     return None, "end"
 
 
-async def revise_order() -> tuple[None, str]:
-    """Transition to start for order revision."""
+async def revise_order(flow_manager: FlowManager) -> tuple[None, str]:
+    """
+    User wants to make changes to their order.
+    """
     return None, "start"
 
 
@@ -157,26 +174,7 @@ flow_config: FlowConfig = {
                     "handler": check_kitchen_status,
                 },
             ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "choose_pizza",
-                        "handler": choose_pizza,
-                        "description": "User wants to order pizza. Let's get that order started.",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "choose_sushi",
-                        "handler": choose_sushi,
-                        "description": "User wants to order sushi. Let's get that order started.",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-            ],
+            "functions": [choose_pizza, choose_sushi],
         },
         "choose_pizza": {
             "task_messages": [
@@ -193,32 +191,7 @@ Pricing:
 Remember to be friendly and casual.""",
                 }
             ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "select_pizza_order",
-                        "handler": select_pizza_order,
-                        "description": "Record the pizza order details",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "size": {
-                                    "type": "string",
-                                    "enum": ["small", "medium", "large"],
-                                    "description": "Size of the pizza",
-                                },
-                                "type": {
-                                    "type": "string",
-                                    "enum": ["pepperoni", "cheese", "supreme", "vegetarian"],
-                                    "description": "Type of pizza",
-                                },
-                            },
-                            "required": ["size", "type"],
-                        },
-                    },
-                },
-            ],
+            "functions": [select_pizza_order],
         },
         "choose_sushi": {
             "task_messages": [
@@ -233,33 +206,7 @@ Pricing:
 Remember to be friendly and casual.""",
                 }
             ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "select_sushi_order",
-                        "handler": select_sushi_order,
-                        "description": "Record the sushi order details",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 10,
-                                    "description": "Number of rolls to order",
-                                },
-                                "type": {
-                                    "type": "string",
-                                    "enum": ["california", "spicy tuna", "rainbow", "dragon"],
-                                    "description": "Type of sushi roll",
-                                },
-                            },
-                            "required": ["count", "type"],
-                        },
-                    },
-                },
-            ],
+            "functions": [select_sushi_order],
         },
         "confirm": {
             "task_messages": [
@@ -272,26 +219,7 @@ Remember to be friendly and casual.""",
 Be friendly and clear when reading back the order details.""",
                 }
             ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "complete_order",
-                        "handler": complete_order,
-                        "description": "User confirms the order is correct",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "revise_order",
-                        "handler": revise_order,
-                        "description": "User wants to make changes to their order",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-            ],
+            "functions": [complete_order, revise_order],
         },
         "end": {
             "task_messages": [
@@ -300,6 +228,7 @@ Be friendly and clear when reading back the order details.""",
                     "content": "Thank the user for their order and end the conversation politely and concisely.",
                 }
             ],
+            "functions": [],
             "post_actions": [{"type": "end_conversation"}],
         },
     },
@@ -353,6 +282,7 @@ async def main():
             task=task,
             llm=llm,
             context_aggregator=context_aggregator,
+            tts=tts,
             flow_config=flow_config,
         )
 
