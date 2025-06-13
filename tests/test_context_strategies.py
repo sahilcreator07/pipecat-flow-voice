@@ -215,7 +215,7 @@ class TestContextStrategies(unittest.IsolatedAsyncioTestCase):
         # Test Gemini format
         flow_manager = FlowManager(
             task=self.mock_task,
-            llm=GoogleLLMService(api_key=" "), # dummy key (GoogleLLMService rejects empty string)
+            llm=GoogleLLMService(api_key=" "),  # dummy key (GoogleLLMService rejects empty string)
             context_aggregator=self.mock_context_aggregator,
         )
         gemini_message = flow_manager.adapter.format_summary_message(summary)
