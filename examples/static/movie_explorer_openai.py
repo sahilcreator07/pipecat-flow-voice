@@ -241,9 +241,8 @@ tmdb_api = TMDBApi(TMDB_API_KEY)
 
 
 # Function handlers for the LLM
-# These are node functions that perform operations without changing conversation state
-async def get_movies() -> Union[MoviesResult, ErrorResult]:
-    """Handler for fetching current movies."""
+async def _get_movies() -> Union[MoviesResult, ErrorResult]:
+    """Helper for fetching current movies."""
     logger.debug("Calling TMDB API: get_movies")
     async with aiohttp.ClientSession() as session:
         try:
@@ -255,8 +254,21 @@ async def get_movies() -> Union[MoviesResult, ErrorResult]:
             return ErrorResult(status="error", error="Failed to fetch movies")
 
 
-async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
-    """Handler for fetching upcoming movies."""
+async def get_movies_then_explore() -> tuple[Union[MoviesResult, ErrorResult], str]:
+    """Handler for fetching currenting movies then transitioning to the explore node if there are no errors."""
+    result = await _get_movies()
+    if result.get("status") == "error":
+        return result, None
+    return result, "explore_movie"
+
+
+async def get_movies() -> tuple[Union[MoviesResult, ErrorResult], None]:
+    """Handler to fetching current movies."""
+    return (await _get_movies(), None)
+
+
+async def _get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Helper for fetching upcoming movies."""
     logger.debug("Calling TMDB API: get_upcoming_movies")
     async with aiohttp.ClientSession() as session:
         try:
@@ -268,7 +280,20 @@ async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
             return ErrorResult(status="error", error="Failed to fetch upcoming movies")
 
 
-async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
+async def get_upcoming_movies_then_explore() -> tuple[Union[MoviesResult, ErrorResult], str]:
+    """Handler for fetching upcoming movies and transitioning to the explore node."""
+    result = await _get_upcoming_movies()
+    if result.get("status") == "error":
+        return result, None
+    return result, "explore_movie"
+
+
+async def get_upcoming_movies() -> tuple[Union[MoviesResult, ErrorResult], None]:
+    """Handler for fetching upcoming movies."""
+    return (await _get_upcoming_movies(), None)
+
+
+async def get_movie_details(args: FlowArgs) -> tuple[Union[MovieDetailsResult, ErrorResult], None]:
     """Handler for fetching movie details including cast."""
     movie_id = args["movie_id"]
     logger.debug(f"Calling TMDB API: get_movie_details for ID {movie_id}")
@@ -276,15 +301,18 @@ async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorRe
         try:
             details = await tmdb_api.fetch_movie_details(session, movie_id)
             logger.debug(f"TMDB API Response: {details}")
-            return MovieDetailsResult(**details)
+            result = MovieDetailsResult(**details)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(
+            result = ErrorResult(
                 status="error", error=f"Failed to fetch details for movie {movie_id}"
             )
+        return result, None
 
 
-async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
+async def get_similar_movies(
+    args: FlowArgs,
+) -> tuple[Union[SimilarMoviesResult, ErrorResult], None]:
     """Handler for fetching similar movies."""
     movie_id = args["movie_id"]
     logger.debug(f"Calling TMDB API: get_similar_movies for ID {movie_id}")
@@ -292,12 +320,18 @@ async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, Error
         try:
             similar = await tmdb_api.fetch_similar_movies(session, movie_id)
             logger.debug(f"TMDB API Response: {similar}")
-            return SimilarMoviesResult(movies=similar)
+            result = SimilarMoviesResult(movies=similar)
         except Exception as e:
             logger.error(f"TMDB API Error: {e}")
-            return ErrorResult(
+            result = ErrorResult(
                 status="error", error=f"Failed to fetch similar movies for {movie_id}"
             )
+        return result, None
+
+
+async def end_conversation() -> tuple[None, str]:
+    """Handler to end the conversation."""
+    return None, "end"
 
 
 # Flow configuration
@@ -314,28 +348,26 @@ flow_config: FlowConfig = {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
+                    "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies_then_explore or get_upcoming_movies_then_explore.",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "get_current_movies",
-                        "handler": get_movies,
+                        "name": "get_current_movies_then_explore",
+                        "handler": get_movies_then_explore,
                         "description": "Fetch movies currently playing in theaters",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "explore_movie",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
-                        "name": "get_upcoming_movies",
-                        "handler": get_upcoming_movies,
+                        "name": "get_upcoming_movies_then_explore",
+                        "handler": get_upcoming_movies_then_explore,
                         "description": "Fetch movies coming soon to theaters",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "explore_movie",
                     },
                 },
             ],
@@ -407,9 +439,9 @@ After showing details or recommendations, ask if they'd like to explore another 
                     "type": "function",
                     "function": {
                         "name": "end_conversation",
+                        "handler": end_conversation,
                         "description": "End the conversation",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "end",
                     },
                 },
             ],

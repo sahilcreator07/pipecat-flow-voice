@@ -95,26 +95,51 @@ class ActivitiesResult(FlowResult):
 
 
 # Function handlers
-async def select_destination(args: FlowArgs) -> DestinationResult:
+async def select_destination(args: FlowArgs) -> tuple[DestinationResult, str]:
     """Handler for destination selection."""
     destination = args["destination"]
     # In a real app, this would store the selection
-    return DestinationResult(destination=destination)
+    return DestinationResult(destination=destination), "get_dates"
 
 
-async def record_dates(args: FlowArgs) -> DatesResult:
+async def record_dates(args: FlowArgs) -> tuple[DatesResult, str]:
     """Handler for travel date recording."""
     check_in = args["check_in"]
     check_out = args["check_out"]
     # In a real app, this would validate and store the dates
-    return DatesResult(check_in=check_in, check_out=check_out)
+    return DatesResult(check_in=check_in, check_out=check_out), "get_activities"
 
 
-async def record_activities(args: FlowArgs) -> ActivitiesResult:
+async def record_activities(args: FlowArgs) -> tuple[ActivitiesResult, str]:
     """Handler for activity selection."""
     activities = args["activities"]
     # In a real app, this would validate and store the activities
-    return ActivitiesResult(activities=activities)
+    return ActivitiesResult(activities=activities), "verify_itinerary"
+
+
+async def choose_beach(args: FlowArgs) -> tuple[None, str]:
+    """Handler for choosing a beach vacation."""
+    return None, "choose_beach"
+
+
+async def choose_mountain(args: FlowArgs) -> tuple[None, str]:
+    """Handler for choosing a mountain retreat."""
+    return None, "choose_mountain"
+
+
+async def revise_plan(args: FlowArgs) -> tuple[None, str]:
+    """Handler to revise the vacation plan."""
+    return None, "get_dates"
+
+
+async def confirm_booking(args: FlowArgs) -> tuple[None, str]:
+    """Handler to confirm the vacation booking."""
+    return None, "confirm_booking"
+
+
+async def end(args: FlowArgs) -> tuple[None, str]:
+    """Handler to end the conversation."""
+    return None, "end"
 
 
 flow_config: FlowConfig = {
@@ -138,18 +163,18 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "choose_beach",
+                        "handler": choose_beach,
                         "description": "User wants to plan a beach vacation",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "choose_beach",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
                         "name": "choose_mountain",
+                        "handler": choose_mountain,
                         "description": "User wants to plan a mountain retreat",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "choose_mountain",
                     },
                 },
             ],
@@ -179,7 +204,6 @@ flow_config: FlowConfig = {
                             },
                             "required": ["destination"],
                         },
-                        "transition_to": "get_dates",
                     },
                 },
             ],
@@ -209,7 +233,6 @@ flow_config: FlowConfig = {
                             },
                             "required": ["destination"],
                         },
-                        "transition_to": "get_dates",
                     },
                 },
             ],
@@ -244,7 +267,6 @@ flow_config: FlowConfig = {
                             },
                             "required": ["check_in", "check_out"],
                         },
-                        "transition_to": "get_activities",
                     },
                 },
             ],
@@ -276,7 +298,6 @@ flow_config: FlowConfig = {
                             },
                             "required": ["activities"],
                         },
-                        "transition_to": "verify_itinerary",
                     },
                 },
             ],
@@ -293,18 +314,18 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "revise_plan",
+                        "handler": revise_plan,
                         "description": "Return to date selection to revise the plan",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "get_dates",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
                         "name": "confirm_booking",
+                        "handler": confirm_booking,
                         "description": "Confirm the booking and proceed to end",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "confirm_booking",
                     },
                 },
             ],
@@ -313,7 +334,7 @@ flow_config: FlowConfig = {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "The booking is confirmed. Share some relevant tips about their chosen destination, thank them warmly, and use end to complete the conversation.",
+                    "content": "The booking is confirmed. Share some relevant tips about their chosen destination, thank them warmly, and then invoke the 'end' function to complete the conversation.",
                 }
             ],
             "functions": [
@@ -321,9 +342,9 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "end",
+                        "handler": end,
                         "description": "End the conversation",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "end",
                     },
                 }
             ],

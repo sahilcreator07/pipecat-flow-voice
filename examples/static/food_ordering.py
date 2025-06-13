@@ -90,7 +90,7 @@ async def check_kitchen_status(action: dict) -> None:
     logger.info("Checking kitchen status")
 
 
-async def select_pizza_order(args: FlowArgs) -> PizzaOrderResult:
+async def select_pizza_order(args: FlowArgs) -> tuple[PizzaOrderResult, str]:
     """Handle pizza size and type selection."""
     size = args["size"]
     pizza_type = args["type"]
@@ -99,10 +99,11 @@ async def select_pizza_order(args: FlowArgs) -> PizzaOrderResult:
     base_price = {"small": 10.00, "medium": 15.00, "large": 20.00}
     price = base_price[size]
 
-    return {"size": size, "type": pizza_type, "price": price}
+    result = {"size": size, "type": pizza_type, "price": price}
+    return result, "confirm"
 
 
-async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
+async def select_sushi_order(args: FlowArgs) -> tuple[SushiOrderResult, str]:
     """Handle sushi roll count and type selection."""
     count = args["count"]
     roll_type = args["type"]
@@ -110,7 +111,28 @@ async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
     # Simple pricing: $8 per roll
     price = count * 8.00
 
-    return {"count": count, "type": roll_type, "price": price}
+    result = {"count": count, "type": roll_type, "price": price}
+    return result, "confirm"
+
+
+async def choose_pizza() -> tuple[None, str]:
+    """Transition to pizza order selection."""
+    return None, "choose_pizza"
+
+
+async def choose_sushi() -> tuple[None, str]:
+    """Transition to sushi order selection."""
+    return None, "choose_sushi"
+
+
+async def complete_order() -> tuple[None, str]:
+    """Transition to end state."""
+    return None, "end"
+
+
+async def revise_order() -> tuple[None, str]:
+    """Transition to start for order revision."""
+    return None, "start"
 
 
 flow_config: FlowConfig = {
@@ -140,18 +162,18 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "choose_pizza",
+                        "handler": choose_pizza,
                         "description": "User wants to order pizza. Let's get that order started.",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "choose_pizza",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
                         "name": "choose_sushi",
+                        "handler": choose_sushi,
                         "description": "User wants to order sushi. Let's get that order started.",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "choose_sushi",
                     },
                 },
             ],
@@ -194,7 +216,6 @@ Remember to be friendly and casual.""",
                             },
                             "required": ["size", "type"],
                         },
-                        "transition_to": "confirm",
                     },
                 },
             ],
@@ -236,7 +257,6 @@ Remember to be friendly and casual.""",
                             },
                             "required": ["count", "type"],
                         },
-                        "transition_to": "confirm",
                     },
                 },
             ],
@@ -257,18 +277,18 @@ Be friendly and clear when reading back the order details.""",
                     "type": "function",
                     "function": {
                         "name": "complete_order",
+                        "handler": complete_order,
                         "description": "User confirms the order is correct",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "end",
                     },
                 },
                 {
                     "type": "function",
                     "function": {
                         "name": "revise_order",
+                        "handler": revise_order,
                         "description": "User wants to make changes to their order",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "start",
                     },
                 },
             ],
