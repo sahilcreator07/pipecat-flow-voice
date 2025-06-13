@@ -80,7 +80,6 @@ flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
-    tts=tts,
     flow_config=flow_config,
 )
 
@@ -318,7 +317,6 @@ flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
-    tts=tts,
     flow_config=flow_config,
 )
 await flow_manager.initialize()
@@ -381,7 +379,6 @@ flow_manager = FlowManager(
     task=task,
     llm=llm,
     context_aggregator=context_aggregator,
-    tts=tts,
 )
 await flow_manager.initialize()
 

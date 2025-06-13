@@ -20,15 +20,20 @@ include mocked dependencies for PipelineTask, LLM services, and TTS.
 
 import unittest
 from typing import Dict
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from pipecat.frames.frames import LLMMessagesAppendFrame, LLMMessagesUpdateFrame, LLMSetToolsFrame
+from pipecat.frames.frames import (
+    LLMMessagesAppendFrame,
+    LLMMessagesUpdateFrame,
+    LLMSetToolsFrame,
+)
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
 
 from pipecat_flows.exceptions import FlowError, FlowTransitionError
 from pipecat_flows.manager import FlowConfig, FlowManager, NodeConfig
 from pipecat_flows.types import FlowArgs, FlowResult
+from tests.test_helpers import assert_tts_speak_frames_queued, make_mock_task
 
 
 class TestFlowManager(unittest.IsolatedAsyncioTestCase):
@@ -45,12 +50,9 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         """Set up test fixtures before each test."""
-        self.mock_task = AsyncMock()
-        self.mock_task.event_handler = Mock()
-        self.mock_task.set_reached_downstream_filter = Mock()
+        self.mock_task = make_mock_task()
         self.mock_llm = OpenAILLMService(api_key="")
         self.mock_llm.register_function = MagicMock()
-        self.mock_tts = AsyncMock()
 
         # Create mock context aggregator
         self.mock_context_aggregator = MagicMock()
@@ -94,7 +96,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -113,7 +114,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
 
         # Create test node with transition callback
@@ -147,7 +147,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
             flow_config=FlowConfig(**self.static_flow_config),
         )
 
@@ -189,7 +188,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -353,7 +351,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 
@@ -367,15 +364,12 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
         }
 
         # Reset mock to clear initialization calls
-        self.mock_tts.say.reset_mock()
+        self.mock_task.queue_frame.reset_mock()
 
         # Set node with actions
         await flow_manager.set_node("test", node_with_actions)
 
-        # Verify TTS was called for both actions
-        self.assertEqual(self.mock_tts.say.call_count, 2)
-        self.mock_tts.say.assert_any_call("Pre action")
-        self.mock_tts.say.assert_any_call("Post action")
+        assert_tts_speak_frames_queued(self.mock_task, ["Pre action", "Post action"])
 
     async def test_error_handling(self):
         """Test error handling in flow manager.
@@ -606,7 +600,6 @@ class TestFlowManager(unittest.IsolatedAsyncioTestCase):
             task=self.mock_task,
             llm=self.mock_llm,
             context_aggregator=self.mock_context_aggregator,
-            tts=self.mock_tts,
         )
         await flow_manager.initialize()
 

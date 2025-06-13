@@ -31,9 +31,11 @@ from pipecat.frames.frames import (
     BotStoppedSpeakingFrame,
     ControlFrame,
     EndFrame,
+    Frame,
     TTSSpeakFrame,
 )
-from pipecat.pipeline.task import PipelineTask
+from pipecat.observers.base_observer import BaseObserver, FramePushed
+from pipecat.pipeline.task import PipelineTask, PipelineTaskSource
 
 from .exceptions import ActionError
 from .types import ActionConfig, FlowActionHandler
@@ -43,6 +45,11 @@ from .types import ActionConfig, FlowActionHandler
 class FunctionActionFrame(ControlFrame):
     action: dict
     function: FlowActionHandler
+
+
+@dataclass
+class ActionFinishedFrame(ControlFrame):
+    pass
 
 
 class ActionManager:
@@ -61,7 +68,7 @@ class ActionManager:
     Custom actions can be registered using register_action().
     """
 
-    def __init__(self, task: PipelineTask, flow_manager: "FlowManager", tts=None):
+    def __init__(self, task: PipelineTask, flow_manager: "FlowManager"):
         """Initialize the action manager.
 
         Args:
@@ -72,8 +79,8 @@ class ActionManager:
         self.action_handlers: Dict[str, Callable] = {}
         self.task = task
         self._flow_manager = flow_manager
-        self.tts = tts
-        self.function_finished_event = asyncio.Event()
+        self._ongoing_actions_count = 0
+        self._ongoing_actions_finished_event = asyncio.Event()
         self._deferred_post_actions: List[ActionConfig] = []
 
         # Register built-in actions
@@ -81,16 +88,26 @@ class ActionManager:
         self._register_action("end_conversation", self._handle_end_action)
         self._register_action("function", self._handle_function_action)
 
-        # Wire up function actions
-        task.set_reached_downstream_filter((FunctionActionFrame, BotStoppedSpeakingFrame))
+        # Add pipeline observation
+        task.set_reached_downstream_filter(
+            (ActionFinishedFrame, FunctionActionFrame, BotStoppedSpeakingFrame)
+        )
 
         @task.event_handler("on_frame_reached_downstream")
         async def on_frame_reached_downstream(task, frame):
             if isinstance(frame, FunctionActionFrame):
+                # Run function action
                 await frame.function(frame.action, flow_manager)
-                self.function_finished_event.set()
+                self._decrement_ongoing_actions_count()
             elif isinstance(frame, BotStoppedSpeakingFrame):
-                await self._execute_deferred_post_actions()
+                # Execute deferred post-actions if the bot's turn is over.
+                # A BotStoppedSpeakingFrame only indicates that the bot's turn is over if there are
+                # no ongoing actions (otherwise one of those actions may have been responsible for it).
+                if self._ongoing_actions_count == 0:
+                    await self._execute_deferred_post_actions()
+            elif isinstance(frame, ActionFinishedFrame):
+                # Handle action finished
+                self._decrement_ongoing_actions_count()
 
     def _register_action(self, action_type: str, handler: Callable) -> None:
         """Register a handler for a specific action type.
@@ -122,6 +139,7 @@ class ActionManager:
         if not actions:
             return
 
+        previous_action_type = None
         for action in actions:
             action_type = action.get("type")
             if not action_type:
@@ -131,7 +149,15 @@ class ActionManager:
             if not handler:
                 raise ActionError(f"No handler registered for action type: {action_type}")
 
+            ongoing_actions_count = self._ongoing_actions_count
             try:
+                # Based on the type of the previous action and the one coming up, we can determine
+                # if we need to wait for ongoing actions to finish before proceeding with this next
+                # one
+                await self._maybe_wait_for_ongoing_actions_to_finish(
+                    previous_action_type, action_type
+                )
+
                 # Determine if handler can accept flow_manager argument by inspecting its signature
                 # Handlers can either take (action) or (action, flow_manager)
                 try:
@@ -160,9 +186,25 @@ class ActionManager:
                         await handler(action)
                     else:
                         handler(action)
+
+                # Record the type of the action we just executed
+                previous_action_type = action_type
                 logger.debug(f"Successfully executed action: {action_type}")
+
+                # If action was end_conversation, break
+                # (If we didn't, we could end up waiting for the next actions to finish, and...they
+                # never would)
+                if action_type == "end_conversation":
+                    break
             except Exception as e:
+                # Undo any increment of ongoing actions count that happened during this action
+                if self._ongoing_actions_count > ongoing_actions_count:
+                    self._decrement_ongoing_actions_count()  # Assumption: on increment per action
                 raise ActionError(f"Failed to execute action {action_type}: {str(e)}") from e
+
+        # Based on the type of the last action, we may need to wait for ongoing actions to finish
+        # before considering this set of actions complete.
+        await self._maybe_wait_for_ongoing_actions_to_finish(previous_action_type, None)
 
     def schedule_deferred_post_actions(self, post_actions: List[ActionConfig]) -> None:
         """Schedule "deferred" post-actions to be executed after next LLM completion.
@@ -183,26 +225,78 @@ class ActionManager:
         if actions:
             await self.execute_actions(actions)
 
+    async def _maybe_wait_for_ongoing_actions_to_finish(
+        self, previous_action_type: str, upcoming_action_type: Optional[str]
+    ) -> None:
+        """Wait for ongoing actions to finish before executing the next action or moving on from
+        this set of actions, if needed.
+
+        This method makes the determination of whether to wait based on the types of the previous
+        and upcoming actions.
+
+        What it's trying to avoid is the upcoming action having an effect before the previous one is
+        done.
+        """
+        needs_wait = False
+        if previous_action_type == "tts_say":
+            # "tts_say" enqueues a TTSSpeakFrame, which has an effect when it hits the TTS node in
+            # the pipeline.
+            # As long as the upcoming action enqueues a frame with an effect at the same point or
+            # later in the pipeline, we don't need to wait.
+            # If the upcoming action is:
+            # - "tts_say": no need to wait (effect happens at the same point)
+            # - "end_conversation": no need to wait (effect happens at the end of the pipeline)
+            # - "function": no need to wait (effect happens at the end of the pipeline)
+            #  - None: wait (we're done with this set of actions; the next thing to occur may be a
+            #    node change/LLM context update, which has an effect earlier in the pipeline)
+            # - custom action: wait (we don't know what it will do)
+            if upcoming_action_type not in ["tts_say", "end_conversation", "function"]:
+                needs_wait = True  # None or custom action
+        elif previous_action_type == "function":
+            # "function" enqueues a FunctionActionFrame, which has an effect at the end of the
+            # pipeline.
+            # Functions can take some time to execute (and don't hold up the pipeline as they're
+            # doing so), so we need to wait for them to finish before proceeding with the next
+            # action or moving on from the current set of actions.
+            needs_wait = True
+        else:
+            # Either previous action was:
+            # - None (the upcoming action is the first one), so there's nothing to wait for.
+            # - A fully custom action, where we don't wait, like we've always done. Note that we
+            #   could, in the future, add new API affordances for users to tell us to wait for the
+            #   the action to finish before moving on to the next one along with a way for them to
+            #   tell us when the action is done. But let's hold off on doing that since we're
+            #   de-emphasizing custom actions in favor of "function" actions, which should meet most
+            #   needs.
+            # Note that it should not be possible for the previous action to be "end_conversation",
+            # since we stop processing actions after that one.
+            pass
+
+        if needs_wait:
+            await self._ongoing_actions_finished_event.wait()
+
     async def _handle_tts_action(self, action: dict) -> None:
         """Built-in handler for TTS actions.
 
         Args:
             action: Action configuration containing 'text' to speak
         """
-        if not self.tts:
-            logger.warning("TTS action called but no TTS service provided")
-            return
-
         text = action.get("text")
         if not text:
             logger.error("TTS action missing 'text' field")
             return
 
         try:
-            await self.tts.say(text)
-            # TODO: Update to TTSSpeakFrame once Pipecat is fixed
-            # await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
+            # Mark that we're starting the action
+            self._increment_ongoing_actions_count()
+
+            # Queue the action frame
+            await self.task.queue_frame(TTSSpeakFrame(text=text))
+
+            # Queue a frame marking the end of the action
+            await self.task.queue_frame(ActionFinishedFrame())
         except Exception as e:
+            self._decrement_ongoing_actions_count()
             logger.error(f"TTS error: {e}")
 
     async def _handle_end_action(self, action: dict) -> None:
@@ -215,9 +309,16 @@ class ActionManager:
             action: Dictionary containing the action configuration.
                 Optional 'text' key for a goodbye message.
         """
+        # Mark that we're starting the action
+        self._increment_ongoing_actions_count()
+
+        # Queue the action frames
         if action.get("text"):  # Optional goodbye message
             await self.task.queue_frame(TTSSpeakFrame(text=action["text"]))
         await self.task.queue_frame(EndFrame())
+
+        # NOTE: there's no point queueing an ActionFinishedFrame here, since the previously-queued
+        # EndFrame ensures that it'll never get delivered to our observer
 
     async def _handle_function_action(self, action: dict) -> None:
         """Built-in handler for queuing functions to run "inline" in the pipeline (i.e. when the pipeline is done with all the work queued before it).
@@ -233,8 +334,25 @@ class ActionManager:
         if not handler:
             logger.error("Function action missing 'handler' field")
             return
-        # the reason we're queueing a frame here is to ensure it happens after bot turn is over in
-        # post_actions
+
+        # Mark that we're starting the action
+        self._increment_ongoing_actions_count()
+
+        # Queue the action frame (we're queueing rather than running it here to ensure it happens
+        # at the appropriate time in the pipeline, like when the bot's turn is over, for example).
         await self.task.queue_frame(FunctionActionFrame(action=action, function=handler))
-        await self.function_finished_event.wait()
-        self.function_finished_event.clear()
+
+        # NOTE: we do NOT queue an ActionFinishedFrame here; instead, we will decrement the ongoing
+        # actions count when the function has finished executing (the function may take some time)
+
+    def _increment_ongoing_actions_count(self) -> None:
+        """Increment the count of ongoing actions and reset the finished event if this is the first action."""
+        self._ongoing_actions_count += 1
+        if self._ongoing_actions_count == 1:
+            self._ongoing_actions_finished_event.clear()
+
+    def _decrement_ongoing_actions_count(self) -> None:
+        """Decrement the count of ongoing actions and set the finished event if this was the last action."""
+        self._ongoing_actions_count = max(0, self._ongoing_actions_count - 1)
+        if self._ongoing_actions_count == 0:
+            self._ongoing_actions_finished_event.set()
