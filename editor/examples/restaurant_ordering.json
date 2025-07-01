@@ -1,0 +1,163 @@
+{
+  "initial_node": "introduction",
+  "nodes": {
+    "introduction": {
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "Hello! I'm KitchenAssistant, your friendly restaurant ordering bot. What's your name?"
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "collect_name",
+            "description": "Collect the user's name",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string", "description": "User's name"}
+              },
+              "required": ["name"]
+            },
+            "transition_to": "menu"
+          }
+        }
+      ]
+    },
+    "menu": {
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "Thank you, {user_name}! Here's our menu. If you have any questions about ingredients, dietary options, or prices, just ask. What would you like to order?"
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_menu_query",
+            "description": "Handle menu, price, or dietary queries",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {"type": "string", "description": "User's question or request"},
+                "item_name": {"type": "string", "description": "Name of the menu item"},
+                "dietary": {"type": "string", "description": "Dietary preference (vegan, vegetarian, gluten-free)"}
+              },
+              "required": ["query"]
+            },
+            "transition_to": "menu"
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "add_order_item",
+            "description": "Add an item to the order",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "item_name": {"type": "string", "description": "Name of the menu item"},
+                "quantity": {"type": "integer", "description": "Quantity", "default": 1}
+              },
+              "required": ["item_name"]
+            },
+            "transition_to": "order"
+          }
+        }
+      ]
+    },
+    "order": {
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "I've added that to your order. Would you like to add anything else?"
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "add_order_item",
+            "description": "Add another item to the order",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "item_name": {"type": "string", "description": "Name of the menu item"},
+                "quantity": {"type": "integer", "description": "Quantity", "default": 1}
+              },
+              "required": ["item_name"]
+            },
+            "transition_to": "order"
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "finish_order",
+            "description": "Finish adding items and review the order",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            },
+            "transition_to": "summary"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "Here's your order: {order_items}. The total is ${total}. Would you like to confirm or add more items?"
+        }
+      ],
+      "functions": [
+        {
+          "type": "function",
+          "function": {
+            "name": "confirm_order",
+            "description": "Confirm and place the order",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            },
+            "transition_to": "end"
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "add_order_item",
+            "description": "Add another item to the order",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "item_name": {"type": "string", "description": "Name of the menu item"},
+                "quantity": {"type": "integer", "description": "Quantity", "default": 1}
+              },
+              "required": ["item_name"]
+            },
+            "transition_to": "order"
+          }
+        }
+      ]
+    },
+    "end": {
+      "task_messages": [
+        {
+          "role": "system",
+          "content": "Thank you for ordering with KitchenAssistant! Your food will be ready in about 20 minutes. We appreciate your order. Have a wonderful meal!"
+        }
+      ],
+      "functions": [],
+      "post_actions": [
+        {
+          "type": "end_conversation"
+        }
+      ]
+    }
+  }
+} 

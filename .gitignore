@@ -149,3 +149,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Ignore dynamic example folders
+examples/dynamic/food-ordering/
+examples/dynamic/hotel-booking/
+
