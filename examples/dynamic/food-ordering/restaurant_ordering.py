@@ -39,7 +39,10 @@ from pipecat_flows import FlowArgs, FlowManager, FlowResult, FlowsFunctionSchema
 import inflect
 import difflib
 
-sys.path.append(str(Path(__file__).parent.parent))
+# Add examples directory to Python path for runner import
+examples_dir = Path(__file__).parent.parent.parent
+if str(examples_dir) not in sys.path:
+    sys.path.insert(0, str(examples_dir))
 from runner import configure
 
 load_dotenv(override=True)
